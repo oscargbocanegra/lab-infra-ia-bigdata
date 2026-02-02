@@ -1,0 +1,19 @@
+# Secrets / env real
+.env
+*.env
+secrets/
+**/secrets/
+**/*.key
+**/*.pem
+**/*token*
+**/*password*
+**/*secret*
+
+# Logs / runtime
+*.log
+**/logs/
+**/.pytest_cache/
+**/__pycache__/
+
+# OS
+.DS_Store
