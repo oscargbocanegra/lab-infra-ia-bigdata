@@ -1,0 +1,376 @@
+
+1) Lectura técnica rápida de lo que tienes
+master1 (<IP_MASTER1>)
+	- CPU: i7-6700T (4C/8T) → decente para control plane, utilitarios, CI ligero.
+	- RAM: 31 GiB → bien para servicios de control/observabilidad.
+	- Disco: HDD 500 GB (ROTA=1) → no ideal para bases de datos intensivas.
+	- GPU: no.
+	- Usuarios:
+	- <USUARIO_ADMIN_1>  (grupo sudo)✅
+	- <USUARIO_ADMIN_2> (grupo sudo) ✅
+	- ✅ Ideal para: Swarm manager/control, Portainer, Traefik, DNS/infra, CI/CD, monitoreo, backups, utilidades.
+
+master2 (<IP_MASTER2>)
+	- CPU: i9-9900K (8C/16T) → fuerte para cómputo.
+	- RAM: 31 GiB → bien.
+	- Discos: NVMe 1TB (rápido) + HDD 2TB (bulk) → perfecto para datos.
+	- GPU: RTX 2080 Ti (11GB) + driver + CUDA OK.
+	- Red: cableada, IP fija, estable 24/7 ✅
+	- SSH: OK
+	- Sistema: limpio, sin servicios fallidos
+	- Usuarios:
+	- <USUARIO_ADMIN_1>  (grupo sudo)✅
+	- <USUARIO_ADMIN_2> (grupo sudo) ✅
+	- ✅ Ideal para: workloads pesados, AI/GPU, bases de datos, OpenSearch, pipelines, almacenamiento y volúmenes.
+
+|------------------------------------------------------------------------------------------------------------------------------|
+2) Arquitectura para el laboratorio (con 2 nodos)
+
+Swarm con 1 manager + 1 worker
+- Roles
+	- master1 (<IP_MASTER1>) → Swarm manager (control-plane) + servicios “ligeros/operativos”
+	- master2 (<IP_MASTER2>) → Swarm worker (compute + data + GPU) + servicios “pesados/stateful”
+|------------------------------------------------------------------------------------------------------------------------------|
+3) Dónde va cada componente
+Capa “Control / Entrada”
+
+En master2 (compute/data/GPU)
+	- IP: <IP_MASTER2>
+	- Docker Swarm Worker
+	- PostgreSQL (data en NVMe)
+	- OpenSearch (data en NVMe; logs en HDD si quieres)
+	- Ollama (usa GPU; modelos en NVMe o HDD según tamaño)
+	- JupyterLab (conda): recomendado aquí para acceso a GPU + NVMe (notebooks rápidos)
+	- Spark (workers aquí; y si quieres el “master” también aquí por latencia)
+	- Lago de datos (HDD 1.8T)
+
+	## Dev/AI:
+		- JupyterLab (conda): recomendado aquí para acceso a GPU + NVMe (notebooks rápidos)
+		- Opción pro: imágenes Docker por “perfil” (data-engineering / ai / spark) y montas el home de cada usuario.
+
+	## Storage primario:
+	- NVMe: volúmenes “calientes” (postgres, opensearch, ollama_models, jupyter_work)
+	- HDD 2TB: datasets, staging, backups locales, artefactos grandes (/srv/data, /srv/datasets, /srv/backups-local)
+
+	## Uso de discos (definitivo)
+			- NVMe (970 EVO – rápido)
+				- /srv/fastdata (en NVMe)
+			Para:
+			- Postgres data
+			- OpenSearch data
+			- Metadatos Airflow
+			- Metadatos n8n
+
+		- HDD 1.8T (lento, grande)
+				- /srv/datalake (en HDD)
+			Para:
+				- datasets crudos
+				- parquet / csv
+				- modelos .gguf (Ollama)
+				- notebooks
+				- artefactos de entrenamiento
+				- backups históricos
+
+master1 — Control Plane / Servicios livianos
+	- IP: <IP_MASTER1>
+	- Docker Swarm Manager (Leader)
+	- Traefik (gateway LAN)
+	- n8n (aprendizaje)
+	- Airflow Webserver + Scheduler
+	- Spark Master
+	- Portainer Agent / Server
+	- Backups (pull desde master2)
+	- NO almacena datos críticos
+
+	## Backups:
+		- master1 como repositorio de backups (recibe backups desde master2 por rsync/restic)
+
+Redes y exposición (solo LAN)
+	- Como es solo local, no necesitas complicarte con TLS público ni WAF.
+
+Publicar puertos de forma controlada en la LAN en master1 (entrypoint de administración) y en master2 (servicios de data).
+Usar nombres por DNS local (router) o /etc/hosts en tus PCs.
+Opción ordenada (pro pero igual simple)
+Montar Traefik solo LAN (sin Let’s Encrypt) para enrutar por hostnames:
+jupyter.lab.local, airflow.lab.local, n8n.lab.local, opensearch.lab.local
+Certificados: autofirmado o sin TLS si es LAN cerrada.
+
+|------------------------------------------------------------------------------------------------------------------------------|
+4) Manejo eficiente del cluster (operación)
+Reglas prácticas
+	- Todo lo “stateful” (DB/Index/Storage) → master2 con node labels/constraints
+	- Todo lo “control/entry/monitor” → master1
+	- Traefik publica; los servicios internos van por overlay network
+	- Etiquetas Swarm para “forzar” ubicación:
+
+Ejemplos:
+	- node.labels.role=control (master1)
+	- node.labels.role=compute (master2)
+	- node.labels.gpu=true (master2)
+	- node.labels.storage=nvme (master2)
+|------------------------------------------------------------------------------------------------------------------------------|
+5) Pasos recomendados (instalar/actualizar/factorizar) — roadmap operativo
+Fase A — Base de sistema (ambos)
+	- Actualizar OS y paquetes base
+	- SSH hardening (llaves, sin password si quieres)
+	- NTP/time-sync
+	- UFW/iptables baseline
+	- Crear estructura de discos/paths estándar:
+	- master2: /srv/docker/volumes, /srv/data, /srv/backups
+	- master1: /srv/backups/master2
+
+Fase B — Docker + Swarm
+	- Instalar Docker Engine en ambos
+		- En master1:
+			- docker swarm init --advertise-addr <IP_MASTER1>
+		- En master2:
+			- docker swarm join ...
+			- Crear redes overlay: public, internal
+			- Instalar Portainer + agent
+			- Deploy Traefik
+
+Fase C — GPU enable (solo master2)
+	- nvidia-container-toolkit
+	- configurar runtime
+	- test: container CUDA / nvidia-smi en container
+
+Fase D — Datos + observabilidad
+	- Prometheus + Grafana + Loki (master1)
+	- Postgres/Redis/OpenSearch (master2, con volumes en NVMe)
+	- Backups automáticos hacia master1
+
+Fase E — “Laboratorio IA”
+	- Vector DB / embeddings / inference (master2 GPU)
+	- Orquestación (n8n/Airflow) según tu preferencia:
+	- Airflow en master1 (scheduler/web)
+	- Workers en master2 (cargas pesadas)
+
+|------------------------------------------------------------------------------------------------------------------------------|
+6) Diseño de datos y storage (clave para que “vuele”)
+En master2: estructura sugerida
+	- NVMe + HDD (fastdata):
+		- /srv/fastdata/postgres
+		- /srv/fastdata/opensearch
+		- /srv/fastdata/airflow (metadata/logs si aplica)
+		- /srv/fastdata/portainer (si pones portainer server aquí)
+		- /srv/fastdata/traefik (si quieres certs/config aquí)
+
+	- HDD 1.8T (datalake):
+		 - /srv/datalake/datasets
+		 - /srv/datalake/models (gguf)
+		 - /srv/datalake/notebooks
+		 - /srv/datalake/artifacts
+		 - /srv/datalake/backups (backup frío)
+
+En master1:
+	- /srv/backups/master2 (backups recibidos)
+
+Con esto, Postgres/OpenSearch no mueren por IOPS (NVMe), y los datasets grandes no llenan el NVMe (van al HDD).
+
+|------------------------------------------------------------------------------------------------------------------------------|
+7) Swarm:
+En Swarm, lo correcto es etiquetar nodos y forzar placement.
+	- Labels
+	- master1:
+	- role=control
+	- master2:
+	- role=compute
+	- gpu=true
+	- storage=fast
+
+Luego, en cada servicio:
+	- Postgres/OpenSearch/Ollama/Jupyter/Spark → node.labels.role == compute
+	- Airflow scheduler/web/n8n/Portainer/monitoring → node.labels.role == control
+	- Ollama/GPU containers → node.labels.gpu == true
+
+|------------------------------------------------------------------------------------------------------------------------------|
+8) Diagrama lógico final del laboratorio (2 nodos, Swarm, LAN-only)
+master1 (<IP_MASTER1>) — Control plane / Gateway LAN
+	- Rol Swarm: Manager (Leader)
+	- Persistencia principal: /srv/fastdata (en tu caso es el FS LVM de /srv)
+	- Corre aquí (ligero, control y exposición):
+	 	-- Traefik (entrada LAN, reverse proxy, TLS interno opcional)
+	 	-- Portainer (UI de Swarm)
+	 	-- Airflow webserver + scheduler (stateless; metadatos en Postgres remoto)
+	 	-- Spark master (control)
+	 	-- n8n (opcional: puede ir aquí por liviano)
+	- Idea: master1 no guarda datos críticos; solo “control y acceso”.
+
+master2 (<IP_MASTER2>) — Data + Compute + GPU
+	- Rol Swarm: Worker
+	- Persistencia rápida (NVMe): DBs operativas (en tu caso bajo /srv/fastdata/... en el root NVMe)
+	- Persistencia masiva (HDD 1.8T): /srv/datalake (datasets/modelos/artifacts/backups)
+	- Corre aquí (pesado, datos y GPU):
+		- Postgres (NVMe) — metadatos Airflow + n8n + apps
+		- OpenSearch (NVMe) — índices, performance
+		- Ollama (GPU) — modelos en /srv/datalake/models
+		- JupyterLab (compute, cerca de GPU y datos)
+		- Spark workers (compute)
+
+Flujos principales (LAN)
+	- Usuario LAN → Traefik (master1) → rutas internas:
+		- /portainer → Portainer (master1)
+		- /airflow → Airflow webserver (master1)
+		- /n8n → n8n (master1 o master2)
+		- /jupyter → Jupyter (master2)
+		- /opensearch / dashboards (si lo expones) → master2
+	- Airflow (master1) → Postgres (master2) (metadatos)
+	- Airflow/Jupyter → Datalake (master2) (/srv/datalake/...) para datasets/modelos
+	- Servicios → logs/artefactos → /srv/datalake/artifacts y backups → /srv/datalake/backups
+
+|------------------------------------------------------------------------------------------------------------------------------|
+9) Spark en 2 nodos: recomendación realista
+
+Con 2 máquinas:
+	- Mejor: Spark Master + Worker en master2 para rendimiento y simplicidad, y usas master1 para enviar jobs/airflow.
+		- Si quieres algo “equilibrado”:
+			- Spark Master en master1
+			- Spark Worker en master2 (principal)
+				- (Opcional) Spark Worker liviano en master1 si te sobra CPU, pero tu disco ahí es HDD, así que para jobs pesados no vale tanto.
+|------------------------------------------------------------------------------------------------------------------------------|
+10) Plan de instalación por fases (sin enredos)
+
+Fase 1 — Base del cluster (red, ssh, firewall, reloj)
+	- Instalar Docker en ambos
+	- Inicializar Swarm en master1
+	- Join en master2
+	- Crear redes overlay: public y internal
+	- Poner labels a nodos
+	- Portainer (control)
+
+Fase 2 — Storage en master2
+Crear rutas /srv/... en NVMe y HDD
+(Opcional) Montar HDD en /srv/data fijo (fstab)
+Definir estrategia de backups master2→master1
+
+Fase 3 — Estructura de volúmenes (master2)
+
+master2 (NVMe + HDD)
+	NVMe (fastdata):
+		/srv/fastdata/postgres
+		/srv/fastdata/opensearch
+		/srv/fastdata/airflow (metadata/logs si aplica)
+		/srv/fastdata/portainer (si pones portainer server aquí)
+		/srv/fastdata/traefik (si quieres certs/config aquí)
+
+	HDD 1.8T (datalake):
+		/srv/datalake/datasets
+		/srv/datalake/models (gguf)
+		/srv/datalake/notebooks
+		/srv/datalake/artifacts
+		/srv/datalake/backups (backup frío)
+
+Fase 4 — Stack base en Swarm (arranque ordenado)
+Desde aquí todo lo desplegamos con docker stack deploy y constraints por labels.
+
+Orden recomendado:
+	Traefik (en master1, tier=control)
+	Portainer Agent (global en ambos)
+	Postgres (solo master2, storage=primary)
+	OpenSearch (solo master2, storage=primary)
+	Airflow (web/scheduler en master1; workers pueden ir master2)
+	Spark (master en master1, workers en master2)
+	Ollama (solo master2, gpu=nvidia)
+	JupyterLab (preferible master2 por GPU/IO, o master1 si quieres liviano)
+
+Fase 5 — Observabilidad + operación
+Prometheus/Grafana/Loki (master1)
+Alertas básicas y healthchecks
+|------------------------------------------------------------------------------------------------------------------------------|
+10)
+| Servicio           | Nodo recomendado                                                             | Motivo                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| OpenSearch         | master2                                                                      | I/O + persistencia fuerte; NVMe mejora muchísimo.                                       |
+| Postgres           | master2                                                                      | DB core; NVMe + local volumes.                                                          |
+| Airflow            | Web/Scheduler en master1 + DB en master2                                     | separas “control web/scheduler” del storage; master1 aguanta bien CPU.                  |
+| JupyterLab (conda) | master2                                                                      | cercano a GPU + mejor CPU.                                                              |
+| Ollama             | master2                                                                      | GPU.                                                                                    |
+| Spark              | Master en master1 + Worker en master2 (y opcional worker también en master1) | master liviano, workers donde haya CPU.                                                 |
+| n8n                | master1 o master2                                                            | si usa muchos archivos/ejecuciones, ponlo en master2 con la DB; si es liviano, master1. |
+
+
+|------------------------------------------------------------------------------------------------------------------------------|
+11)
+Estándares operativos (para manejarlo eficiente)
+
+3.1 GitOps simple (porque todo está en GitHub)
+Un repo: lab-stacks/
+			- stacks/traefik/stack.yml
+			- stacks/postgres/stack.yml
+			- stacks/opensearch/stack.yml
+			- stacks/airflow/stack.yml
+			- stacks/n8n/stack.yml
+			- stacks/spark/stack.yml
+			- stacks/jupyter/stack.yml
+			- .env por stack (no commitear secretos)
+
+Deploy siempre desde master1 (manager):
+docker stack deploy -c stacks/postgres/stack.yml postgres
+etc.
+
+3.2 Política de persistencia
+Volúmenes locales fijados por nodo (con placement.constraints) para Postgres/OpenSearch.
+Backups por job:
+pg_dump diario/semanal
+snapshots de directorios (restic/rsync) hacia master1 /srv/backup
+
+3.3 Red interna y nombres
+En /etc/hosts de ambos:
+<IP_MASTER1> master1
+<IP_MASTER2> master2
+
+Overlay network Swarm para que los servicios hablen por nombre (service discovery).
+|------------------------------------------------------------------------------------------------------------------------------|
+12)
+Secuencia de instalación (stacks) recomendada en Swarm (orden correcto)
+
+Todo esto lo ejecutas desde master1 (manager).
+La persistencia “pesada” se fija a master2 con constraints.
+
+Orden:
+traefik (o gateway)
+postgres (master2)
+opensearch (master2)
+airflow (web/scheduler en master1, metadata DB en master2)
+n8n (según decisión)
+jupyter + ollama (master2)
+spark (master1 master + master2 worker)
+|------------------------------------------------------------------------------------------------------------------------------|
+Infra como repo Git + secrets + despliegue reproducible (paso a paso)
+	- La meta: Infra-as-Code con:
+		- un repo lab-infra
+		- stacks Swarm versionados
+		- .env locales (no se suben)
+		- docker secrets para credenciales
+		- despliegue con make o scripts simples desde master1 (manager)
+	- Dónde ubicar el repo (recomendado)
+		- En master1 (manager), porque desde ahí harás docker stack deploy.
+		- Ruta recomendada:
+		- /srv/fastdata/infra/lab-infra (persistente y ordenado)
+|------------------------------------------------------------------------------------------------------------------------------|
+Convención de “paths” de volúmenes (clave)
+Define desde ya estas rutas (coinciden con lo que ya creaste):
+master1 (control / gateway):
+	- /srv/fastdata/traefik
+	- /srv/fastdata/portainer
+	- /srv/fastdata/airflow
+	- /srv/fastdata/n8n
+	- /srv/fastdata/backups (opcional)
+master2 (data/compute):
+	- /srv/fastdata/postgres
+	- /srv/fastdata/opensearch
+	- /srv/fastdata/airflow (si guardas dags/logs aquí, pero mejor en datalake)
+	- /srv/datalake/datasets
+	- /srv/datalake/models
+	- /srv/datalake/notebooks
+	- /srv/datalake/artifacts
+	- /srv/datalake/backups
+
+En Swarm los bind mounts deben existir en el nodo donde corre el servicio. Por eso “pinned” por labels/constraints.
+|------------------------------------------------------------------------------------------------------------------------------|
+
+|------------------------------------------------------------------------------------------------------------------------------|
+
+|------------------------------------------------------------------------------------------------------------------------------|
+
+|------------------------------------------------------------------------------------------------------------------------------|

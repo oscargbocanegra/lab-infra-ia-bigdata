@@ -1,0 +1,105 @@
+=== HOST ===
+master1
+=== CPU ===
+CPU(s):                               8
+On-line CPU(s) list:                  0-7
+Model name:                           Intel(R) Core(TM) i7-6700T CPU @ 2.80GHz
+Thread(s) per core:                   2
+Core(s) per socket:                   4
+CPU(s) scaling MHz:                   59%
+NUMA node0 CPU(s):                    0-7
+=== RAM ===
+               total        used        free      shared  buff/cache   available
+Mem:            31Gi       6,1Gi        23Gi       5,0Mi       2,1Gi        25Gi
+Swap:          2,0Gi          0B       2,0Gi
+=== DISK ===
+NAME  MODEL              SIZE ROTA
+loop0                   50,9M    1
+loop1                   73,9M    1
+loop2                     74M    1
+loop3                   19,9M    1
+loop4                     20M    1
+loop5                   48,1M    1
+loop6                   66,8M    1
+loop7                   66,8M    1
+sda   WDC WD5000LPLX-0 465,8G    1
+=== GPU ===
+No GPU
+=== IP ===
+<IP_MASTER1> <IP_DOCKER0> <IP_DOCKER_GWBRIDGE_B>
+
+
+
+
+=== HOST ===
+master2
+=== CPU ===
+CPU(s):                               16
+On-line CPU(s) list:                  0-15
+Model name:                           Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz
+Thread(s) per core:                   2
+Core(s) per socket:                   8
+CPU(s) scaling MHz:                   33%
+NUMA node0 CPU(s):                    0-15
+=== RAM ===
+               total        used        free      shared  buff/cache   available
+Mem:            31Gi       833Mi        30Gi       1.6Mi       311Mi        30Gi
+Swap:          8.0Gi          0B       8.0Gi
+=== DISK ===
+NAME    MODEL                     SIZE ROTA
+loop0                            56.5M    0
+loop1                              74M    0
+loop2                           437.8M    0
+loop3                            48.1M    0
+sda     ST2000LM015-2E81          1.8T    1
+nvme0n1 Samsung SSD 970 EVO 1TB 931.5G    0
+=== GPU ===
+Sun Feb  1 <IPV6_PRIVADA> 2026
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.288.01             Driver Version: 535.288.01   CUDA Version: 12.2     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  NVIDIA GeForce RTX 2080 Ti     Off | 00000000:01:00.0 Off |                  N/A |
+|  0%   46C    P0              46W / 260W |      0MiB / 11264MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
+=== IP ===
+<IP_MASTER2> <IPV6_PRIVADA>
+
+
+
+
+
+
++-------------------------------------------------------------------------------------------------------------------------+
+Perfecto. Con esa “primera parte” ya podemos decidir roles y distribución con bastante confianza.
++-------------------------------------------------------------------------------------------------------------------------+
+1) Lectura técnica rápida de lo que tienes
++-------------------------------------------------------------------------------------------------------------------------+
+master1 (<IP_MASTER1>)
++-------------------------------------------------------------------------------------------------------------------------+
+CPU: i7-6700T (4C/8T) → decente para control plane, utilitarios, CI ligero.
+RAM: 31 GiB → bien para servicios de control/observabilidad.
+Disco: HDD 500 GB (ROTA=1) → no ideal para bases de datos intensivas.
+GPU: no.
+✅ Ideal para: Swarm manager/control, Portainer, Traefik, DNS/infra, CI/CD, monitoreo, backups, utilidades.
++-------------------------------------------------------------------------------------------------------------------------+
+master2 (<IP_MASTER2>)
++-------------------------------------------------------------------------------------------------------------------------+
+CPU: i9-9900K (8C/16T) → fuerte para cómputo.
+RAM: 31 GiB → bien.
+Discos: NVMe 1TB (rápido) + HDD 2TB (bulk) → perfecto para datos.
+GPU: RTX 2080 Ti (11GB) + driver + CUDA OK.
+✅ Ideal para: workloads pesados, AI/GPU, bases de datos, OpenSearch, pipelines, almacenamiento y volúmenes.
++-------------------------------------------------------------------------------------------------------------------------+

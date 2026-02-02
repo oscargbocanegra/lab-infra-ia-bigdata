@@ -1,0 +1,15 @@
+=== HOST REPORT (REDACTED) ===
+
+Este archivo fue redactado para publicarse en GitHub sin exponer datos sensibles.
+
+Se removieron/reemplazaron: IPs (LAN/Docker), IDs de máquina/boot, UUIDs, direcciones IPv6,
+huellas de hardware (vendor/model/firmware), y cualquier otro identificador único.
+
+Contenido conservado a nivel de mapa:
+- Rol del nodo (control/compute)
+- Sistema operativo (familia)
+- Capacidades (CPU/RAM/Disco) a nivel general
+- Montajes relevantes (ej: /srv, /srv/fastdata, /srv/datalake) a nivel de rutas
+
+Si necesitás el detalle completo para troubleshooting, guardalo fuera del repo
+(por ejemplo en un vault privado o en un archivo local no versionado).
