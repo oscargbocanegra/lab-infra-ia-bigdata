@@ -1,4 +1,10 @@
 # lab-infra-ia-bigdata
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+Infra Project Ia and Big Data
+=======
+>>>>>>> 98cc2f9 (track repo directories with .gitkeep)
 
 ## Objetivo
 Infra reproducible en Docker Swarm para IA/Big Data, con seguridad por defecto, observabilidad y despliegue por fases.
@@ -29,3 +35,7 @@ Infra reproducible en Docker Swarm para IA/Big Data, con seguridad por defecto, 
 ## Uso rápido
 - Validaciones: scripts/verify/
 - Despliegue: docker stack deploy -c stacks/<...>/stack.yml <stackname>
+<<<<<<< HEAD
+=======
+>>>>>>> f694c86 (init repo structure)
+>>>>>>> 98cc2f9 (track repo directories with .gitkeep)
