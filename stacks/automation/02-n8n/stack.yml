@@ -16,7 +16,7 @@ networks:
 
 services:
   n8n:
-    image: n8nio/n8n:1
+    image: n8nio/n8n:2.4.7
     user: "1000:1000"
 
     environment:
