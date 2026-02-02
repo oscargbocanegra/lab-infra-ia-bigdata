@@ -69,13 +69,18 @@ services:
       labels:
         - traefik.enable=true
 
-        # Dashboard: https://traefik.sexydad
-        - traefik.http.routers.traefik.rule=Host(`traefik.sexydad`)
+        # Dashboard: https://traefik.sexydad  (sirve en /dashboard/ y /api)
+        - traefik.http.routers.traefik.rule=Host(`traefik.sexydad`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
         - traefik.http.routers.traefik.entrypoints=websecure
         - traefik.http.routers.traefik.tls=true
-        - traefik.http.routers.traefik.service=api@internal
-        - traefik.http.routers.traefik.middlewares=lan-whitelist@docker,traefik-auth@docker
+
+        # En Swarm: define explícitamente el puerto del backend (evita "port is missing")
+        - traefik.http.routers.traefik.service=traefik-dashboard
+        - traefik.http.services.traefik-dashboard.loadbalancer.server.port=8080
+        - traefik.http.services.traefik-traefik.loadbalancer.server.port=8080
+
 
         # Mitigación mínima: LAN only + BasicAuth
+        - traefik.http.routers.traefik.middlewares=lan-whitelist@docker,traefik-auth@docker
         - traefik.http.middlewares.lan-whitelist.ipwhitelist.sourcerange=192.168.80.0/24
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
