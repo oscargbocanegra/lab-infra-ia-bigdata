@@ -41,7 +41,7 @@ Hardening mínimo recomendado (no bloquea, pero conviene):
 
 1) Traefik ✅
 2) Portainer ✅
-3) **Postgres (stateful)** ⏭️ (NEXT)
+3) Postgres ✅
 4) **n8n** (depende de Postgres)
 5) OpenSearch
 6) Jupyter / Ollama
@@ -56,10 +56,10 @@ Stacks ya implementados:
 
 - Traefik: `stacks/core/00-traefik/stack.yml` (+ `stacks/core/00-traefik/dynamic.yml`)
 - Portainer: `stacks/core/01-portainer/stack.yml`
+- Postgres: `stacks/core/02-postgres/stack.yml` (+ initdb en `stacks/core/02-postgres/initdb/`)
 
 Carpetas creadas (pendiente definir `stack.yml`):
 
-- Postgres: `stacks/data/10-postgres/`
 - OpenSearch: `stacks/data/11-opensearch/`
 - Spark: `stacks/data/98-spark/`
 - n8n: `stacks/automation/02-n8n/`
@@ -93,7 +93,7 @@ Traefik (actual):
 
 Pendiente (por definir para stacks siguientes):
 
-- [ ] Postgres: password de superuser y/o usuario app (n8n)
+- ✅ Postgres: `pg_super_pass` y `pg_n8n_pass` creados (Swarm secrets externos)
 - [ ] n8n: encryption key + credenciales admin (si aplica)
 - [ ] OpenSearch: credenciales/usuarios (si se expone)
 - [ ] Airflow: fernet key + credenciales/conexiones (si aplica)
@@ -301,7 +301,7 @@ Pendiente (upgrade / migración al final):
 
 ---
 
-## Bloque NEXT — Postgres (master2) ✅ prioridad #1
+## Bloque — Postgres (master2) ✅
 
 Objetivo: Postgres stateful en Swarm, persistiendo en `/srv/fastdata/postgres`, accesible por red `internal` para `n8n`.
 
@@ -309,39 +309,49 @@ Prerequisitos:
 
 - ✅ Redes Swarm: `internal` (y `public` si se expone algo; recomendado NO)
 - ✅ Directorio en master2: `/srv/fastdata/postgres`
-- [ ] Secrets de Postgres creados (passwords) (pendiente)
+- ✅ Secrets de Postgres creados en Swarm (passwords)
 
-Secrets esperados (propuesto):
+Secrets esperados (según stack actual `stacks/core/02-postgres/stack.yml`):
 
-- [ ] `postgres_superuser_password`
-- [ ] `postgres_n8n_password`
+- ✅ `pg_super_pass` (password del usuario `postgres`)
+- ✅ `pg_n8n_pass` (password del usuario/rol `n8n`)
 
-Comando típico de despliegue (cuando exista `stack.yml`):
+Creación (ejemplo; ejecutar una sola vez por Swarm):
 
-- `docker stack deploy -c stacks/data/10-postgres/stack.yml postgres`
+- [ ] `printf '%s' '<SUPER_PASS>' | docker secret create pg_super_pass -`
+- [ ] `printf '%s' '<N8N_PASS>' | docker secret create pg_n8n_pass -`
+
+Comando típico de despliegue:
+
+- `docker stack deploy -c stacks/core/02-postgres/stack.yml postgres`
 
 Checklist:
-- [ ] (Repo) Crear `stacks/data/10-postgres/stack.yml`
-- [ ] (Repo) Agregar `envs/examples/data-postgres.env.example` (sin secretos) o documentar variables
-- [ ] Definir variables/secretos para Postgres (passwords, db, user)
-- [ ] Definir versión de imagen de Postgres y política de upgrade
-- [ ] Definir estrategia de persistencia (directorio, ownership/permisos, fsync)
-- [ ] Definir estrategia de backup (lógico/physical) y ubicación (ideal: `/srv/datalake/backups`) [~]
-- [ ] Desplegar stack Postgres (con placement a master2 si aplica)
-- [ ] Verificar health/ready y persistencia real en `/srv/fastdata/postgres`
-- [ ] Crear DB + user para n8n
-- [ ] Validar conectividad desde contenedor en red `internal`
+- ✅ (Repo) Stack definido: `stacks/core/02-postgres/stack.yml`
+- ✅ (Repo) Init script para n8n: `stacks/core/02-postgres/initdb/01-init-n8n.sh`
+- ✅ Crear secrets (`pg_super_pass`, `pg_n8n_pass`)
+- ✅ Revisar/confirmar placement constraint del servicio (hoy: `node.hostname == master2`)
+- ✅ Desplegar stack Postgres
+- ✅ Verificar health/ready y persistencia real en `/srv/fastdata/postgres`
+- ✅ Verificar que DB `n8n` + rol `n8n` quedan creados por initdb
+- ✅ Validar conectividad desde un contenedor en la red `internal`
+- [ ] Definir estrategia de backup (lógico) y ubicación (ideal: `/srv/datalake/backups`) [~]
 
 Criterios de “OK” (mínimos):
-- [ ] El servicio queda `running` y estable (sin restart loop)
-- [ ] Al reiniciar el contenedor/servicio, la data persiste
-- [ ] Se puede autenticar con el usuario de n8n
+- ✅ El servicio queda `running` y estable (sin restart loop)
+- ✅ Al reiniciar el contenedor/servicio, la data persiste
+- ✅ Existe DB `n8n` y rol `n8n`, y `n8n` puede conectar
 
 Checks sugeridos (post-deploy):
 
-- [ ] `docker service ls | grep postgres`
-- [ ] `docker service ps postgres_<servicio>` sin errores
-- [ ] Conectividad interna: ejecutar `psql` desde un contenedor en red `internal`
+- ✅ `docker service ls | grep postgres`
+- ✅ `docker service ps postgres_postgres` sin errores
+- ✅ Logs limpios (sin crashloop): `docker service logs postgres_postgres --tail 200`
+- ✅ Validar objetos creados (desde el contenedor):
+  - `docker exec -it $(docker ps --filter name=postgres_postgres -q | head -n1) psql -U postgres -d n8n -c "\\du"`
+  - `docker exec -it $(docker ps --filter name=postgres_postgres -q | head -n1) psql -U postgres -d n8n -c "\\l"`
+- ✅ Conectividad por overlay `internal` (desde un contenedor temporal):
+  - `docker run --rm -it --network internal postgres:16 psql -h postgres -U n8n -d n8n`
+- ✅ Persistencia: reiniciar servicio y confirmar que el directorio `/srv/fastdata/postgres` conserva data
 
 ---
 
