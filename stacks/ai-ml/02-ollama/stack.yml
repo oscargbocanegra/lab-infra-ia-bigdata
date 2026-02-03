@@ -1,0 +1,86 @@
+version: "3.8"
+
+# ============================================================
+# Stack: Ollama - LLM Inference Engine
+# ============================================================
+# Purpose: GPU-accelerated LLM inference with persistent model storage
+# Node: master2 (GPU RTX 2080 Ti)
+# Networks: internal (backend), public (Traefik ingress)
+# ============================================================
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    hostname: ollama
+    
+    networks:
+      - internal
+      - public
+    
+    volumes:
+      # Persistent model storage on datalake (HDD)
+      - type: bind
+        source: /srv/datalake/models/ollama
+        target: /root/.ollama
+    
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_ORIGINS=*
+    
+    deploy:
+      mode: replicated
+      replicas: 1
+      
+      placement:
+        constraints:
+          - node.labels.tier == compute
+          - node.labels.gpu == nvidia
+      
+      resources:
+        reservations:
+          cpus: '4.0'
+          memory: 8G
+          generic_resources:
+            - discrete_resource_spec:
+                kind: 'nvidia.com/gpu'
+                value: 1
+        limits:
+          cpus: '8.0'
+          memory: 16G
+      
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+      
+      labels:
+        # Traefik routing
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        
+        # HTTP Router
+        - "traefik.http.routers.ollama.rule=Host(`ollama.<INTERNAL_DOMAIN>`)"
+        - "traefik.http.routers.ollama.entrypoints=websecure"
+        - "traefik.http.routers.ollama.tls=true"
+        - "traefik.http.routers.ollama.service=ollama"
+        
+        # Service
+        - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+        
+        # Middleware: LAN whitelist + BasicAuth (optional)
+        - "traefik.http.routers.ollama.middlewares=lan-whitelist@file"
+        
+        # Health check
+        - "traefik.http.services.ollama.loadbalancer.healthcheck.path=/api/tags"
+        - "traefik.http.services.ollama.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.ollama.loadbalancer.healthcheck.timeout=5s"
+
+networks:
+  internal:
+    external: true
+    name: internal
+  
+  public:
+    external: true
+    name: public

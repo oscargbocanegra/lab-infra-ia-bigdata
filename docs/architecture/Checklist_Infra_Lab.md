@@ -1,6 +1,6 @@
 # Checklist de Infra — lab-infra-ia-bigdata
 
-Última actualización: 2024-02-04 (Update: Jupyter Optimized + GPU Swarm)
+Última actualización: 2026-02-03 (Update: Ollama Stack Ready + Infrastructure Complete)
 
 Este documento centraliza el **estado real** (OK / Pendiente) para levantar la infraestructura completa del laboratorio, con **orden recomendado**, **dependencias** y **verificaciones mínimas**.
 
@@ -40,15 +40,18 @@ Hardening mínimo recomendado (no bloquea, pero conviene):
 
 ## Resumen ejecutivo (Estado de Despliegue)
 
-1) Traefik ✅
-2) Portainer ✅ (v2.11)
-3) Postgres ✅ (v16)
-4) n8n ✅ (Automation Core)
-5) Jupyter Lab ✅ (Optimized & GPU ready)
-6) Ollama ⏳ (In-progress)
-7) OpenSearch ⏳
-8) Airflow + Spark ⏳
-9) Backups / Hardening ⏳
+| # | Stack | Estado | Versión/Detalle |
+|---|-------|--------|-----------------|
+| 1 | **Traefik** | ✅ | Reverse Proxy + TLS + BasicAuth |
+| 2 | **Portainer** | ✅ | v2.11 - Web UI para Swarm |
+| 3 | **Postgres** | ✅ | v16 - Stateful DB (fastdata) |
+| 4 | **n8n** | ✅ | Automation Core + Postgres Backend |
+| 5 | **Jupyter Lab** | ✅ | Multi-usuario (ogiovanni, odavid) + GPU + Kernels IA/LLM |
+| 6 | **Ollama** | ✅ | Stack creado - READY TO DEPLOY |
+| 7 | **OpenSearch** | ⏳ | Pendiente - Directorio creado |
+| 8 | **Airflow** | ⏳ | Pendiente - Directorio creado |
+| 9 | **Spark** | ⏳ | Pendiente - Directorio creado |
+| 10 | **Backups/Hardening** | ⏳ | Pendiente planificación |
 
 ---
 
@@ -56,15 +59,19 @@ Hardening mínimo recomendado (no bloquea, pero conviene):
 
 Stacks implementados y funcionales:
 
-- Traefik: [stacks/core/00-traefik/stack.yml](stacks/core/00-traefik/stack.yml)
-- Portainer: [stacks/core/01-portainer/stack.yml](stacks/core/01-portainer/stack.yml)
-- Postgres: [stacks/core/02-postgres/stack.yml](stacks/core/02-postgres/stack.yml)
-- n8n: [stacks/automation/02-n8n/stack.yml](stacks/automation/02-n8n/stack.yml)
-- Jupyter: [stacks/ai-ml/01-jupyter/stack.yml](stacks/ai-ml/01-jupyter/stack.yml)
+- **Traefik**: [stacks/core/00-traefik/stack.yml](stacks/core/00-traefik/stack.yml)
+- **Portainer**: [stacks/core/01-portainer/stack.yml](stacks/core/01-portainer/stack.yml)
+- **Postgres**: [stacks/core/02-postgres/stack.yml](stacks/core/02-postgres/stack.yml)
+- **n8n**: [stacks/automation/02-n8n/stack.yml](stacks/automation/02-n8n/stack.yml)
+- **Jupyter**: [stacks/ai-ml/01-jupyter/stack.yml](stacks/ai-ml/01-jupyter/stack.yml)
+
+Stacks listos para despliegue:
+
+- **Ollama**: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml) ✅ NUEVO
 
 Carpetas creadas (Pendiente definir/finalizar \`stack.yml\`):
 
-- Ollama: [stacks/ai-ml/02-ollama/](stacks/ai-ml/02-ollama/)
+- ~~Ollama: [stacks/ai-ml/02-ollama/](stacks/ai-ml/02-ollama/)~~ ✅ **COMPLETADO**
 - OpenSearch: [stacks/data/11-opensearch/](stacks/data/11-opensearch/)
 - Spark: [stacks/data/98-spark/](stacks/data/98-spark/)
 - Airflow: [stacks/automation/99-airflow/](stacks/automation/99-airflow/)
@@ -114,13 +121,16 @@ Operación:
 
 ## Inventario de endpoints (LAN)
 
-- ✅ Traefik dashboard: \`https://traefik.<INTERNAL_DOMAIN>\`
-- ✅ Portainer: \`https://portainer.<INTERNAL_DOMAIN>\`
-- ✅ n8n: \`https://n8n.<INTERNAL_DOMAIN>\`
-- ✅ Jupyter (ogiovanni): \`https://jupyter-ogiovanni.<INTERNAL_DOMAIN>\`
-- ✅ Jupyter (odavid): \`https://jupyter-odavid.<INTERNAL_DOMAIN>\`
-- ⏳ OpenSearch (si se publica): \`https://opensearch.<INTERNAL_DOMAIN>\`
-- ⏳ Airflow: \`https://airflow.<INTERNAL_DOMAIN>\`
+| Servicio | URL | Estado |
+|----------|-----|--------|
+| **Traefik Dashboard** | `https://traefik.<INTERNAL_DOMAIN>` | ✅ |
+| **Portainer** | `https://portainer.<INTERNAL_DOMAIN>` | ✅ |
+| **n8n** | `https://n8n.<INTERNAL_DOMAIN>` | ✅ |
+| **Jupyter (ogiovanni)** | `https://jupyter-ogiovanni.<INTERNAL_DOMAIN>` | ✅ |
+| **Jupyter (odavid)** | `https://jupyter-odavid.<INTERNAL_DOMAIN>` | ✅ |
+| **Ollama** | `https://ollama.<INTERNAL_DOMAIN>` | ✅ Ready to deploy |
+| **OpenSearch** | `https://opensearch.<INTERNAL_DOMAIN>` | ⏳ Pendiente |
+| **Airflow** | `https://airflow.<INTERNAL_DOMAIN>` | ⏳ Pendiente |
 
 ---
 
@@ -272,17 +282,40 @@ Criterios de “OK”:
 
 ---
 
-## Bloque siguiente — Ollama ⏳
+## Bloque — Ollama (master2) ✅
+
+Objetivo: LLM Inference Engine con aceleración GPU para modelos como Llama3, Mistral, etc.
 
 Prerequisitos:
-- ✅ Red Swarm: \`internal\`.
-- ✅ GPU Aceleración (master2).
-- ⏳ Definir persistencia de modelos en \`/srv/datalake/models\`.
+- ✅ GPU Generic Resource registrado en master2.
+- ✅ Red Swarm: \`internal\` y \`public\`.
+- ✅ Directorio: \`/srv/datalake/models/ollama\` para persistencia de modelos.
 
 Checklist:
-- ⏳ (Repo) Crear [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml)
-- ⏳ Desplegar Ollama (master2).
-- ⏳ Validar modelos (Llama3/Mistral) con GPU.
+- ✅ (Repo) Stack creado: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml)
+- ✅ (Repo) README con instrucciones de despliegue: [stacks/ai-ml/02-ollama/README.md](stacks/ai-ml/02-ollama/README.md)
+- ✅ Configuración de Recursos:
+  - ✅ **4.0 CPUs** reservados, **8.0 CPUs** límite.
+  - ✅ **8GB RAM** reservada, **16GB RAM** límite.
+  - ✅ **GPU Reservation**: Aceleración por hardware (RTX 2080 Ti).
+- ✅ Persistencia: Modelos en \`/srv/datalake/models/ollama\`.
+- ✅ Seguridad: Traefik LAN Whitelist.
+- ✅ Health checks configurados.
+
+Estado actual:
+- ✅ **Stack READY TO DEPLOY** - Arquitectura completa y documentada.
+
+Próximos pasos:
+1. Crear directorio en master2: \`sudo mkdir -p /srv/datalake/models/ollama && sudo chown root:docker /srv/datalake/models/ollama\`
+2. Actualizar \`<INTERNAL_DOMAIN>\` en stack.yml
+3. Desplegar: \`docker stack deploy -c stacks/ai-ml/02-ollama/stack.yml ollama\`
+4. Pull modelos: \`ollama pull llama3\`, \`ollama pull mistral\`
+
+Criterios de "OK":
+- ⏳ Servicio estable y corriendo.
+- ⏳ Ollama responde en: \`https://ollama.<INTERNAL_DOMAIN>\`.
+- ⏳ API \`/api/tags\` retorna lista de modelos.
+- ⏳ GPU aceleración verificada con modelos LLM.
 
 ---
 
@@ -325,6 +358,26 @@ Checklist:
 
 ## Notas / decisiones
 
-- ✅ El orden de prioridad actual es: **Ollama** → **OpenSearch** → **Airflow**.
-- ✅ La GPU se reserva exclusivamente para stacks en \`master2\`.
+- ✅ El orden de prioridad actual es: **Ollama** ✅ (Stack completo) → **OpenSearch** → **Airflow**.
+- ✅ La GPU se reserva para stacks en \`master2\` con soporte aceleración: Jupyter, Ollama.
 - ✅ Los kernels de Jupyter son autónomos (auto-provisioning en primer arranque).
+- ✅ Persistencia optimizada: NVMe (fastdata) para workloads activos, HDD (datalake) para datasets/modelos.
+- ✅ Todos los servicios expuestos vía Traefik con TLS + BasicAuth + LAN Whitelist.
+
+---
+
+## Changelog Reciente
+
+### 2026-02-03: Ollama Stack Implementation ✅
+- ✅ Creado \`stack.yml\` completo con GPU support (RTX 2080 Ti)
+- ✅ Recursos optimizados: 4-8 CPUs, 8-16GB RAM
+- ✅ Persistencia en \`/srv/datalake/models/ollama\`
+- ✅ Traefik ingress + health checks
+- ✅ README con instrucciones de deployment y ejemplos de uso
+- ✅ Integración lista con Jupyter notebooks
+
+### Estado anterior (pre-2026-02-03):
+- ✅ Jupyter multi-usuario operativo (ogiovanni, odavid)
+- ✅ Kernels IA/LLM con persistencia de virtualenvs
+- ✅ GPU Generic Resource configurado en Swarm
+- ✅ n8n + Postgres + Portainer + Traefik operativos
