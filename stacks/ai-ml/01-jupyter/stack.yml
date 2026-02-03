@@ -1,26 +1,44 @@
 version: "3.9"
 
+configs:
+  init_kernels:
+    file: ./init-kernels.sh
+  entrypoint:
+    file: ./entrypoint.sh
+
 services:
   jupyter_ogiovanni:
     image: jupyter/datascience-notebook:python-3.11
+    healthcheck:
+      disable: true
     environment:
       - JUPYTER_ENABLE_LAB=yes
-      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_VISIBLE_DEVICES=0
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
       - CHOWN_HOME=yes
       - CHOWN_HOME_OPTS='-R'
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
+      - /srv/fastdata/jupyter/ogiovanni/.local:/home/jovyan/.local
+      - /srv/fastdata/jupyter/ogiovanni/.venv:/home/jovyan/.venv
+    configs:
+      - source: init_kernels
+        target: /tmp/init-kernels.sh
+        mode: 0755
+      - source: entrypoint
+        target: /tmp/entrypoint.sh
+        mode: 0755
     networks:
       - public
       - internal
     command: >
-      start-notebook.sh
+      bash -c "/tmp/entrypoint.sh
       --ServerApp.ip=0.0.0.0
       --ServerApp.port=8888
       --ServerApp.token=''
       --ServerApp.password=''
-      --ServerApp.allow_remote_access=True
+      --ServerApp.allow_remote_access=True"
     deploy:
       replicas: 1
       placement:
@@ -29,11 +47,11 @@ services:
           - node.labels.tier == compute
       resources:
         limits:
+          cpus: '8.0'
+          memory: 12G
+        reservations:
           cpus: '4.0'
           memory: 8G
-        reservations:
-          cpus: '2.0'
-          memory: 4G
       restart_policy:
         condition: on-failure
         delay: 10s
@@ -50,24 +68,36 @@ services:
 
   jupyter_odavid:
     image: jupyter/datascience-notebook:python-3.11
+    healthcheck:
+      disable: true
     environment:
       - JUPYTER_ENABLE_LAB=yes
-      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_VISIBLE_DEVICES=0
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
       - CHOWN_HOME=yes
       - CHOWN_HOME_OPTS='-R'
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work
+      - /srv/fastdata/jupyter/odavid/.local:/home/jovyan/.local
+      - /srv/fastdata/jupyter/odavid/.venv:/home/jovyan/.venv
+    configs:
+      - source: init_kernels
+        target: /tmp/init-kernels.sh
+        mode: 0755
+      - source: entrypoint
+        target: /tmp/entrypoint.sh
+        mode: 0755
     networks:
       - public
       - internal
     command: >
-      start-notebook.sh
+      bash -c "/tmp/entrypoint.sh
       --ServerApp.ip=0.0.0.0
       --ServerApp.port=8888
       --ServerApp.token=''
       --ServerApp.password=''
-      --ServerApp.allow_remote_access=True
+      --ServerApp.allow_remote_access=True"
     deploy:
       replicas: 1
       placement:
@@ -76,11 +106,11 @@ services:
           - node.labels.tier == compute
       resources:
         limits:
+          cpus: '8.0'
+          memory: 12G
+        reservations:
           cpus: '4.0'
           memory: 8G
-        reservations:
-          cpus: '2.0'
-          memory: 4G
       restart_policy:
         condition: on-failure
         delay: 10s
