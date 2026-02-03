@@ -13,7 +13,7 @@ secrets:
     external: true
   traefik_tls_key:
     external: true
-  jupyter_basicauth:
+  jupyter_basicauth_v2:
     external: true
 
 configs:
@@ -64,7 +64,7 @@ services:
       - traefik_basic_auth
       - traefik_tls_cert
       - traefik_tls_key
-      - jupyter_basicauth
+      - jupyter_basicauth_v2
     deploy:
       placement:
         constraints:
@@ -88,7 +88,7 @@ services:
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
 
         # jupiter_basicauth secret (shared with jupyter stack)
-        - traefik.http.middlewares.jupyter-auth.basicauth.usersfile=/run/secrets/jupyter_basicauth
+        - traefik.http.middlewares.jupyter-auth.basicauth.usersfile=/run/secrets/jupyter_basicauth_v2
         # (opcional) allowlist LAN
         - traefik.http.middlewares.lan-allow.ipwhitelist.sourcerange=192.168.80.0/24
         # chain (recomendado)
