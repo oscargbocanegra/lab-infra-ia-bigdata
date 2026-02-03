@@ -1,0 +1,240 @@
+1) Estado real actualizado del laboratorio (lo que ya está OK)
+
+0) Decisiones/estándares confirmados
+✅ Todo se despliega por Docker Swarm (stacks).
+✅ Estructura por prefijos (00, 01, 02…).
+✅ Orden base: Traefik → Portainer → Postgres → n8n → (Jupyter) → Airflow → Spark.
+✅ Sensibles por Docker Secrets (nada de passwords en repo).
+✅ Dominio interno por hosts con *.sexydad.
+✅ Objetivo operativo: todo debe volver solo tras reboot (sin “service update --force” manual).
+
+A) Swarm + labels + redes overlay
+✅ master1 = manager/leader
+✅ master2 = worker (compute/GPU)
+✅ Labels validados:
+	- master1: tier=control, node_role=manager, storage=backup, net=lan
+	- master2: tier=compute, node_role=worker, storage=primary, net=lan, gpu=nvidia
+✅ Redes overlay operativas:
+	- public (overlay)
+	- internal (overlay)
+✅ Confirmación extra: Traefik está unido a public e internal (lo verificaste por service inspect → IDs → nombres).
+
+B) Evidencias CLI — Prerrequisitos Jupyter CONFIRMADOS
+(master1)
+✅ Redes overlay presentes (docker network ls --filter driver=overlay):
+	- ingress (overlay / swarm)
+	- internal (overlay / swarm)
+	- public  (overlay / swarm)
+✅ Secret Swarm creado para BasicAuth (docker secret ls | grep jupyter_basicauth):
+	- jupyter_basicauth
+	- ID: vv7yudr55qjg2tk8ilt1quxxz
+✅ Servicio Traefik activo en Swarm (docker service ls | grep -i traefik):
+	- traefik_traefik (replicated 1/1)
+	- imagen: traefik:v2.11
+(master2)
+✅ Usuarios/UIDs confirmados:
+	- ogiovanni: uid=1000 gid=1000
+	- odavid:    uid=1001 gid=1001
+✅ Directorios persistentes de Jupyter existen y permisos OK:
+	- /srv/fastdata/jupyter/ogiovanni  → owner/group 1000:1000, mode 2770 (drwxrws---)
+	- /srv/fastdata/jupyter/odavid     → owner/group 1001:1001, mode 2770 (drwxrws---)
+✅ Conclusión operativa:
+	- Bind mounts en master2 listos para usarse con:
+		- ogiovanni → user: "1000:1000"
+		- odavid   → user: "1001:1001"
+
+C) Storage persistente + reboot real (la causa raíz de “se caen servicios”)
+✅ master2: LVM fastdata montado en /srv/fastdata persistente por /etc/fstab y srv-fastdata.mount activo.
+✅ master2: /srv/datalake montado persistente.
+✅ Estructura creada en master2:
+	- /srv/fastdata/{postgres,n8n,opensearch,airflow,jupyter,...}
+	- /srv/datalake/{datasets,models,notebooks,artifacts,backups}
+✅ Post-reboot confirmado:
+	- findmnt /srv/fastdata = OK
+	- Swarm nodes “Ready/Active”
+	- Postgres y n8n vuelven a Running sin intervención manual (en tu última validación quedó así).
+	
+C.1) Ajuste crítico en master2: Docker “espera mounts” (ya lo dejaste bien)
+Esto fue clave para evitar que Postgres/n8n arranquen antes de que exista /srv/fastdata.
+En master2 quedó:
+✅ Drop-in systemd: /etc/systemd/system/docker.service.d/override.conf
+✅ RequiresMountsFor=/srv/fastdata /srv/datalake
+✅ Wants/After=network-online.target
+✅ Validación:
+	- systemctl show docker -p Requires -p After | ... muestra dependencias incluyendo srv-fastdata.mount / srv-datalake.mount
+	- systemctl is-active docker OK
+
+C.2) GPU runtime (master2)
+✅ master2 tiene default-runtime: nvidia en /etc/docker/daemon.json
+✅ docker info | egrep -i 'Default Runtime|Runtimes' OK
+✅ docker run --rm --gpus all nvidia/cuda:... nvidia-smi OK
+
+
+D) Repo “infra como código” (IaC)
+✅ Repo: lab-infra-ia-bigdata/
+✅ Estructura aplicada:
+	- docs/{architecture,adrs,runbooks,hosts}
+	- scripts/{bootstrap,verify,backup}
+	- stacks/{core,automation,data,ai-ml,tools}
+✅ .gitignore reforzado (incluyendo secrets/)
+✅ Commit realizado: “Ignore secrets folder”
+✅ Flujo de deploy consistente: docker stack deploy -c <stack.yml> <stackname>
+
+
+E) Traefik en Swarm (core/00-traefik)
+✅ Secrets:
+	- traefik_basic_auth
+	- traefik_tls_cert
+	- traefik_tls_key
+✅ Fix aplicado del dashboard: loadbalancer.server.port=8080
+✅ Seguridad:
+	- LAN whitelist 192.168.80.0/24
+	- BasicAuth dashboard
+	- TLS con cert/key por secrets
+✅ Stack actualizado recientemente (tu docker stack deploy ... traefik ya quedó OK)
+
+
+F) Portainer CE + Agent (core/01-portainer)
+✅ portainer_agent global (master1 + master2)
+✅ portainer_portainer en master1
+✅ Acceso por Traefik/TLS: https://portainer.sexydad/
+✅ Entorno conectado por agent OK
+
+
+G) PostgreSQL 16 (core/02-postgres)
+✅ Stack: stacks/core/02-postgres/stack.yml
+✅ Secrets:
+	- pg_super_pass
+	- pg_n8n_pass
+✅ Init script versionado:
+	- stacks/core/02-postgres/initdb/01-init-n8n.sh
+✅ Persistencia en master2:
+	- /srv/fastdata/postgres → /var/lib/postgresql/data
+	- Permisos correctos (owner 999:999, 700)
+✅ Publicación LAN para DBeaver:
+	- 5432 (mode host) en master2
+✅ Validación real:
+	- logs “ready to accept connections”
+	- psql SELECT 1; OK
+	- DB n8n y rol n8n existen OK
+
+
+H) n8n (automation/02-n8n) — esto ya NO está pendiente
+Aunque en tu resumen decía “pendiente inmediato”, por tus evidencias ya quedó arriba y estable post-reboot:
+✅ Servicio n8n_n8n en master2 (desired=running, current=running)
+✅ Conectado a Postgres (DB lista, user listo)
+	- ⚠️ Warning observado (no bloqueante): “Python task runner internal mode… Python 3 missing”
+	- No tumba n8n, pero si planeas usar “python runner”, lo resolvemos luego (modo externo o imagen custom).
+
+
+I) Hosts file (Windows)
+✅ *.sexydad apuntando a 192.168.80.100 (Traefik/master1)
+✅ Quedó listo para agregar jupyter-ogiovanni.sexydad y jupyter-odavid.sexydad (si aún no están)
+
+
+2) “Paso 2 — Versionar la config host” (estado y cómo dejarlo perfecto)
+Qué ya está OK
+✅ Ya validaste fingerprints/host keys post-reboot.
+✅ El repo ya tiene .gitignore para secrets/ y quedó commit.
+✅ Intención confirmada: versionar “host config” para reproducibilidad.
+
+
+
+3) En qué punto exacto vamos ahora (lo inmediato)
+Estás en: 3.2 Crear el stack de Jupyter con 2 servicios y 2 hostnames con (A) BasicAuth en Traefik.
+
+Prerrequisitos ya confirmados por tus salidas
+✅ Traefik unido a public + internal (OK para enrutar)
+✅ Directorios en master2:
+	- /srv/fastdata/jupyter/ogiovanni
+	- /srv/fastdata/jupyter/odavid
+✅ Secret creado en Swarm:
+	- jupyter_basicauth
+✅ secrets/ ignorado en git (OK)
+
+
+3.1) Traefik — Validación para publicar Jupyter con (A) BasicAuth (CONFIRMADO)
+
+(master1)
+✅ Servicio Traefik en Swarm:
+	- traefik_traefik (replicated 1/1)
+	- imagen: traefik:v2.11
+
+✅ Redes conectadas al servicio Traefik (docker service inspect ... Networks):
+	- internal (overlay)
+	- public  (overlay)
+
+✅ Secrets montados en Traefik (docker service inspect ... Secrets):
+	- jupyter_basicauth
+	- traefik_basic_auth
+	- traefik_tls_cert
+	- traefik_tls_key
+
+✅ Middlewares disponibles en provider Docker (labels en traefik_traefik):
+	- jupyter-auth  → basicauth.usersfile=/run/secrets/jupyter_basicauth
+	- lan-allow     → ipwhitelist.sourcerange=192.168.80.0/24
+	- jupyter-chain → chain.middlewares=lan-allow,jupyter-auth
+
+✅ Conclusión operativa:
+	- Traefik está listo para proteger Jupyter vía middleware: jupyter-chain@docker
+	- La autenticación BasicAuth para Jupyter está respaldada por el secret: jupyter_basicauth
+
+3.2) Jupyter — Validación de compilación del stack (CONFIRMADO)
+
+(master1)
+✅ El stack compila sin errores:
+	- Comando: docker stack config -c stack.yml > /tmp/jupyter.stack.rendered.yml
+	- Resultado: OK (sin errores)
+
+✅ Evidencia en render:
+	- Servicios presentes: jupyter_odavid, jupyter_ogiovanni
+	- Red definida: name: public (external)
+	- Archivo renderizado: /tmp/jupyter.stack.rendered.yml
+
+
+
+
+
+
+
+Ajuste clave del punto 3.2.3 (para que no falle Traefik)
+		- Cada servicio de Jupyter debe estar en la red public, y además declarar:
+			- traefik.docker.network=public
+		- Puedes además unirlos a internal para interoperar luego con Postgres/Spark/etc (recomendado).
+
+
+4) Pendiente por hacer (backlog ordenado)
+
+Siguiente inmediato
+	- ⏳ Jupyter (tools/03-jupyter): 2 servicios, 2 hostnames, BasicAuth Traefik
+		- jupyter-ogiovanni.sexydad
+		- jupyter-odavid.sexydad
+	- Luego (según tu roadmap)
+		- ⏳ Airflow (automation/*)
+		- ⏳ Spark (data/*)
+		- ⏳ OpenSearch (data/search/*)
+		- ⏳ Ollama/AI-ML (ai-ml/*) + GPU workflows
+	- Operación / hardening (paralelo o después)
+		- ⏳ scripts/verify (checks post-reboot: mounts, docker, swarm, services)
+		- ⏳ runbooks/ADRs (decisiones: redes, puertos, secrets, constraints, storage)
+		- ⏳ Backups (Postgres + n8n + notebooks)
+		
+		
+“Hand-off” para el nuevo chat (copy/paste rápido)
+	- Repo: ~/lab-infra-ia-bigdata
+	- Stacks core:
+		- stacks/core/00-traefik
+		- stacks/core/01-portainer
+		- stacks/core/02-postgres
+	- Stacks automation:
+		- stacks/automation/02-n8n (ya arriba)
+	- Próximo stack:
+		- stacks/tools/03-jupyter (por construir ahora)
+	- Nodo objetivo Jupyter: master2
+		- Redes Swarm: public, internal
+	- Secrets relevantes:
+		- Traefik: traefik_basic_auth, traefik_tls_cert, traefik_tls_key
+		- Postgres: pg_super_pass, pg_n8n_pass
+		- n8n: n8n_encryption_key, n8n_user_mgmt_jwt_secret, pg_n8n_pass
+		- Jupyter: jupyter_basicauth
+		
