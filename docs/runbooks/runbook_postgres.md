@@ -15,8 +15,12 @@
 ### 1.1 Verificar servicio en Swarm
 Ejecutar en **master1**:
 ```bash
-docker service ls --filter name=postgres_postgres
-docker service ps postgres_postgres --no-trunc | head
+# Vista rápida (replicas)
+docker service ls | egrep 'postgres_postgres|n8n_n8n|traefik_traefik|portainer_'
+
+# Ver tasks con formato útil (estado detallado)
+docker service ps postgres_postgres --no-trunc \
+  --format 'table {{.ID}}\t{{.Node}}\t{{.DesiredState}}\t{{.CurrentState}}\t{{.Error}}'
 ```
 
 ### 1.2 Access Check (vía red interna)

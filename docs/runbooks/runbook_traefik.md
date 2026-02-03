@@ -15,8 +15,12 @@
 ### 1.1 Verificar servicio
 Ejecutar en **master1**:
 ```bash
-docker service ls --filter name=traefik_traefik
-docker service ps traefik_traefik --no-trunc | head
+# Vista rápida (replicas)
+docker service ls | egrep 'postgres_postgres|n8n_n8n|traefik_traefik|portainer_'
+
+# Ver tasks con formato útil (estado detallado)
+docker service ps traefik_traefik --no-trunc \
+  --format 'table {{.ID}}\t{{.Node}}\t{{.DesiredState}}\t{{.CurrentState}}\t{{.Error}}'
 ```
 
 ### 1.2 Access Logs (Tiempo real)

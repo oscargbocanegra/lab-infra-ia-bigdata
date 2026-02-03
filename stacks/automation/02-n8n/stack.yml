@@ -63,7 +63,10 @@ services:
           - node.hostname == master2
           - node.labels.tier == compute
       restart_policy:
-        condition: on-failure
+            condition: any
+            delay: 5s
+            max_attempts: 0
+            window: 60s
       labels:
         - traefik.enable=true
         - traefik.docker.network=public

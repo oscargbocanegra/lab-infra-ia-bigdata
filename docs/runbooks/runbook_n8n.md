@@ -15,11 +15,12 @@
 ### 1.1 Verificar tarea de Swarm
 Ejecutar en **master1** (manager):
 ```bash
-# Debe mostrar REPLICAS 1/1
-docker service ls --filter name=n8n_n8n
+# Vista rápida (replicas)
+docker service ls | egrep 'postgres_postgres|n8n_n8n|traefik_traefik|portainer_'
 
-# Debe mostrar CURRENT STATE: Running (hace X tiempo)
-docker service ps n8n_n8n --no-trunc | head -n 5
+# Ver tasks con formato útil (estado detallado)
+docker service ps n8n_n8n --no-trunc \
+  --format 'table {{.ID}}\t{{.Node}}\t{{.DesiredState}}\t{{.CurrentState}}\t{{.Error}}'
 ```
 
 ### 1.2 Verificar endpoint (desde LAN)
