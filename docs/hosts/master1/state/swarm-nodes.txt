@@ -1,0 +1,3 @@
+ID                            HOSTNAME   STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+xi2qdki3cxvq0ea90lkvb73nd *   master1    Ready     Active         Leader           29.2.0
+08te9lbxrc30uwdyrwjaqu44v     master2    Ready     Active                          29.2.0

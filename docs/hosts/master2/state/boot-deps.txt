@@ -1,0 +1,5 @@
+TARGET        SOURCE                          FSTYPE OPTIONS
+/srv/fastdata /dev/mapper/ubuntu--vg-fastdata ext4   rw,noatime
+active
+Requires=system.slice srv-datalake.mount -.mount docker.socket srv-fastdata.mount sysinit.target
+After=time-set.target network-online.target systemd-journald.socket firewalld.service sysinit.target -.mount docker.socket srv-fastdata.mount srv-datalake.mount nss-lookup.target system.slice basic.target containerd.service

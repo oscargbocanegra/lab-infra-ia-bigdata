@@ -1,0 +1,6 @@
+ID             NAME                  MODE         REPLICAS   IMAGE                           PORTS
+su9ra71844xa   n8n_n8n               replicated   1/1        n8nio/n8n:2.4.7                 
+vwuh6ziudfrk   portainer_agent       global       2/2        portainer/agent:2.21.0          
+5xji00rnzbed   portainer_portainer   replicated   1/1        portainer/portainer-ce:2.21.0   
+mucvvayyaud4   postgres_postgres     replicated   1/1        postgres:16                     
+npk011pxou0p   traefik_traefik       replicated   1/1        traefik:v2.11                   
