@@ -1,0 +1,23 @@
+# /etc/fstab: static file system information.
+# <file system>                           <mount point>   <type>  <options>       <dump>  <pass>
+
+# OS Base (ejemplo)
+# /dev/mapper/ubuntu--vg-ubuntu--lv       /               ext4    errors=remount-ro 0       1
+# /dev/mapper/ubuntu--vg-ubuntu--lv       /var            ext4    defaults        0       1
+
+# ------------------------------------------------------------------
+# MASTER2: Almacenamiento Persistente para Laboratorio (Critical)
+# ------------------------------------------------------------------
+
+# 1. Fast Storage (NVMe LVM)
+# LV: fastdata, VG: vg0 (ajustar según real), Size: ~600G
+# Mount: /srv/fastdata
+# Uso: Postgres, OpenSearch, n8n, Airflow (DBs y hot data)
+/dev/vg0/fastdata                         /srv/fastdata   ext4    defaults,noatime 0       2
+
+# 2. Cold/Big Storage (HDD)
+# Disk: sdb1 (o UUID real), Size: ~1.8TB
+# Mount: /srv/datalake
+# Uso: Datasets, Modelos, Backups, Notebooks
+# UUID="<UUID-REAL-DEL-DISCO>"            /srv/datalake   ext4    defaults        0       2
+
