@@ -13,6 +13,8 @@ secrets:
     external: true
   traefik_tls_key:
     external: true
+  jupyter_basicauth:
+    external: true
 
 configs:
   traefik_dynamic:
@@ -62,6 +64,7 @@ services:
       - traefik_basic_auth
       - traefik_tls_cert
       - traefik_tls_key
+      - jupyter_basicauth
     deploy:
       placement:
         constraints:
@@ -79,8 +82,15 @@ services:
         - traefik.http.services.traefik-dashboard.loadbalancer.server.port=8080
         - traefik.http.services.traefik-traefik.loadbalancer.server.port=8080
 
-
         # Mitigación mínima: LAN only + BasicAuth
         - traefik.http.routers.traefik.middlewares=lan-whitelist@docker,traefik-auth@docker
         - traefik.http.middlewares.lan-whitelist.ipwhitelist.sourcerange=192.168.80.0/24
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
+
+        # jupiter_basicauth secret (shared with jupyter stack)
+        - traefik.http.middlewares.jupyter-auth.basicauth.usersfile=/run/secrets/jupyter_basicauth
+        # (opcional) allowlist LAN
+        - traefik.http.middlewares.lan-allow.ipwhitelist.sourcerange=192.168.80.0/24
+        # chain (recomendado)
+        - traefik.http.middlewares.jupyter-chain.chain.middlewares=lan-allow,jupyter-auth
+

@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  jupyter_ogiovanni:
+    image: jupyter/datascience-notebook:python-3.11
+    user: "1000:1000"
+    environment:
+      - HOME=/home/ogiovanni
+      - NOTEBOOK_DIR=/home/ogiovanni
+      - JUPYTER_ENABLE_LAB=yes
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - /srv/fastdata/jupyter/ogiovanni:/home/ogiovanni
+    command: >
+      start-notebook.sh
+      --ServerApp.ip=0.0.0.0
+      --ServerApp.port=8888
+      --ServerApp.token=''
+      --ServerApp.password=''
+      --ServerApp.allow_remote_access=True
+    networks:
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == master2
+          - node.labels.tier == compute
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 0
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.jupyter-ogiovanni.rule=Host(`jupyter-ogiovanni.sexydad`)
+        - traefik.http.routers.jupyter-ogiovanni.entrypoints=websecure
+        - traefik.http.routers.jupyter-ogiovanni.tls=true
+        - traefik.http.routers.jupyter-ogiovanni.middlewares=jupyter-chain@docker
+        - traefik.http.services.jupyter-ogiovanni.loadbalancer.server.port=8888
+
+  jupyter_odavid:
+    image: jupyter/datascience-notebook:python-3.11
+    user: "1001:1001"
+    environment:
+      - HOME=/home/odavid
+      - NOTEBOOK_DIR=/home/odavid
+      - JUPYTER_ENABLE_LAB=yes
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - /srv/fastdata/jupyter/odavid:/home/odavid
+    command: >
+      start-notebook.sh
+      --ServerApp.ip=0.0.0.0
+      --ServerApp.port=8888
+      --ServerApp.token=''
+      --ServerApp.password=''
+      --ServerApp.allow_remote_access=True
+    networks:
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == master2
+          - node.labels.tier == compute
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 0
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.jupyter-odavid.rule=Host(`jupyter-odavid.sexydad`)
+        - traefik.http.routers.jupyter-odavid.entrypoints=websecure
+        - traefik.http.routers.jupyter-odavid.tls=true
+        - traefik.http.routers.jupyter-odavid.middlewares=jupyter-chain@docker
+        - traefik.http.services.jupyter-odavid.loadbalancer.server.port=8888
+
+networks:
+  public:
+    external: true
+    name: public
