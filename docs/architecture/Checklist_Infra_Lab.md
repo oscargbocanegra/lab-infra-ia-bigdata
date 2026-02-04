@@ -48,7 +48,7 @@ Hardening mínimo recomendado (no bloquea, pero conviene):
 | 4 | **n8n** | ✅ | Automation Core + Postgres Backend |
 | 5 | **Jupyter Lab** | ✅ | Multi-usuario (ogiovanni, odavid) + GPU + Kernels IA/LLM |
 | 6 | **Ollama** | ✅ | LLM API + GPU (RTX 2080 Ti) - OPERATIVO |
-| 7 | **OpenSearch** | ⏳ | Pendiente - Directorio creado |
+| 7 | **OpenSearch** | ✅ | v2.19.4 - Search & Analytics + Dashboards UI (master1) - OPERATIVO |
 | 8 | **Airflow** | ⏳ | Pendiente - Directorio creado |
 | 9 | **Spark** | ⏳ | Pendiente - Directorio creado |
 | 10 | **Backups/Hardening** | ⏳ | Pendiente planificación |
@@ -67,12 +67,10 @@ Stacks implementados y funcionales:
 
 Stacks listos para despliegue:
 
-- **Ollama**: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml) ✅ NUEVO
+- **Ollama**: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml) ✅ OPERATIVO
+- **OpenSearch**: [stacks/data/11-opensearch/stack.yml](stacks/data/11-opensearch/stack.yml) ✅ OPERATIVO
 
 Carpetas creadas (Pendiente definir/finalizar \`stack.yml\`):
-
-- ~~Ollama: [stacks/ai-ml/02-ollama/](stacks/ai-ml/02-ollama/)~~ ✅ **COMPLETADO**
-- OpenSearch: [stacks/data/11-opensearch/](stacks/data/11-opensearch/)
 - Spark: [stacks/data/98-spark/](stacks/data/98-spark/)
 - Airflow: [stacks/automation/99-airflow/](stacks/automation/99-airflow/)
 
@@ -129,7 +127,8 @@ Operación:
 | **Jupyter (ogiovanni)** | `https://jupyter-ogiovanni.<INTERNAL_DOMAIN>` | ✅ |
 | **Jupyter (odavid)** | `https://jupyter-odavid.<INTERNAL_DOMAIN>` | ✅ |
 | **Ollama** | `https://ollama.sexydad` | ✅ OPERATIVO |
-| **OpenSearch** | `https://opensearch.<INTERNAL_DOMAIN>` | ⏳ Pendiente |
+| **OpenSearch API** | `https://opensearch.sexydad` | ✅ OPERATIVO |
+| **OpenSearch Dashboards** | `https://dashboards.sexydad` | ✅ OPERATIVO |
 | **Airflow** | `https://airflow.<INTERNAL_DOMAIN>` | ⏳ Pendiente |
 
 ---
@@ -324,19 +323,66 @@ Criterios de "OK":
 
 ---
 
-## Bloque siguiente — OpenSearch (master2) ⏳
+## Bloque — OpenSearch (master1) ✅
+
+Objetivo: Motor de búsqueda y análisis distribuido (fork de Elasticsearch) para agregaciones, búsquedas de texto completo y observabilidad.
 
 Prerequisitos:
-- ✅ Directorio en master2: \`/srv/fastdata/opensearch\`
-- ✅ Red Swarm: \`internal\` (recomendado).
+- ✅ Red Swarm: \`internal\` y \`public\`.
+- ✅ Directorio: \`/srv/fastdata/opensearch\` en master1 (HDD).
+- ✅ Configuración kernel: \`vm.max_map_count=262144\` en master1.
 
 Checklist:
-- ⏳ (Repo) Crear [stacks/data/11-opensearch/stack.yml](stacks/data/11-opensearch/stack.yml)
-- ⏳ Desplegar OpenSearch stateful.
+- ✅ (Repo) Stack creado: [stacks/data/11-opensearch/stack.yml](stacks/data/11-opensearch/stack.yml)
+- ✅ (Repo) README con API completa y ejemplos: [stacks/data/11-opensearch/README.md](stacks/data/11-opensearch/README.md)
+- ✅ Configuración de Recursos (optimizada para lab):
+  - ✅ **1.0 CPU** reservado, **3.0 CPUs** límite.
+  - ✅ **2GB RAM** reservada, **6GB RAM** límite.
+  - ✅ **JVM Heap**: 1GB (-Xms1g -Xmx1g).
+- ✅ Placement: master1 (control plane) - decisión arquitectural por recursos.
+- ✅ Persistencia: \`/srv/fastdata/opensearch\` en master1 (HDD suficiente para lab).
+- ✅ Seguridad: 
+  - ✅ Plugin de seguridad deshabilitado (simplicidad en lab).
+  - ✅ Traefik LAN Whitelist + BasicAuth (\`opensearch_basicauth\`).
+- ✅ Health checks configurados.
+- ✅ Directorio creado en master1 con permisos UID 1000.
+- ✅ Dominio configurado: \`opensearch.sexydad\`.
+
+Estado actual:
+- ✅ **OPERATIVO** - Servicios desplegados y corriendo en master1.
+- ✅ Cluster status: **GREEN** (1 nodo, 4 shards activos).
+- ✅ Versión: OpenSearch **2.19.4** (latest stable 2.x).
+- ✅ API REST respondiendo correctamente.
+- ✅ **OpenSearch Dashboards** UI operativa (interfaz gráfica web).
+
+Acceso:
+- **API Interno (Jupyter/n8n/Airflow)**: \`http://opensearch:9200\` (sin auth)
+- **API Externo**: \`https://opensearch.sexydad\` (requiere BasicAuth)
+- **Dashboards UI**: \`https://dashboards.sexydad\` (requiere BasicAuth) ⭐
+- **Nota**: Agregar en \`/etc/hosts\` local: \`192.168.80.100 opensearch.sexydad dashboards.sexydad\`
+
+Criterios de "OK":
+- ✅ Servicios estables y corriendo en master1.
+- ✅ OpenSearch API responde en: \`https://opensearch.sexydad\`.
+- ✅ OpenSearch Dashboards UI accesible en: \`https://dashboards.sexydad\`.
+- ✅ API \`/_cluster/health\` retorna status GREEN.
+- ✅ Dashboards muestra interfaz completa (Discover, Visualize, Dashboard, Dev Tools).
+- ✅ Single-node cluster configurado correctamente.
+
+Notas de decisión:
+- ✅ Desplegado en **master1** (control plane) en lugar de master2 por:
+  - master2 tiene 14/16 CPUs y 28/31GB RAM ya reservados (Jupyter x2 + Ollama).
+  - master1 tiene abundantes recursos disponibles (28GB libres, 7 CPUs).
+  - OpenSearch es un servicio de observabilidad/soporte, no requiere NVMe.
+  - Arquitectura definida permite servicios de control plane en master1.
+- ✅ Recursos reducidos (1 CPU, 2GB RAM, 1GB heap) suficientes para:
+  - Ambiente de laboratorio/aprendizaje.
+  - Agregaciones básicas, búsquedas de texto, logs.
+  - Integración con n8n, Jupyter, Airflow.
 
 ---
 
-## Bloque ÚLTIMO — Airflow y Spark ⏳
+## Bloque siguiente — Airflow y Spark ⏳
 
 Prerequisitos:
 - ✅ Directorio en master2: \`/srv/fastdata/airflow\`
@@ -372,6 +418,23 @@ Checklist:
 ---
 
 ## Changelog Reciente
+
+### 2026-02-04: OpenSearch Stack DEPLOYED ✅
+- ✅ Stack desplegado y operativo en **master1** (control plane)
+- ✅ Cluster status: **GREEN** (1 nodo, 4 shards activos)
+- ✅ Versión: OpenSearch **2.19.4** (latest stable 2.x)
+- ✅ **OpenSearch Dashboards UI** desplegado y operativo (interfaz gráfica completa)
+- ✅ Recursos optimizados para lab:
+  - OpenSearch: 1-3 CPUs, 2-6GB RAM, 1GB JVM heap
+  - Dashboards: 0.5-2 CPUs, 1-3GB RAM
+- ✅ Persistencia en `/srv/fastdata/opensearch` (master1 HDD)
+- ✅ Seguridad: BasicAuth + LAN Whitelist (security plugin disabled para simplicidad)
+- ✅ Dominios: `opensearch.sexydad` (API) y `dashboards.sexydad` (UI) agregados a `/etc/hosts`
+- ✅ API REST 100% funcional
+- ✅ Dashboards UI accesible vía browser con todas las features (Discover, Visualize, Dashboard, Dev Tools)
+- ✅ README completo con 6 endpoints API + guía de Dashboards + ejemplos Python/Postman
+- ✅ Integración lista con Jupyter, n8n, Airflow (red interna sin auth)
+- ✅ Decisión arquitectural: Desplegado en master1 por recursos disponibles (master2 saturado con GPU workloads)
 
 ### 2026-02-03: Ollama Stack DEPLOYED ✅
 - ✅ Stack desplegado y operativo en master2

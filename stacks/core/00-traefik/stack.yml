@@ -17,6 +17,10 @@ secrets:
     external: true
   ollama_basicauth:
     external: true
+  opensearch_basicauth:
+    external: true
+  dashboards_basicauth:
+    external: true
 
 configs:
   traefik_dynamic:
@@ -68,6 +72,8 @@ services:
       - traefik_tls_key
       - jupyter_basicauth_v2
       - ollama_basicauth
+      - opensearch_basicauth
+      - dashboards_basicauth
     deploy:
       placement:
         constraints:
@@ -99,4 +105,9 @@ services:
         
         # Ollama BasicAuth
         - traefik.http.middlewares.ollama-auth.basicauth.usersfile=/run/secrets/ollama_basicauth
-
+        
+        # OpenSearch BasicAuth
+        - traefik.http.middlewares.opensearch-auth.basicauth.usersfile=/run/secrets/opensearch_basicauth
+        
+        # OpenSearch Dashboards BasicAuth
+        - traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth

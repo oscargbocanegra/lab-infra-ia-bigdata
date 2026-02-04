@@ -1,0 +1,189 @@
+version: "3.8"
+
+# ============================================================
+# Stack: OpenSearch - Search and Analytics Engine
+# ============================================================
+# Purpose: Distributed search and analytics (Elasticsearch fork)
+# Node: master2 (NVMe fastdata)
+# Networks: internal (backend), public (Traefik ingress)
+# Security: BasicAuth + LAN Whitelist
+# ============================================================
+
+secrets:
+  opensearch_basicauth:
+    external: true
+  dashboards_basicauth:
+    external: true
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.19.4
+    hostname: opensearch
+    
+    networks:
+      - internal
+      - public
+    
+    environment:
+      # Cluster Configuration
+      - cluster.name=lab-opensearch
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      
+      # Security Configuration (disable for simplicity in lab)
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      
+      # Memory Settings (reduced for lab environment)
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      
+      # Network
+      - network.host=0.0.0.0
+      - http.port=9200
+      
+      # Performance
+      - bootstrap.memory_lock=true
+    
+    volumes:
+      # Persistent data on master1 HDD (sufficient for lab/learning)
+      - type: bind
+        source: /srv/fastdata/opensearch
+        target: /usr/share/opensearch/data
+    
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    
+    deploy:
+      mode: replicated
+      replicas: 1
+      
+      placement:
+        constraints:
+          - node.labels.tier == control
+      
+      resources:
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+        limits:
+          cpus: '3.0'
+          memory: 6G
+      
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+      
+      labels:
+        # Traefik routing
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        
+        # HTTP Router
+        - "traefik.http.routers.opensearch.rule=Host(`opensearch.sexydad`)"
+        - "traefik.http.routers.opensearch.entrypoints=websecure"
+        - "traefik.http.routers.opensearch.tls=true"
+        - "traefik.http.routers.opensearch.service=opensearch"
+        
+        # Service
+        - "traefik.http.services.opensearch.loadbalancer.server.port=9200"
+        
+        # Middleware: LAN whitelist + BasicAuth
+        - "traefik.http.routers.opensearch.middlewares=lan-whitelist@docker,opensearch-auth@docker"
+        
+        # Health check
+        - "traefik.http.services.opensearch.loadbalancer.healthcheck.path=/_cluster/health"
+        - "traefik.http.services.opensearch.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.opensearch.loadbalancer.healthcheck.timeout=10s"
+        
+        # Stack metadata
+        - "com.docker.stack.namespace=opensearch"
+        - "com.docker.service.name=opensearch"
+        - "description=Search and analytics engine for lab"
+
+  dashboards:
+    image: opensearchproject/opensearch-dashboards:2.19.4
+    hostname: dashboards
+    
+    networks:
+      - internal
+      - public
+    
+    environment:
+      # OpenSearch connection
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      
+      # Disable security (match OpenSearch config)
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      
+      # Server configuration
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5601
+      - SERVER_NAME=opensearch-dashboards
+      
+      # Logging
+      - LOGGING_VERBOSE=false
+    
+    deploy:
+      mode: replicated
+      replicas: 1
+      
+      placement:
+        constraints:
+          - node.labels.tier == control
+      
+      resources:
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+        limits:
+          cpus: '2.0'
+          memory: 3G
+      
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+      
+      labels:
+        # Traefik routing
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        
+        # HTTP Router
+        - "traefik.http.routers.dashboards.rule=Host(`dashboards.sexydad`)"
+        - "traefik.http.routers.dashboards.entrypoints=websecure"
+        - "traefik.http.routers.dashboards.tls=true"
+        - "traefik.http.routers.dashboards.service=dashboards"
+        
+        # Service
+        - "traefik.http.services.dashboards.loadbalancer.server.port=5601"
+        
+        # Middleware: LAN whitelist + BasicAuth
+        - "traefik.http.routers.dashboards.middlewares=lan-whitelist@docker,dashboards-auth@docker"
+        
+        # Health check
+        - "traefik.http.services.dashboards.loadbalancer.healthcheck.path=/api/status"
+        - "traefik.http.services.dashboards.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.dashboards.loadbalancer.healthcheck.timeout=10s"
+        
+        # Stack metadata
+        - "com.docker.stack.namespace=opensearch"
+        - "com.docker.service.name=dashboards"
+        - "description=OpenSearch Dashboards - Web UI for OpenSearch"
+
+networks:
+  internal:
+    external: true
+    name: internal
+  
+  public:
+    external: true
+    name: public
