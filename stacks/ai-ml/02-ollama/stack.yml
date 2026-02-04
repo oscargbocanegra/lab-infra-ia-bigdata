@@ -6,7 +6,12 @@ version: "3.8"
 # Purpose: GPU-accelerated LLM inference with persistent model storage
 # Node: master2 (GPU RTX 2080 Ti)
 # Networks: internal (backend), public (Traefik ingress)
+# Security: LAN whitelist + BasicAuth
 # ============================================================
+
+secrets:
+  ollama_basicauth:
+    external: true
 
 services:
   ollama:
@@ -23,9 +28,36 @@ services:
         source: /srv/datalake/models/ollama
         target: /root/.ollama
     
+    secrets:
+      - ollama_basicauth
+    
     environment:
+      # Core Ollama Configuration
       - OLLAMA_HOST=0.0.0.0:11434
       - OLLAMA_ORIGINS=*
+      
+      # GPU Optimization
+      - OLLAMA_NUM_PARALLEL=4              # Parallel requests (GPU can handle multiple)
+      - OLLAMA_MAX_LOADED_MODELS=2         # Keep 2 models in VRAM simultaneously
+      - OLLAMA_FLASH_ATTENTION=1           # Enable Flash Attention for faster inference
+      
+      # CUDA & GPU Settings
+      - CUDA_VISIBLE_DEVICES=0             # Use first GPU
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      
+      # Memory Management (RTX 2080 Ti has 11GB VRAM)
+      - OLLAMA_MAX_VRAM=10240              # Reserve 10GB for models (leave 1GB for system)
+      - OLLAMA_KV_CACHE_TYPE=f16           # Half-precision KV cache for memory efficiency
+      
+      # Performance Tuning
+      - OLLAMA_NUM_GPU=1                   # Number of GPUs to use
+      - OLLAMA_GPU_OVERHEAD=0.1            # 10% overhead for GPU operations
+      - OLLAMA_KEEP_ALIVE=5m               # Keep model loaded for 5 minutes after last request
+      
+      # Logging
+      - OLLAMA_DEBUG=0
+      - OLLAMA_LOGS=/root/.ollama/logs
     
     deploy:
       mode: replicated
@@ -38,15 +70,11 @@ services:
       
       resources:
         reservations:
-          cpus: '4.0'
-          memory: 8G
-          generic_resources:
-            - discrete_resource_spec:
-                kind: 'nvidia.com/gpu'
-                value: 1
+          cpus: '6.0'
+          memory: 12G
         limits:
-          cpus: '8.0'
-          memory: 16G
+          cpus: '12.0'
+          memory: 24G
       
       restart_policy:
         condition: on-failure
@@ -60,7 +88,7 @@ services:
         - "traefik.docker.network=public"
         
         # HTTP Router
-        - "traefik.http.routers.ollama.rule=Host(`ollama.<INTERNAL_DOMAIN>`)"
+        - "traefik.http.routers.ollama.rule=Host(`ollama.sexydad`)"
         - "traefik.http.routers.ollama.entrypoints=websecure"
         - "traefik.http.routers.ollama.tls=true"
         - "traefik.http.routers.ollama.service=ollama"
@@ -68,13 +96,18 @@ services:
         # Service
         - "traefik.http.services.ollama.loadbalancer.server.port=11434"
         
-        # Middleware: LAN whitelist + BasicAuth (optional)
-        - "traefik.http.routers.ollama.middlewares=lan-whitelist@file"
+        # Middleware: LAN whitelist + BasicAuth
+        - "traefik.http.routers.ollama.middlewares=lan-whitelist@docker,ollama-auth@docker"
         
         # Health check
         - "traefik.http.services.ollama.loadbalancer.healthcheck.path=/api/tags"
         - "traefik.http.services.ollama.loadbalancer.healthcheck.interval=30s"
-        - "traefik.http.services.ollama.loadbalancer.healthcheck.timeout=5s"
+        - "traefik.http.services.ollama.loadbalancer.healthcheck.timeout=10s"
+        
+        # Stack metadata
+        - "com.docker.stack.namespace=ollama"
+        - "com.docker.service.name=ollama"
+        - "description=GPU-accelerated LLM inference with Ollama"
 
 networks:
   internal:

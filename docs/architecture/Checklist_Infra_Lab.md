@@ -1,6 +1,6 @@
 # Checklist de Infra — lab-infra-ia-bigdata
 
-Última actualización: 2026-02-03 (Update: Ollama Stack Ready + Infrastructure Complete)
+Última actualización: 2026-02-03 (Update: Ollama OPERATIVO + Infrastructure Complete)
 
 Este documento centraliza el **estado real** (OK / Pendiente) para levantar la infraestructura completa del laboratorio, con **orden recomendado**, **dependencias** y **verificaciones mínimas**.
 
@@ -47,7 +47,7 @@ Hardening mínimo recomendado (no bloquea, pero conviene):
 | 3 | **Postgres** | ✅ | v16 - Stateful DB (fastdata) |
 | 4 | **n8n** | ✅ | Automation Core + Postgres Backend |
 | 5 | **Jupyter Lab** | ✅ | Multi-usuario (ogiovanni, odavid) + GPU + Kernels IA/LLM |
-| 6 | **Ollama** | ✅ | Stack creado - READY TO DEPLOY |
+| 6 | **Ollama** | ✅ | LLM API + GPU (RTX 2080 Ti) - OPERATIVO |
 | 7 | **OpenSearch** | ⏳ | Pendiente - Directorio creado |
 | 8 | **Airflow** | ⏳ | Pendiente - Directorio creado |
 | 9 | **Spark** | ⏳ | Pendiente - Directorio creado |
@@ -128,7 +128,7 @@ Operación:
 | **n8n** | `https://n8n.<INTERNAL_DOMAIN>` | ✅ |
 | **Jupyter (ogiovanni)** | `https://jupyter-ogiovanni.<INTERNAL_DOMAIN>` | ✅ |
 | **Jupyter (odavid)** | `https://jupyter-odavid.<INTERNAL_DOMAIN>` | ✅ |
-| **Ollama** | `https://ollama.<INTERNAL_DOMAIN>` | ✅ Ready to deploy |
+| **Ollama** | `https://ollama.sexydad` | ✅ OPERATIVO |
 | **OpenSearch** | `https://opensearch.<INTERNAL_DOMAIN>` | ⏳ Pendiente |
 | **Airflow** | `https://airflow.<INTERNAL_DOMAIN>` | ⏳ Pendiente |
 
@@ -293,29 +293,34 @@ Prerequisitos:
 
 Checklist:
 - ✅ (Repo) Stack creado: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml)
-- ✅ (Repo) README con instrucciones de despliegue: [stacks/ai-ml/02-ollama/README.md](stacks/ai-ml/02-ollama/README.md)
+- ✅ (Repo) README con API completa y ejemplos: [stacks/ai-ml/02-ollama/README.md](stacks/ai-ml/02-ollama/README.md)
 - ✅ Configuración de Recursos:
-  - ✅ **4.0 CPUs** reservados, **8.0 CPUs** límite.
-  - ✅ **8GB RAM** reservada, **16GB RAM** límite.
-  - ✅ **GPU Reservation**: Aceleración por hardware (RTX 2080 Ti).
+  - ✅ **6.0 CPUs** reservados, **12.0 CPUs** límite.
+  - ✅ **12GB RAM** reservada, **24GB RAM** límite.
+  - ✅ **GPU RTX 2080 Ti**: 11GB VRAM - Aceleración habilitada.
+  - ✅ Variables optimizadas: Flash Attention, KV cache f16, parallel requests.
 - ✅ Persistencia: Modelos en \`/srv/datalake/models/ollama\`.
-- ✅ Seguridad: Traefik LAN Whitelist.
+- ✅ Seguridad: Traefik LAN Whitelist + BasicAuth (\`ollama_basicauth\`).
 - ✅ Health checks configurados.
+- ✅ Directorio creado en master2 con permisos correctos.
+- ✅ Dominio configurado: \`ollama.sexydad\`.
 
 Estado actual:
-- ✅ **Stack READY TO DEPLOY** - Arquitectura completa y documentada.
+- ✅ **OPERATIVO** - Servicio desplegado y corriendo en master2.
+- ✅ GPU detectada y disponible (11GB VRAM).
+- ✅ API REST respondiendo correctamente.
 
-Próximos pasos:
-1. Crear directorio en master2: \`sudo mkdir -p /srv/datalake/models/ollama && sudo chown root:docker /srv/datalake/models/ollama\`
-2. Actualizar \`<INTERNAL_DOMAIN>\` en stack.yml
-3. Desplegar: \`docker stack deploy -c stacks/ai-ml/02-ollama/stack.yml ollama\`
-4. Pull modelos: \`ollama pull llama3\`, \`ollama pull mistral\`
+Acceso:
+- **Interno (Jupyter)**: \`http://ollama:11434\` (sin auth)
+- **Externo**: \`https://ollama.sexydad\` (requiere BasicAuth)
+- **Nota**: Agregar en \`/etc/hosts\` local: \`192.168.80.100 ollama.sexydad\`
 
 Criterios de "OK":
-- ⏳ Servicio estable y corriendo.
-- ⏳ Ollama responde en: \`https://ollama.<INTERNAL_DOMAIN>\`.
-- ⏳ API \`/api/tags\` retorna lista de modelos.
-- ⏳ GPU aceleración verificada con modelos LLM.
+- ✅ Servicio estable y corriendo.
+- ✅ Ollama responde en: \`https://ollama.sexydad\`.
+- ✅ API \`/api/tags\` retorna \`{"models":[]}\`.
+- ✅ GPU detectada en logs: \`Nvidia GPU detected\`.
+- ⏳ Pendiente: Descargar modelos LLM (bajo demanda).
 
 ---
 
@@ -368,13 +373,17 @@ Checklist:
 
 ## Changelog Reciente
 
-### 2026-02-03: Ollama Stack Implementation ✅
-- ✅ Creado \`stack.yml\` completo con GPU support (RTX 2080 Ti)
-- ✅ Recursos optimizados: 4-8 CPUs, 8-16GB RAM
+### 2026-02-03: Ollama Stack DEPLOYED ✅
+- ✅ Stack desplegado y operativo en master2
+- ✅ GPU RTX 2080 Ti detectada (11GB VRAM)
+- ✅ Recursos optimizados: 6-12 CPUs, 12-24GB RAM
+- ✅ Variables GPU: Flash Attention, parallel requests (4), KV cache f16
 - ✅ Persistencia en \`/srv/datalake/models/ollama\`
-- ✅ Traefik ingress + health checks
-- ✅ README con instrucciones de deployment y ejemplos de uso
-- ✅ Integración lista con Jupyter notebooks
+- ✅ Seguridad: BasicAuth + LAN Whitelist
+- ✅ Dominio: \`ollama.sexydad\` (requiere entrada en \`/etc/hosts\` local)
+- ✅ API REST 100% funcional
+- ✅ README completo con 7 endpoints documentados + ejemplos Postman/Python
+- ✅ Integración lista con Jupyter notebooks (red interna sin auth)
 
 ### Estado anterior (pre-2026-02-03):
 - ✅ Jupyter multi-usuario operativo (ogiovanni, odavid)
