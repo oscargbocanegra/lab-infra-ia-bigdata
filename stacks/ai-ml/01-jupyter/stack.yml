@@ -53,7 +53,7 @@ services:
           cpus: '4.0'
           memory: 8G
       restart_policy:
-        condition: on-failure
+        condition: any
         delay: 10s
         max_attempts: 3
         window: 60s
@@ -112,7 +112,7 @@ services:
           cpus: '4.0'
           memory: 8G
       restart_policy:
-        condition: on-failure
+        condition: any
         delay: 10s
         max_attempts: 3
         window: 60s
