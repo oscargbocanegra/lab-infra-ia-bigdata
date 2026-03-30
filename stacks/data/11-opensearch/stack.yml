@@ -45,7 +45,7 @@ services:
       - bootstrap.memory_lock=true
     
     volumes:
-      # Persistent data on master1 HDD (sufficient for lab/learning)
+      # Persistent data on master2 NVMe (/srv/fastdata → LVM sobre NVMe)
       - type: bind
         source: /srv/fastdata/opensearch
         target: /usr/share/opensearch/data
@@ -64,7 +64,7 @@ services:
       
       placement:
         constraints:
-          - node.labels.tier == control
+          - node.labels.tier == compute
       
       resources:
         reservations:
