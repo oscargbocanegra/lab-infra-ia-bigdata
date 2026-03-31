@@ -1,0 +1,214 @@
+version: "3.9"
+
+# ============================================================
+# Stack: Apache Spark 3.5 — Procesamiento distribuido
+# ============================================================
+# Arquitectura:
+#   spark_master  → master1 (tier=control) — coordinador ligero
+#   spark_worker  → master2 (tier=compute) — CPU/RAM/NVMe/HDD
+#
+# Integración:
+#   PySpark desde Jupyter  → spark://spark_master:7077
+#   Airflow SparkSubmitOperator → misma URL
+#   Delta Lake vía s3a://  → MinIO como backend de storage
+#
+# History Server:
+#   Guarda logs de jobs completados en MinIO (s3a://spark-warehouse/history)
+#   UI en https://spark-history.sexydad
+#
+# URLs:
+#   https://spark-master.sexydad   → Spark Master UI
+#   https://spark-history.sexydad  → History Server UI
+#
+# Secrets requeridos:
+#   minio_access_key  → para que Spark acceda a MinIO (s3a)
+#   minio_secret_key
+# ============================================================
+
+networks:
+  public:
+    external: true
+  internal:
+    external: true
+
+secrets:
+  minio_access_key:
+    external: true
+  minio_secret_key:
+    external: true
+
+# Configuración Spark compartida entre master y worker
+# Inyectada como environment — evita duplicación
+x-spark-common: &spark-common
+  image: bitnami/spark:3.5.3
+  networks:
+    - internal
+    - public
+  secrets:
+    - minio_access_key
+    - minio_secret_key
+  environment:
+    # ── MinIO / S3A ──────────────────────────────────────────
+    # Spark usa s3a:// para leer/escribir en MinIO
+    # Endpoint interno del overlay network (no Traefik)
+    AWS_ACCESS_KEY_ID_FILE: /run/secrets/minio_access_key
+    AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_secret_key
+    SPARK_HADOOP_FS_S3A_ENDPOINT: http://minio:9000
+    SPARK_HADOOP_FS_S3A_PATH_STYLE_ACCESS: "true"
+    SPARK_HADOOP_FS_S3A_IMPL: org.apache.hadoop.fs.s3a.S3AFileSystem
+    SPARK_HADOOP_FS_S3A_AWS_CREDENTIALS_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+    # ── Delta Lake ───────────────────────────────────────────
+    SPARK_CONF_spark_sql_extensions: io.delta.sql.DeltaSparkSessionExtension
+    SPARK_CONF_spark_sql_catalog_spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+    # ── History Server ───────────────────────────────────────
+    SPARK_HISTORY_OPTS: -Dspark.history.fs.logDirectory=s3a://spark-warehouse/history
+    SPARK_CONF_spark_eventLog_enabled: "true"
+    SPARK_CONF_spark_eventLog_dir: s3a://spark-warehouse/history
+    # ── Network ──────────────────────────────────────────────
+    SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+    SPARK_RPC_ENCRYPTION_ENABLED: "no"
+    SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+    SPARK_SSL_ENABLED: "no"
+    # ── Logging ──────────────────────────────────────────────
+    SPARK_LOG_LEVEL: WARN
+
+services:
+
+  # ── Spark Master ─────────────────────────────────────────────
+  spark_master:
+    <<: *spark-common
+    hostname: spark_master
+    environment:
+      <<: *spark-common
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark_master
+      SPARK_MASTER_PORT: "7077"
+      SPARK_MASTER_WEBUI_PORT: "8080"
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          # master1: liviano, 25GB RAM libres, no compite con GPU workloads
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.spark-master.rule=Host(`spark-master.sexydad`)
+        - traefik.http.routers.spark-master.entrypoints=websecure
+        - traefik.http.routers.spark-master.tls=true
+        - traefik.http.routers.spark-master.service=spark-master
+        - traefik.http.services.spark-master.loadbalancer.server.port=8080
+        - traefik.http.routers.spark-master.middlewares=lan-whitelist@docker
+        - "com.docker.stack.namespace=spark"
+        - "description=Spark Master coordinator"
+
+  # ── Spark Worker ─────────────────────────────────────────────
+  spark_worker:
+    <<: *spark-common
+    hostname: spark_worker
+
+    environment:
+      <<: *spark-common
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark_master:7077
+      SPARK_WORKER_WEBUI_PORT: "8081"
+      # Recursos que el worker ofrece al master
+      # 10 CPUs y 14GB: deja headroom para Jupyter+Ollama+MinIO
+      SPARK_WORKER_CORES: "10"
+      SPARK_WORKER_MEMORY: 14g
+
+    volumes:
+      # Scratch local para shuffle y spill a NVMe (máximo rendimiento)
+      - /srv/fastdata/spark-tmp:/opt/bitnami/spark/work
+      # Acceso directo al datalake HDD (lectura de datasets locales)
+      - /srv/datalake/datasets:/data/datasets:ro
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          # master2: el compute node, NVMe para shuffle/spill
+          - node.labels.tier == compute
+          - node.hostname == master2
+      resources:
+        limits:
+          cpus: '12.0'
+          memory: 16G
+        reservations:
+          cpus: '2.0'
+          memory: 2G
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.spark-worker.rule=Host(`spark-worker.sexydad`)
+        - traefik.http.routers.spark-worker.entrypoints=websecure
+        - traefik.http.routers.spark-worker.tls=true
+        - traefik.http.routers.spark-worker.service=spark-worker
+        - traefik.http.services.spark-worker.loadbalancer.server.port=8081
+        - traefik.http.routers.spark-worker.middlewares=lan-whitelist@docker
+        - "com.docker.stack.namespace=spark"
+        - "description=Spark Worker compute node"
+
+  # ── Spark History Server ──────────────────────────────────────
+  spark_history:
+    <<: *spark-common
+    hostname: spark_history
+
+    environment:
+      <<: *spark-common
+      SPARK_MODE: master    # bitnami no tiene "history" mode; usamos entrypoint custom
+      SPARK_NO_DAEMONIZE: "true"
+
+    # Override del entrypoint para correr history server directamente
+    command: >
+      bash -c "
+        /opt/bitnami/spark/sbin/start-history-server.sh &&
+        tail -f /opt/bitnami/spark/logs/*.out
+      "
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.spark-history.rule=Host(`spark-history.sexydad`)
+        - traefik.http.routers.spark-history.entrypoints=websecure
+        - traefik.http.routers.spark-history.tls=true
+        - traefik.http.routers.spark-history.service=spark-history
+        - traefik.http.services.spark-history.loadbalancer.server.port=18080
+        - traefik.http.routers.spark-history.middlewares=lan-whitelist@docker
+        - "com.docker.stack.namespace=spark"
+        - "description=Spark History Server - job audit"

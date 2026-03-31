@@ -1,0 +1,334 @@
+version: "3.9"
+
+# ============================================================
+# Stack: Apache Airflow 2.9 — Orquestación de pipelines
+# ============================================================
+# Executor: CeleryExecutor (workers distribuidos vía Redis)
+# Broker:   Redis 7 (in-memory queue para tareas Celery)
+#
+# Componentes:
+#   airflow_webserver  → master1 (UI + API REST)
+#   airflow_scheduler  → master1 (planifica DAGs)
+#   airflow_worker     → master2 (ejecuta tareas, acceso a GPU/data)
+#   airflow_flower     → master1 (monitor de Celery workers)
+#   redis              → master1 (broker de mensajes)
+#
+# Base de datos metadata: PostgreSQL en master2 (DB: airflow)
+#
+# DAGs: montados desde /srv/fastdata/airflow/dags (master1)
+#       También accesible en master2 para el worker
+#
+# URLs:
+#   https://airflow.sexydad       → Webserver UI
+#   https://airflow-flower.sexydad → Flower (monitor workers)
+#
+# Secrets requeridos:
+#   pg_airflow_pass         → password DB airflow en Postgres
+#   airflow_fernet_key      → clave Fernet para encrypt connections
+#   airflow_webserver_secret→ secret key Flask webserver
+#   minio_access_key        → para logs remotos en MinIO
+#   minio_secret_key
+#
+# Directorios en master1 (crear antes de deploy):
+#   /srv/fastdata/airflow/dags
+#   /srv/fastdata/airflow/logs
+#   /srv/fastdata/airflow/plugins
+#
+# Directorios en master2 (para el worker):
+#   /srv/fastdata/airflow/dags   (mismo path — sincronizar o montar NFS)
+# ============================================================
+
+networks:
+  public:
+    external: true
+  internal:
+    external: true
+
+secrets:
+  pg_airflow_pass:
+    external: true
+  airflow_fernet_key:
+    external: true
+  airflow_webserver_secret:
+    external: true
+  minio_access_key:
+    external: true
+  minio_secret_key:
+    external: true
+
+# ── Variables de entorno comunes a todos los componentes ─────
+# Airflow 2.9: usa __FILE suffix para leer secrets de archivos
+x-airflow-common-env: &airflow-env
+  # ── Base de datos ──────────────────────────────────────────
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:$(cat /run/secrets/pg_airflow_pass)@postgres_postgres:5432/airflow
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: /run/secrets/pg_airflow_pass
+  # Usamos variable de template que Airflow resuelve en runtime:
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD: "cat /run/secrets/pg_airflow_pass | xargs -I{} echo 'postgresql+psycopg2://airflow:{}@postgres_postgres:5432/airflow'"
+
+  # ── Executor ──────────────────────────────────────────────
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+  AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow@postgres_postgres:5432/airflow
+
+  # ── Seguridad ─────────────────────────────────────────────
+  AIRFLOW__CORE__FERNET_KEY_CMD: cat /run/secrets/airflow_fernet_key
+  AIRFLOW__WEBSERVER__SECRET_KEY_CMD: cat /run/secrets/airflow_webserver_secret
+
+  # ── Comportamiento general ────────────────────────────────
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Bogota
+  AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: America/Bogota
+
+  # ── Logs remotos en MinIO ─────────────────────────────────
+  AIRFLOW__LOGGING__REMOTE_LOGGING: "true"
+  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs/
+  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_s3
+  AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: "false"
+
+  # ── Conexión MinIO para logs (configurar también en UI) ───
+  AIRFLOW_CONN_MINIO_S3: '{"conn_type":"s3","extra":{"endpoint_url":"http://minio:9000","aws_access_key_id_cmd":"cat /run/secrets/minio_access_key","aws_secret_access_key_cmd":"cat /run/secrets/minio_secret_key"}}'
+
+  # ── URL pública ───────────────────────────────────────────
+  AIRFLOW__WEBSERVER__BASE_URL: https://airflow.sexydad
+
+  # ── Privacidad / telemetría ───────────────────────────────
+  AIRFLOW__USAGE_DATA_COLLECTION__ENABLED: "false"
+
+x-airflow-common-secrets: &airflow-secrets
+  - pg_airflow_pass
+  - airflow_fernet_key
+  - airflow_webserver_secret
+  - minio_access_key
+  - minio_secret_key
+
+x-airflow-common-volumes-master1: &airflow-volumes-master1
+  - /srv/fastdata/airflow/dags:/opt/airflow/dags
+  - /srv/fastdata/airflow/logs:/opt/airflow/logs
+  - /srv/fastdata/airflow/plugins:/opt/airflow/plugins
+
+x-airflow-common-volumes-master2: &airflow-volumes-master2
+  - /srv/fastdata/airflow/dags:/opt/airflow/dags
+  - /srv/fastdata/airflow/logs:/opt/airflow/logs
+  - /srv/fastdata/airflow/plugins:/opt/airflow/plugins
+  # Acceso al datalake para tareas que procesan datos
+  - /srv/datalake/datasets:/data/datasets
+  - /srv/datalake/artifacts:/data/artifacts
+
+services:
+
+  # ── Redis — Message Broker para Celery ───────────────────────
+  redis:
+    image: redis:7.2-alpine
+    hostname: redis
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - /srv/fastdata/airflow/redis:/data
+    networks:
+      - internal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+
+  # ── Airflow DB Init — job único que prepara el schema ────────
+  # IMPORTANTE: corre una sola vez, luego queda con 0 replicas
+  # Ejecutar manualmente: docker service scale airflow_airflow-init=1
+  airflow_init:
+    image: apache/airflow:2.9.3
+    hostname: airflow-init
+    environment:
+      <<: *airflow-env
+      # Modo especial para init
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      # Password del admin se cambia en la UI tras el primer login
+      _AIRFLOW_WWW_USER_PASSWORD_CMD: cat /run/secrets/airflow_webserver_secret
+    secrets: *airflow-secrets
+    volumes: *airflow-volumes-master1
+    networks:
+      - internal
+    command: version
+    deploy:
+      replicas: 0    # NO arranca automáticamente — ejecutar manualmente para init
+      placement:
+        constraints:
+          - node.labels.tier == control
+      restart_policy:
+        condition: none
+
+  # ── Airflow Webserver ────────────────────────────────────────
+  airflow_webserver:
+    image: apache/airflow:2.9.3
+    hostname: airflow-webserver
+    environment: *airflow-env
+    secrets: *airflow-secrets
+    volumes: *airflow-volumes-master1
+    networks:
+      - public
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+      restart_policy:
+        condition: any
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.airflow.rule=Host(`airflow.sexydad`)
+        - traefik.http.routers.airflow.entrypoints=websecure
+        - traefik.http.routers.airflow.tls=true
+        - traefik.http.routers.airflow.service=airflow
+        - traefik.http.services.airflow.loadbalancer.server.port=8080
+        - traefik.http.routers.airflow.middlewares=lan-whitelist@docker
+        - traefik.http.services.airflow.loadbalancer.healthcheck.path=/health
+        - traefik.http.services.airflow.loadbalancer.healthcheck.interval=30s
+        - "com.docker.stack.namespace=airflow"
+        - "description=Airflow Webserver UI"
+
+  # ── Airflow Scheduler ────────────────────────────────────────
+  airflow_scheduler:
+    image: apache/airflow:2.9.3
+    hostname: airflow-scheduler
+    command: scheduler
+    environment: *airflow-env
+    secrets: *airflow-secrets
+    volumes: *airflow-volumes-master1
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname airflow-scheduler"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+
+  # ── Airflow Worker (Celery) ──────────────────────────────────
+  airflow_worker:
+    image: apache/airflow:2.9.3
+    hostname: airflow-worker
+    command: celery worker
+    environment:
+      <<: *airflow-env
+      # El worker en master2 tiene acceso a GPU y datalake
+      DUMB_INIT_SETSID: "0"
+    secrets: *airflow-secrets
+    volumes: *airflow-volumes-master2
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d celery@airflow-worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          # Ejecutar en master2: acceso a GPU, NVMe, datalake HDD
+          - node.labels.tier == compute
+          - node.hostname == master2
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+      restart_policy:
+        condition: any
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+
+  # ── Flower — Monitor de Celery Workers ───────────────────────
+  airflow_flower:
+    image: apache/airflow:2.9.3
+    hostname: airflow-flower
+    command: celery flower
+    environment:
+      <<: *airflow-env
+      FLOWER_PORT: "5555"
+    secrets: *airflow-secrets
+    volumes: *airflow-volumes-master1
+    networks:
+      - public
+      - internal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.airflow-flower.rule=Host(`airflow-flower.sexydad`)
+        - traefik.http.routers.airflow-flower.entrypoints=websecure
+        - traefik.http.routers.airflow-flower.tls=true
+        - traefik.http.routers.airflow-flower.service=airflow-flower
+        - traefik.http.services.airflow-flower.loadbalancer.server.port=5555
+        - traefik.http.routers.airflow-flower.middlewares=lan-whitelist@docker
+        - "com.docker.stack.namespace=airflow"
+        - "description=Celery Flower worker monitor"

@@ -1,42 +1,25 @@
-version: "3.8"
+version: "3.9"
 
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_super_pass
-      POSTGRES_DB: n8n
-    secrets:
-      - pg_super_pass
-      - pg_n8n_pass
-    configs:
-      - source: init_n8n
-        target: /docker-entrypoint-initdb.d/01-init-n8n.sh
-        mode: 0555
-    volumes:
-      - /srv/fastdata/postgres:/var/lib/postgresql/data
-    networks:
-      - internal
-    ports:
-      # IMPORTANTE: host mode para que solo abra en master2 (no routing mesh)
-      - target: 5432
-        published: 5432
-        protocol: tcp
-        mode: host
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          # usa la label que ya vienes manejando; ejemplo:
-          - node.hostname == master2
-          # alternativo (si tu plan está con labels):
-          # - node.labels.storage == primary
-      restart_policy:
-            condition: any
-            delay: 5s
-            max_attempts: 0
-            window: 60s
+# ============================================================
+# Stack: PostgreSQL 16 — Base de datos central del cluster
+# ============================================================
+# Nodo:    master2 (hostname=master2, NVMe /srv/fastdata/postgres)
+# Puerto:  5432 (mode: host — solo accesible desde master2 LAN)
+#
+# Bases de datos gestionadas:
+#   postgres  → superusuario (admin)
+#   n8n       → automatización de flujos (n8n)
+#   airflow   → metadata de DAGs y tareas (Apache Airflow)
+#
+# Secrets requeridos (externos, crear antes de deploy):
+#   pg_super_pass       → password superusuario 'postgres'
+#   pg_n8n_pass         → password usuario 'n8n'
+#   pg_airflow_pass     → password usuario 'airflow'
+#
+# Init scripts (ejecutados una sola vez en volumen vacío):
+#   01-init-n8n.sh      → crea rol+db n8n
+#   02-init-airflow.sh  → crea rol+db airflow
+# ============================================================
 
 networks:
   internal:
@@ -47,7 +30,71 @@ secrets:
     external: true
   pg_n8n_pass:
     external: true
+  pg_airflow_pass:
+    external: true
 
 configs:
   init_n8n:
     file: ./initdb/01-init-n8n.sh
+  init_airflow:
+    file: ./initdb/02-init-airflow.sh
+
+services:
+  postgres:
+    image: postgres:16
+
+    environment:
+      # DB default neutral: 'postgres' (no acoplada a ninguna app)
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_super_pass
+      # Locale estándar para compatibilidad con todas las apps
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      # Timezone explícita
+      TZ: America/Bogota
+      PGTZ: America/Bogota
+
+    secrets:
+      - pg_super_pass
+      - pg_n8n_pass
+      - pg_airflow_pass
+
+    configs:
+      - source: init_n8n
+        target: /docker-entrypoint-initdb.d/01-init-n8n.sh
+        mode: 0555
+      - source: init_airflow
+        target: /docker-entrypoint-initdb.d/02-init-airflow.sh
+        mode: 0555
+
+    volumes:
+      - /srv/fastdata/postgres:/var/lib/postgresql/data
+
+    networks:
+      - internal
+
+    ports:
+      # mode: host → solo expone en master2, NO usa routing mesh Swarm
+      # Acceso LAN: master2-ip:5432 (DBeaver, psql, etc.)
+      - target: 5432
+        published: 5432
+        protocol: tcp
+        mode: host
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == master2
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 0   # reintentos infinitos — crítico para el cluster
+        window: 60s

@@ -1,5 +1,23 @@
 version: "3.8"
 
+# ============================================================
+# Stack: Traefik v2.11 — Reverse Proxy + TLS + Gateway
+# ============================================================
+# Nodo:   master1 (tier=control)
+# Puertos: 80 (redirect→443), 443 (TLS, mode: host)
+#
+# Responsabilidades:
+#   - Terminar TLS (cert self-signed desde secrets)
+#   - LAN whitelist: solo 192.168.80.0/24
+#   - Routing hacia todos los servicios del cluster
+#   - Middlewares de auth referenciados por cada stack
+#
+# NOTA sobre secrets en Traefik:
+#   Traefik DEBE tener montados todos los secrets de BasicAuth
+#   que define como middlewares, porque los otros stacks los
+#   referencian con @docker pero Traefik es quien los ejecuta.
+# ============================================================
+
 networks:
   public:
     external: true
@@ -7,12 +25,14 @@ networks:
     external: true
 
 secrets:
+  # ── Traefik propio ─────────────────────────────────────────
   traefik_basic_auth:
     external: true
   traefik_tls_cert:
     external: true
   traefik_tls_key:
     external: true
+  # ── Servicios que usan BasicAuth via Traefik ───────────────
   jupyter_basicauth_v2:
     external: true
   ollama_basicauth:
@@ -49,6 +69,7 @@ services:
 
       - --accesslog=true
       - --log.level=INFO
+
     ports:
       - target: 80
         published: 80
@@ -58,14 +79,18 @@ services:
         published: 443
         protocol: tcp
         mode: host
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
     networks:
       - public
       - internal
+
     configs:
       - source: traefik_dynamic
         target: /etc/traefik/dynamic.yml
+
     secrets:
       - traefik_basic_auth
       - traefik_tls_cert
@@ -74,40 +99,54 @@ services:
       - ollama_basicauth
       - opensearch_basicauth
       - dashboards_basicauth
+
     deploy:
       placement:
         constraints:
           - node.labels.tier == control
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 30s
       labels:
         - traefik.enable=true
 
-        # Dashboard: https://traefik.sexydad  (sirve en /dashboard/ y /api)
+        # ── Dashboard ────────────────────────────────────────
         - traefik.http.routers.traefik.rule=Host(`traefik.sexydad`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
         - traefik.http.routers.traefik.entrypoints=websecure
         - traefik.http.routers.traefik.tls=true
-
-        # En Swarm: define explícitamente el puerto del backend (evita "port is missing")
         - traefik.http.routers.traefik.service=traefik-dashboard
         - traefik.http.services.traefik-dashboard.loadbalancer.server.port=8080
-        - traefik.http.services.traefik-traefik.loadbalancer.server.port=8080
-
-        # Mitigación mínima: LAN only + BasicAuth
         - traefik.http.routers.traefik.middlewares=lan-whitelist@docker,traefik-auth@docker
+
+        # ── Middlewares globales de red ───────────────────────
+        # LAN whitelist — referenciado por todos los routers
         - traefik.http.middlewares.lan-whitelist.ipwhitelist.sourcerange=192.168.80.0/24
+
+        # Alias más corto para los stacks nuevos (MinIO, Spark, Airflow)
+        - traefik.http.middlewares.lan-allow.ipwhitelist.sourcerange=192.168.80.0/24
+
+        # ── Middlewares de autenticación ──────────────────────
+        # Traefik dashboard
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
 
-        # jupiter_basicauth secret (shared with jupyter stack)
+        # Jupyter (chain: LAN + BasicAuth)
         - traefik.http.middlewares.jupyter-auth.basicauth.usersfile=/run/secrets/jupyter_basicauth_v2
-        # (opcional) allowlist LAN
-        - traefik.http.middlewares.lan-allow.ipwhitelist.sourcerange=192.168.80.0/24
-        # chain (recomendado)
         - traefik.http.middlewares.jupyter-chain.chain.middlewares=lan-allow,jupyter-auth
-        
-        # Ollama BasicAuth
+
+        # Ollama
         - traefik.http.middlewares.ollama-auth.basicauth.usersfile=/run/secrets/ollama_basicauth
-        
-        # OpenSearch BasicAuth
+
+        # OpenSearch
         - traefik.http.middlewares.opensearch-auth.basicauth.usersfile=/run/secrets/opensearch_basicauth
-        
-        # OpenSearch Dashboards BasicAuth
+
+        # OpenSearch Dashboards
         - traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth
+
+        # ── Nota para operadores ──────────────────────────────
+        # Los stacks nuevos (MinIO, Spark, Airflow) usan solo
+        # lan-whitelist@docker (sin BasicAuth adicional).
+        # La auth de Airflow y MinIO es nativa de la aplicación.
+        # Si querés agregar BasicAuth a alguno, agrega el secret
+        # aquí y define el middleware como los anteriores.

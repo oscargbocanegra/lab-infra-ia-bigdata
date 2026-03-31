@@ -4,62 +4,78 @@
 
 ---
 
-## Estado actual: Fase 4 completada ✅
+## Estado actual: Fase 5 en progreso 🔧
 
 ```
-Fase 1: Base del clúster (Swarm + redes + labels + GPU)     ✅
-Fase 2: Storage en master2 (LVM NVMe + datalake HDD)        ✅
-Fase 3: Repo IaC + estructura estándar                       ✅
-Fase 4: Stacks operativos (7 servicios)                      ✅
-Fase 5: Automatización + Big Data (PENDIENTE)                ⏳
-Fase 6: Observabilidad + Hardening (PENDIENTE)               ⏳
+Fase 1: Base del clúster (Swarm + redes + labels + GPU)          ✅
+Fase 2: Storage en master2 (LVM NVMe + datalake HDD)             ✅
+Fase 3: Repo IaC + estructura estándar                            ✅
+Fase 4: Stacks operativos (Traefik, Portainer, Postgres,
+        n8n, JupyterLab x2, Ollama, OpenSearch)                  ✅
+Fase 5: Big Data + Automatización (MinIO, Spark, Airflow)         🔧 EN PROGRESO
+Fase 6: Observabilidad + Hardening                                ⏳
 ```
 
 ---
 
-## Fase 5: Automatización + Big Data
+## Fase 5: Big Data + Automatización
 
-### 5.1 Airflow — Orquestación de pipelines ⏳
+### 5.1 MinIO — Object Storage S3-compatible 🔧
 
-**Objetivo**: Programar y orquestar pipelines de datos (ingesta, procesamiento, ML training).
+**Stack listo en repo**: `stacks/data/12-minio/stack.yml`
 
-**Arquitectura**:
-- Webserver + Scheduler → master1 (control plane)
-- Workers → master2 (compute, acceso a GPU y datalake)
-- Metadata DB → PostgreSQL en master2 (nueva DB: `airflow`)
+**Pendiente en producción**:
+- [ ] Crear secrets `minio_access_key` y `minio_secret_key`
+- [ ] Crear directorio `/srv/datalake/minio` en master2
+- [ ] `docker stack deploy -c stacks/data/12-minio/stack.yml minio`
+- [ ] Crear buckets iniciales (ver `runbook_minio.md`)
 
-**Tareas**:
-- [ ] Crear DB `airflow` y usuario en Postgres
-- [ ] Crear secret `airflow_fernet_key`
-- [ ] Crear secret `airflow_admin_pass`
-- [ ] Crear directorio `/srv/fastdata/airflow` en master2
-- [ ] Crear `stacks/automation/03-airflow/stack.yml`
-- [ ] Configurar dominio `airflow.sexydad`
-- [ ] Crear runbook `docs/runbooks/runbook_airflow.md`
-- [ ] DAG de ejemplo: pipeline de ingesta de datos
-
-**Dependencias**: Postgres ✅, Traefik ✅
+**Integración con**:
+- Spark (s3a:// lectura/escritura de datasets y Delta Lake)
+- Airflow (logs remotos + S3Hook en DAGs)
+- Jupyter (boto3/s3fs para acceso Python directo)
 
 ---
 
-### 5.2 Spark — Procesamiento distribuido ⏳
+### 5.2 Apache Spark 3.5 — Procesamiento distribuido 🔧
 
-**Objetivo**: Procesamiento de datasets grandes con Spark (batch + SQL + MLlib).
+**Stack listo en repo**: `stacks/data/98-spark/stack.yml`
+
+**Pendiente en producción**:
+- [ ] MinIO debe estar corriendo primero
+- [ ] Crear directorio `/srv/fastdata/spark-tmp` en master2
+- [ ] `docker stack deploy -c stacks/data/98-spark/stack.yml spark`
+- [ ] Verificar registro del worker en Master UI
+
+**Capacidad del worker**: 10 CPUs / 14 GB RAM (master2)
+
+**Integración con**:
+- Jupyter (kernel BigData: PySpark + Delta Lake)
+- MinIO (storage s3a://)
+- Airflow (SparkSubmitOperator)
+
+---
+
+### 5.3 Apache Airflow 2.9 — Orquestación CeleryExecutor 🔧
+
+**Stack listo en repo**: `stacks/automation/03-airflow/stack.yml`
+
+**Pendiente en producción**:
+- [ ] Crear secrets: `pg_airflow_pass`, `airflow_fernet_key`, `airflow_webserver_secret`
+- [ ] Crear directorios `/srv/fastdata/airflow/{dags,logs,plugins,redis}` en master1
+- [ ] Crear directorios `/srv/fastdata/airflow/{dags,logs,plugins}` en master2
+- [ ] `docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow`
+- [ ] `docker service scale airflow_airflow_init=1` (solo primera vez)
+- [ ] Configurar conexiones en UI: `minio_s3`, `spark_default`
+- [ ] Crear DAG de ejemplo
 
 **Arquitectura**:
-- Spark Master → master2 (mejor latencia con workers)
-- Spark Worker → master2 (compute principal)
-- Spark Worker secundario → master1 (opcional, solo CPU/HDD)
-- Submit desde Jupyter o Airflow DAGs
-
-**Tareas**:
-- [ ] Crear `stacks/data/98-spark/stack.yml`
-- [ ] Configurar integración Jupyter ↔ Spark (SparkContext desde notebooks)
-- [ ] Configurar acceso a `/srv/datalake/datasets` desde Spark workers
-- [ ] Crear runbook `docs/runbooks/runbook_spark.md`
-- [ ] Notebook de ejemplo: lectura Parquet + operaciones Spark
-
-**Dependencias**: Jupyter ✅, storage datalake ✅
+```
+Redis (broker) → Scheduler → Worker (master2)
+                ↓
+             Webserver (UI)
+             Flower (monitor)
+```
 
 ---
 
@@ -67,111 +83,84 @@ Fase 6: Observabilidad + Hardening (PENDIENTE)               ⏳
 
 ### 6.1 Observabilidad (Prometheus + Grafana + Loki) ⏳
 
-**Objetivo**: Métricas de nodos, containers y aplicaciones. Logs centralizados.
+**Stack propuesto**: `stacks/monitoring/`
 
-**Stack propuesto**:
-```yaml
-Prometheus    → scrape metrics de Docker + node_exporter
-node_exporter → métricas OS/hardware en ambos nodos (global)
-cAdvisor      → métricas de containers
-Grafana       → dashboards
+```
+Prometheus    → scrape Docker + node_exporter + MinIO metrics
+node_exporter → métricas OS en ambos nodos (global)
+cAdvisor      → métricas containers
+Grafana       → dashboards (Docker Swarm, GPU, Disk I/O)
 Loki          → logs centralizados
 Promtail      → agent de logs (global)
 ```
 
-**Nodo**: master1 (tier=control) — servicios ligeros
-**Storage**: `/srv/fastdata/prometheus`, `/srv/fastdata/grafana`, `/srv/fastdata/loki`
-
-**Tareas**:
-- [ ] Crear `stacks/monitoring/` con stack completo
-- [ ] Dashboard Grafana: Docker Swarm overview
-- [ ] Dashboard Grafana: GPU utilization (master2)
-- [ ] Dashboard Grafana: Disk I/O (NVMe vs HDD)
-- [ ] Alertas básicas: servicio down, OOM, disco > 80%
+**Dashboards prioritarios**:
+- [ ] Docker Swarm overview
+- [ ] GPU utilization (master2 RTX 2080 Ti)
+- [ ] Spark job metrics
+- [ ] MinIO throughput + space
+- [ ] Alertas: servicio down, OOM, disco > 80%
 
 ---
 
 ### 6.2 Backups automatizados ⏳
 
-**Objetivo**: Backup automático de datos críticos con política de retención.
-
-**Plan**:
 ```
-Fuente (master2)                 Destino (master1)
-─────────────────────────────    ────────────────────────────
-/srv/fastdata/postgres     →     /srv/backups/postgres/
-/srv/fastdata/n8n          →     /srv/backups/n8n/
-/srv/fastdata/opensearch   →     /srv/backups/opensearch/
-                                 (vía rsync o restic)
+Origen (master2)              Destino (master1 o externo)
+─────────────────────────── → ────────────────────────────────
+/srv/fastdata/postgres          /srv/backups/postgres/
+/srv/fastdata/n8n               /srv/backups/n8n/
+MinIO buckets (mc mirror)       /srv/backups/minio/
 ```
 
-**Herramienta recomendada**: `restic` (deduplicación, cifrado, retención automática)
+**Herramienta**: `restic` (deduplicación + cifrado + retención)
 
-**Tareas**:
 - [ ] Instalar restic en master1
 - [ ] Script `scripts/backup/backup_postgres.sh`
-- [ ] Script `scripts/backup/backup_n8n.sh`
-- [ ] Cron job en master1 (o DAG de Airflow cuando esté listo)
-- [ ] Script de restore + prueba de restore documentada
+- [ ] DAG de Airflow para backup automatizado
 - [ ] Runbook `docs/runbooks/runbook_backups.md`
 
 ---
 
 ### 6.3 Hardening del OS ⏳
 
-**Objetivo**: Reducir superficie de ataque en ambos nodos.
-
-**Tareas**:
-- [ ] UFW en master1: permitir solo :22, :80, :443 + LAN interna
-- [ ] UFW en master2: permitir solo :22 + :5432 LAN + Swarm ports
-- [ ] NTP/chrony verificado y activo en ambos nodos
-- [ ] Actualizaciones de seguridad programadas (unattended-upgrades)
+- [ ] UFW en master1: permitir solo `:22`, `:80`, `:443` + LAN interna
+- [ ] UFW en master2: permitir solo `:22` + `:5432` LAN + Swarm ports
 - [ ] SSH hardening: `PasswordAuthentication no`, `PermitRootLogin no`
-- [ ] Documentar en `docs/hosts/master1/` y `docs/hosts/master2/`
+- [ ] `unattended-upgrades` activado en ambos nodos
+- [ ] NTP/chrony verificado
 
 ---
 
 ## Mejoras de infraestructura identificadas
 
-### DNS local (mejora de UX) ⏳
+### DNS wildcard LAN ⏳
 
-**Problema**: Cada cliente debe editar su `/etc/hosts` para resolver `*.sexydad`.
-**Solución**: Configurar wildcard DNS en el router o un Pi-Hole/dnsmasq en la LAN.
+**Problema**: cada cliente edita `/etc/hosts` manualmente.
+**Solución**: dnsmasq en router o Pi-Hole en LAN:
 
-```
-# Configuración en dnsmasq (ejemplo):
+```bash
+# dnsmasq:
 address=/sexydad/192.168.80.100
 ```
 
-**Beneficio**: Cualquier dispositivo de la LAN resuelve `*.sexydad` sin configuración.
-
 ---
 
-### Versión fija para Ollama ⏳
-
-**Problema**: `ollama/ollama:latest` puede cambiar de comportamiento entre deploys.
-**Acción**: Pinear a una versión específica (ej: `ollama/ollama:0.5.x`) tras evaluar la release.
-
----
-
-### Vector Database ⏳
-
-**Objetivo**: Agregar una base de datos vectorial para RAG (Retrieval Augmented Generation).
+### Vector Database para RAG ⏳
 
 **Opciones**:
-- `Qdrant` (recomendado — nativo para Swarm, Docker image oficial)
-- `Chroma` (simple, bueno para prototipado rápido)
-- `pgvector` (extensión de Postgres — si quieres simplificar el stack)
+- `Qdrant` (recomendado — Docker image oficial, nativo para Swarm)
+- `pgvector` (extensión Postgres — simplifica el stack)
 
-**Nodo**: master2 (cerca de Ollama y Jupyter para latencia mínima)
+**Nodo**: master2 (cerca de Ollama y Jupyter)
 
 ---
 
-### Jupyter Hub (opcional) ⏳
+### JupyterHub ⏳ (opcional)
 
-**Problema**: Actualmente hay 2 servicios separados (ogiovanni + odavid) con configuración duplicada.
-**Solución**: JupyterHub con spawner para gestionar múltiples usuarios desde un único servicio.
-**Trade-off**: Más complejidad de setup; los usuarios individuales son más simples de operar.
+**Trade-off**: JupyterHub centraliza gestión de usuarios pero agrega complejidad.
+Actualmente los 2 servicios separados son más simples de operar.
+Evaluar cuando se agreguen más de 3 usuarios.
 
 ---
 
@@ -179,9 +168,13 @@ address=/sexydad/192.168.80.100
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-03-30 | Fase 5: MinIO + Spark + Airflow — stacks creados |
+| 2026-03-30 | Jupyter: reservations optimizadas + kernel BigData |
+| 2026-03-30 | Ollama: versión pineada a 0.6.1 |
+| 2026-03-30 | Postgres: DB default neutral + init Airflow |
 | 2026-03-30 | Portainer CE 2.21.0 → 2.39.1 |
 | 2026-03-30 | Restructuración completa de docs/ |
 | 2026-02-04 | OpenSearch 2.19.4 + Dashboards desplegados ✅ |
 | 2026-02-03 | Ollama desplegado con GPU ✅ |
 | 2026-01-XX | JupyterLab multi-usuario + GPU ✅ |
-| 2025-12-XX | Fase 1-4: Swarm, redes, Traefik, Portainer, Postgres, n8n ✅ |
+| 2025-12-XX | Fase 1–4: Swarm, redes, Traefik, Portainer, Postgres, n8n ✅ |

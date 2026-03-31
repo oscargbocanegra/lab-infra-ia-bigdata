@@ -1,27 +1,67 @@
 version: "3.9"
 
+# ============================================================
+# Stack: JupyterLab - Entorno multi-usuario IA/ML/BigData
+# ============================================================
+# Usuarios:  ogiovanni (uid 1000) | odavid (uid 1001)
+# Nodo:      master2 (tier=compute, GPU RTX 2080 Ti)
+# Kernels:   Python LLM | Python IA | Python BigData (Spark)
+# URLs:      https://jupyter-ogiovanni.sexydad
+#            https://jupyter-odavid.sexydad
+# Recursos:  reducidos a reservations realistas (lab compartido)
+#            limits = máximo consumo bajo carga real
+# ============================================================
+
 configs:
   init_kernels:
     file: ./init-kernels.sh
   entrypoint:
     file: ./entrypoint.sh
 
+networks:
+  public:
+    external: true
+  internal:
+    external: true
+
+# ── Servicio base (x-extension) ──────────────────────────────
+# Docker Swarm no soporta YAML anchors nativos en deploy.labels
+# Usamos x- solo para documentar la intención; los dos servicios
+# son explícitos para máxima claridad operativa.
+# ─────────────────────────────────────────────────────────────
+
 services:
+
+  # ── ogiovanni ────────────────────────────────────────────────
   jupyter_ogiovanni:
     image: jupyter/datascience-notebook:python-3.11
+    hostname: jupyter-ogiovanni
     healthcheck:
       disable: true
+
     environment:
       - JUPYTER_ENABLE_LAB=yes
+      # GPU: acceso compartido con odavid y Ollama
       - NVIDIA_VISIBLE_DEVICES=0
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - CUDA_VISIBLE_DEVICES=0
       - CHOWN_HOME=yes
-      - CHOWN_HOME_OPTS='-R'
+      - CHOWN_HOME_OPTS=-R
+      # Spark: apuntar al master del cluster
+      - SPARK_MASTER_URL=spark://spark_master:7077
+      # MinIO / S3A: credenciales via env (Jupyter las necesita para PySpark)
+      - AWS_ACCESS_KEY_ID_FILE=/run/secrets/minio_access_key
+      - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/minio_secret_key
+
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
       - /srv/fastdata/jupyter/ogiovanni/.local:/home/jovyan/.local
       - /srv/fastdata/jupyter/ogiovanni/.venv:/home/jovyan/.venv
+      # Acceso lectura/escritura al datalake compartido
+      - /srv/datalake/datasets:/home/jovyan/datasets:ro
+      - /srv/datalake/notebooks:/home/jovyan/shared-notebooks
+      - /srv/datalake/artifacts:/home/jovyan/artifacts
+
     configs:
       - source: init_kernels
         target: /tmp/init-kernels.sh
@@ -29,9 +69,15 @@ services:
       - source: entrypoint
         target: /tmp/entrypoint.sh
         mode: 0755
+
+    secrets:
+      - minio_access_key
+      - minio_secret_key
+
     networks:
       - public
       - internal
+
     command: >
       bash -c "/tmp/entrypoint.sh
       --ServerApp.ip=0.0.0.0
@@ -39,6 +85,7 @@ services:
       --ServerApp.token=''
       --ServerApp.password=''
       --ServerApp.allow_remote_access=True"
+
     deploy:
       replicas: 1
       placement:
@@ -50,8 +97,12 @@ services:
           cpus: '8.0'
           memory: 12G
         reservations:
-          cpus: '4.0'
-          memory: 8G
+          # Bajado de 4.0→2.0 CPUs y 8G→4G:
+          # - reservations son garantías para Swarm scheduler
+          # - en lab compartido, no ambos usuarios al 100% simultáneo
+          # - libera headroom para Spark Worker + Airflow Worker
+          cpus: '2.0'
+          memory: 4G
       restart_policy:
         condition: any
         delay: 10s
@@ -66,21 +117,32 @@ services:
         - traefik.http.routers.jupyter-ogiovanni.middlewares=jupyter-chain@docker
         - traefik.http.services.jupyter-ogiovanni.loadbalancer.server.port=8888
 
+  # ── odavid ───────────────────────────────────────────────────
   jupyter_odavid:
     image: jupyter/datascience-notebook:python-3.11
+    hostname: jupyter-odavid
     healthcheck:
       disable: true
+
     environment:
       - JUPYTER_ENABLE_LAB=yes
       - NVIDIA_VISIBLE_DEVICES=0
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - CUDA_VISIBLE_DEVICES=0
       - CHOWN_HOME=yes
-      - CHOWN_HOME_OPTS='-R'
+      - CHOWN_HOME_OPTS=-R
+      - SPARK_MASTER_URL=spark://spark_master:7077
+      - AWS_ACCESS_KEY_ID_FILE=/run/secrets/minio_access_key
+      - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/minio_secret_key
+
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work
       - /srv/fastdata/jupyter/odavid/.local:/home/jovyan/.local
       - /srv/fastdata/jupyter/odavid/.venv:/home/jovyan/.venv
+      - /srv/datalake/datasets:/home/jovyan/datasets:ro
+      - /srv/datalake/notebooks:/home/jovyan/shared-notebooks
+      - /srv/datalake/artifacts:/home/jovyan/artifacts
+
     configs:
       - source: init_kernels
         target: /tmp/init-kernels.sh
@@ -88,9 +150,15 @@ services:
       - source: entrypoint
         target: /tmp/entrypoint.sh
         mode: 0755
+
+    secrets:
+      - minio_access_key
+      - minio_secret_key
+
     networks:
       - public
       - internal
+
     command: >
       bash -c "/tmp/entrypoint.sh
       --ServerApp.ip=0.0.0.0
@@ -98,6 +166,7 @@ services:
       --ServerApp.token=''
       --ServerApp.password=''
       --ServerApp.allow_remote_access=True"
+
     deploy:
       replicas: 1
       placement:
@@ -109,8 +178,8 @@ services:
           cpus: '8.0'
           memory: 12G
         reservations:
-          cpus: '4.0'
-          memory: 8G
+          cpus: '2.0'
+          memory: 4G
       restart_policy:
         condition: any
         delay: 10s
@@ -125,8 +194,8 @@ services:
         - traefik.http.routers.jupyter-odavid.middlewares=jupyter-chain@docker
         - traefik.http.services.jupyter-odavid.loadbalancer.server.port=8888
 
-networks:
-  public:
+secrets:
+  minio_access_key:
     external: true
-  internal:
+  minio_secret_key:
     external: true
