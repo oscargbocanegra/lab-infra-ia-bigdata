@@ -77,9 +77,9 @@ services:
           memory: 24G
       
       restart_policy:
-        condition: on-failure
+        condition: any
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
         window: 120s
       
       labels:

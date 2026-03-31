@@ -1,6 +1,6 @@
 # Arquitectura del Laboratorio — lab-infra-ia-bigdata
 
-> Última actualización: 2026-03-30
+> Última actualización: 2026-03-31 — Lab 100% operativo (20 servicios)
 
 ---
 
@@ -77,47 +77,71 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 ## 3. Diagrama lógico de servicios
 
 ```
-╔══════════════════════════════════╗  ╔══════════════════════════════════════╗
-║         master1                  ║  ║              master2                  ║
-║         tier=control             ║  ║              tier=compute             ║
-╠══════════════════════════════════╣  ╠══════════════════════════════════════╣
-║                                  ║  ║                                       ║
-║  ┌─────────────────────────┐     ║  ║  ┌──────────────────────────────┐    ║
-║  │  Traefik v2.11          │     ║  ║  │  PostgreSQL 16               │    ║
-║  │  :80 :443 (host mode)   │     ║  ║  │  /srv/fastdata/postgres      │    ║
-║  │  Reverse Proxy + TLS    │     ║  ║  │  :5432 (host mode)           │    ║
-║  └────────────┬────────────┘     ║  ║  └──────────────────────────────┘    ║
-║               │                  ║  ║                                       ║
-║  ┌────────────▼────────────┐     ║  ║  ┌──────────────────────────────┐    ║
-║  │  Portainer CE 2.39.1    │     ║  ║  │  n8n 2.4.7                   │    ║
-║  │  /srv/fastdata/portainer│     ║  ║  │  /srv/fastdata/n8n           │    ║
-║  │  → tcp://tasks.agent    │     ║  ║  │  → postgres (internal net)   │    ║
-║  └─────────────────────────┘     ║  ║  └──────────────────────────────┘    ║
-║                                  ║  ║                                       ║
-║  ┌─────────────────────────┐     ║  ║  ┌──────────────────────────────┐    ║
-║  │  OpenSearch 2.19.4      │     ║  ║  │  JupyterLab (ogiovanni)      │    ║
-║  │  /srv/fastdata/opensearch│    ║  ║  │  /srv/fastdata/jupyter/      │    ║
-║  │  :9200 (internal)       │     ║  ║  │  GPU + 8CPU + 12GB RAM       │    ║
-║  └─────────────────────────┘     ║  ║  └──────────────────────────────┘    ║
-║                                  ║  ║                                       ║
-║  ┌─────────────────────────┐     ║  ║  ┌──────────────────────────────┐    ║
-║  │  OpenSearch Dashboards  │     ║  ║  │  JupyterLab (odavid)         │    ║
-║  │  2.19.4 :5601           │     ║  ║  │  /srv/fastdata/jupyter/      │    ║
-║  └─────────────────────────┘     ║  ║  │  GPU + 8CPU + 12GB RAM       │    ║
-║                                  ║  ║  └──────────────────────────────┘    ║
-║  ┌─────────────────────────┐     ║  ║                                       ║
-║  │  Portainer Agent        │     ║  ║  ┌──────────────────────────────┐    ║
-║  │  (global: ambos nodos)  │     ║  ║  │  Ollama (latest)             │    ║
-║  └─────────────────────────┘     ║  ║  │  /srv/datalake/models/ollama │    ║
-║                                  ║  ║  │  GPU RTX 2080 Ti             │    ║
-║                                  ║  ║  │  :11434 (internal)           │    ║
-║                                  ║  ║  └──────────────────────────────┘    ║
-║                                  ║  ║                                       ║
-║                                  ║  ║  ┌──────────────────────────────┐    ║
-║                                  ║  ║  │  Portainer Agent             │    ║
-║                                  ║  ║  │  (global: ambos nodos)       │    ║
-║                                  ║  ║  └──────────────────────────────┘    ║
-╚══════════════════════════════════╝  ╚══════════════════════════════════════╝
+╔══════════════════════════════════════╗  ╔═══════════════════════════════════════════╗
+║         master1  (tier=control)      ║  ║         master2  (tier=compute)           ║
+╠══════════════════════════════════════╣  ╠═══════════════════════════════════════════╣
+║                                      ║  ║                                           ║
+║  ┌──────────────────────────────┐    ║  ║  ┌──────────────────────────────────┐    ║
+║  │  Traefik v2.11               │    ║  ║  │  PostgreSQL 16                   │    ║
+║  │  :80 :443 (host mode)        │    ║  ║  │  /srv/fastdata/postgres (NVMe)   │    ║
+║  │  Reverse Proxy + TLS + LAN   │    ║  ║  │  :5432 (host mode)               │    ║
+║  └──────────────────────────────┘    ║  ║  │  bases: postgres / n8n / airflow │    ║
+║                                      ║  ║  └──────────────────────────────────┘    ║
+║  ┌──────────────────────────────┐    ║  ║                                           ║
+║  │  Portainer CE 2.39.1         │    ║  ║  ┌──────────────────────────────────┐    ║
+║  │  /srv/fastdata/portainer     │    ║  ║  │  n8n 2.4.7                       │    ║
+║  │  → tcp://tasks.agent:9001    │    ║  ║  │  /srv/fastdata/n8n (NVMe)        │    ║
+║  └──────────────────────────────┘    ║  ║  │  → postgres:5432 (n8n DB)        │    ║
+║                                      ║  ║  └──────────────────────────────────┘    ║
+║  ┌──────────────────────────────┐    ║  ║                                           ║
+║  │  OpenSearch 2.19.4           │    ║  ║  ┌──────────────────────────────────┐    ║
+║  │  /srv/fastdata/opensearch    │    ║  ║  │  JupyterLab (ogiovanni)          │    ║
+║  │  :9200 (internal)            │    ║  ║  │  /srv/fastdata/jupyter/ogiovanni │    ║
+║  └──────────────────────────────┘    ║  ║  │  GPU + 8CPU + 12GB — uid 1000    │    ║
+║                                      ║  ║  └──────────────────────────────────┘    ║
+║  ┌──────────────────────────────┐    ║  ║                                           ║
+║  │  OpenSearch Dashboards       │    ║  ║  ┌──────────────────────────────────┐    ║
+║  │  2.19.4  :5601               │    ║  ║  │  JupyterLab (odavid)             │    ║
+║  └──────────────────────────────┘    ║  ║  │  /srv/fastdata/jupyter/odavid    │    ║
+║                                      ║  ║  │  GPU + 8CPU + 12GB — uid 1001    │    ║
+║  ┌──────────────────────────────┐    ║  ║  └──────────────────────────────────┘    ║
+║  │  Redis 7.2 (Celery broker)   │    ║  ║                                           ║
+║  │  /srv/fastdata/airflow/redis │    ║  ║  ┌──────────────────────────────────┐    ║
+║  └──────────────────────────────┘    ║  ║  │  Ollama 0.6.1                    │    ║
+║                                      ║  ║  │  /srv/datalake/models/ollama     │    ║
+║  ┌──────────────────────────────┐    ║  ║  │  GPU RTX 2080 Ti (11 GB VRAM)    │    ║
+║  │  Airflow Webserver 2.9.3     │    ║  ║  │  :11434 (internal)               │    ║
+║  │  /srv/fastdata/airflow/dags  │    ║  ║  └──────────────────────────────────┘    ║
+║  │  :8080 (internal)            │    ║  ║                                           ║
+║  └──────────────────────────────┘    ║  ║  ┌──────────────────────────────────┐    ║
+║                                      ║  ║  │  MinIO RELEASE.2024-11-07        │    ║
+║  ┌──────────────────────────────┐    ║  ║  │  /srv/datalake/minio (HDD 2TB)   │    ║
+║  │  Airflow Scheduler           │    ║  ║  │  :9000 S3 API / :9001 Console    │    ║
+║  │  /srv/fastdata/airflow/dags  │    ║  ║  └──────────────────────────────────┘    ║
+║  └──────────────────────────────┘    ║  ║                                           ║
+║                                      ║  ║  ┌──────────────────────────────────┐    ║
+║  ┌──────────────────────────────┐    ║  ║  │  Spark Worker 3.5.3              │    ║
+║  │  Airflow Flower              │    ║  ║  │  /srv/fastdata/spark-tmp (NVMe)  │    ║
+║  │  :5555 (internal)            │    ║  ║  │  10 CPUs / 14 GB oferta          │    ║
+║  └──────────────────────────────┘    ║  ║  │  → spark-master:7077             │    ║
+║                                      ║  ║  └──────────────────────────────────┘    ║
+║  ┌──────────────────────────────┐    ║  ║                                           ║
+║  │  Spark Master 3.5.3          │    ║  ║  ┌──────────────────────────────────┐    ║
+║  │  /srv/fastdata/spark-history │    ║  ║  │  Airflow Worker (Celery)         │    ║
+║  │  :7077 (internal)            │    ║  ║  │  /srv/fastdata/airflow/dags      │    ║
+║  └──────────────────────────────┘    ║  ║  │  /srv/datalake/datasets (ro)     │    ║
+║                                      ║  ║  └──────────────────────────────────┘    ║
+║  ┌──────────────────────────────┐    ║  ║                                           ║
+║  │  Spark History Server        │    ║  ║  ┌──────────────────────────────────┐    ║
+║  │  /srv/fastdata/spark-history │    ║  ║  │  Portainer Agent                 │    ║
+║  │  :18080 (internal)           │    ║  ║  │  (global: ambos nodos)           │    ║
+║  └──────────────────────────────┘    ║  ║  └──────────────────────────────────┘    ║
+║                                      ║  ║                                           ║
+║  ┌──────────────────────────────┐    ║  ╚═══════════════════════════════════════════╝
+║  │  Portainer Agent             ║    ║
+║  │  (global: ambos nodos)       ║    ║
+║  └──────────────────────────────┘    ║
+╚══════════════════════════════════════╝
 ```
 
 ---
@@ -139,32 +163,36 @@ Usuario (PC LAN)
          │  2. basicauth (según servicio)
          │  3. TLS termination (cert self-signed)
          │
-         ├──[Host: portainer.sexydad]──────► Portainer :9000 (master1, net: public)
-         │
-         ├──[Host: traefik.sexydad]────────► Traefik Dashboard :8080 (master1, net: public)
-         │
-         ├──[Host: n8n.sexydad]────────────► n8n :5678 (master2, net: public)
-         │
-         ├──[Host: opensearch.sexydad]─────► OpenSearch :9200 (master1, net: public)
-         │
-         ├──[Host: dashboards.sexydad]─────► OpenSearch Dashboards :5601 (master1, net: public)
-         │
-         ├──[Host: ollama.sexydad]─────────► Ollama :11434 (master2, net: public)
-         │
-         ├──[Host: jupyter-ogiovanni.sexydad]► JupyterLab :8888 (master2, net: public)
-         │
-         └──[Host: jupyter-odavid.sexydad]──► JupyterLab :8888 (master2, net: public)
+         ├──[portainer.sexydad]──────────────► Portainer :9000 (master1)
+         ├──[traefik.sexydad]────────────────► Traefik Dashboard :8080 (master1)
+         ├──[n8n.sexydad]────────────────────► n8n :5678 (master2)
+         ├──[opensearch.sexydad]─────────────► OpenSearch :9200 (master1)
+         ├──[dashboards.sexydad]─────────────► OpenSearch Dashboards :5601 (master1)
+         ├──[ollama.sexydad]─────────────────► Ollama :11434 (master2)
+         ├──[jupyter-ogiovanni.sexydad]───────► JupyterLab :8888 (master2)
+         ├──[jupyter-odavid.sexydad]──────────► JupyterLab :8888 (master2)
+         ├──[minio.sexydad]──────────────────► MinIO Console :9001 (master2)
+         ├──[minio-api.sexydad]──────────────► MinIO S3 API :9000 (master2)
+         ├──[spark-master.sexydad]───────────► Spark Master UI :8080 (master1)
+         ├──[spark-worker.sexydad]───────────► Spark Worker UI :8081 (master2)
+         ├──[spark-history.sexydad]──────────► Spark History :18080 (master1)
+         ├──[airflow.sexydad]────────────────► Airflow Webserver :8080 (master1)
+         └──[airflow-flower.sexydad]──────────► Celery Flower :5555 (master1)
 
 
 Comunicación interna (service-to-service vía overlay "internal"):
-  n8n          ──► postgres:5432
+  n8n              ──► postgres:5432
+  airflow_*        ──► postgres:5432  (metadata de DAGs)
+  airflow_*        ──► redis:6379     (broker Celery)
+  airflow_*        ──► minio:9000     (logs remotos — deshabilitado por defecto)
+  airflow_worker   ──► ollama:11434   (inference desde DAGs)
   opensearch-dashboards ──► opensearch:9200
-  jupyter      ──► ollama:11434  (sin auth, red interna)
-  jupyter      ──► opensearch:9200 (sin auth, red interna)
-  n8n          ──► opensearch:9200 (sin auth, red interna)
-  airflow(*)   ──► postgres:5432
-  airflow(*)   ──► ollama:11434
-  (*) pendiente de despliegue
+  jupyter          ──► ollama:11434   (sin auth, red interna)
+  jupyter          ──► opensearch:9200
+  jupyter          ──► minio:9000     (S3 API para datasets)
+  jupyter          ──► spark-master:7077 (submit jobs)
+  spark_worker     ──► spark-master:7077
+  spark_history    ──► /opt/spark/history (filesystem compartido)
 ```
 
 ---
@@ -172,39 +200,53 @@ Comunicación interna (service-to-service vía overlay "internal"):
 ## 5. Flujo de datos en pipelines AI/Data
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Flujo de datos típico                         │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Flujo de datos — Medallion Architecture           │
+└─────────────────────────────────────────────────────────────────────┘
 
-INGESTA:
-  n8n (orquestación) ──► API externa / webhook / schedule
+INGESTA (Bronze):
+  Airflow DAGs / n8n / scripts manuales
        │
        ▼
-  Datos crudos ──► /srv/datalake/datasets (HDD master2)
+  s3a://bronze/  (MinIO — HDD 2TB, CSV/JSON/Parquet raw, append-only)
+
+PROCESAMIENTO (Silver):
+  Airflow → SparkSubmitOperator
        │
        ▼
-PROCESAMIENTO:
-  JupyterLab (notebook)
+  Spark Job (master1:7077 → worker master2)
+       │   lee  s3a://bronze/
+       │   escribe → s3a://silver/  (Delta Lake ACID: limpio, tipado, deduplicado)
+       └── event logs → /srv/fastdata/spark-history
+
+AGREGACIÓN (Gold):
+  Airflow → SparkSubmitOperator
        │
-       ├── Lee datasets ◄── /srv/datalake/datasets
-       ├── Accede GPU  ◄── RTX 2080 Ti (CUDA)
-       ├── Usa Ollama  ◄── http://ollama:11434 (LLM inference)
-       ├── Escribe resultados ──► /srv/datalake/artifacts
-       └── Indexa en OpenSearch ──► http://opensearch:9200
-                                        │
-VISUALIZACIÓN:                          ▼
-  OpenSearch Dashboards ◄──────── Índices + Aggregations
+       ▼
+  Spark Job
+       │   lee  s3a://silver/
+       └── escribe → s3a://gold/  (Delta Lake: KPIs, features ML, reportes)
+
+ANÁLISIS / ML:
+  JupyterLab (PySpark + Delta + boto3)
+       │   lee  s3a://bronze/ | silver/ | gold/
+       │   accede GPU ◄── RTX 2080 Ti (CUDA)
+       │   usa Ollama ◄── http://ollama:11434 (LLM inference)
+       │   indexa en OpenSearch ──► http://opensearch:9200
+       └── guarda resultados ──► /srv/datalake/artifacts
+
+VISUALIZACIÓN:
+  OpenSearch Dashboards ◄──── Índices + Aggregations
   (https://dashboards.sexydad)
 
-AUTOMATIZACIÓN (próxima fase):
-  Airflow DAGs ──► Schedule + orchestrate pipelines
-       ├── Spark jobs ──► master2 workers (compute)
-       ├── n8n webhooks
-       └── Notificaciones
+AUTOMATIZACIÓN:
+  n8n (https://n8n.sexydad) ──► webhooks, integraciones externas, notificaciones
+  Airflow (https://airflow.sexydad) ──► orquesta TODO el pipeline
 
 MODELOS LLM:
-  Ollama ──► /srv/datalake/models/ollama (HDD 2TB)
+  Ollama ──► /srv/datalake/models/ollama (HDD 2TB, persistente)
   Jupyter ──► acceso via http://ollama:11434/api/generate
+  Airflow ──► acceso via http://ollama:11434 desde worker
 ```
 
 ---
@@ -229,10 +271,19 @@ deploy:
 | Portainer | master1 | `tier=control` | UI de administración |
 | OpenSearch | master1 | `tier=control` | master2 saturado con GPU workloads |
 | OpenSearch Dashboards | master1 | `tier=control` | Frontend ligero |
+| Redis (Celery) | master1 | `tier=control` | Broker ligero, junto al scheduler |
+| Airflow Webserver | master1 | `tier=control` | UI + API REST |
+| Airflow Scheduler | master1 | `tier=control` | Planificador ligero |
+| Airflow Flower | master1 | `tier=control` | Monitor ligero |
+| Spark Master | master1 | `tier=control` | Coordinador ligero |
+| Spark History | master1 | `tier=control` | Lee logs del filesystem |
 | PostgreSQL | master2 | `hostname=master2` | NVMe para I/O intensivo |
 | n8n | master2 | `tier=compute` | Junto con Postgres (misma red) |
 | JupyterLab | master2 | `tier=compute` + `hostname=master2` | GPU + NVMe para notebooks |
 | Ollama | master2 | `tier=compute` + `gpu=nvidia` | GPU obligatorio |
+| MinIO | master2 | `tier=compute` + `hostname=master2` | HDD 2TB datalake |
+| Spark Worker | master2 | `tier=compute` + `hostname=master2` | NVMe para shuffle/spill |
+| Airflow Worker | master2 | `tier=compute` + `hostname=master2` | Acceso a GPU, NVMe, datalake HDD |
 | Portainer Agent | GLOBAL | — | Corre en TODOS los nodos |
 
 ---
@@ -240,21 +291,25 @@ deploy:
 ## 7. Redes Docker Swarm
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Redes Overlay                         │
-├────────────┬───────────────────────────────────────────┤
-│  public    │  attachable, overlay                       │
-│            │  Usado para: Traefik ↔ backends            │
-│            │  Servicios: traefik, portainer, n8n,       │
-│            │             jupyter, ollama,               │
-│            │             opensearch, dashboards         │
-├────────────┼───────────────────────────────────────────┤
-│  internal  │  attachable, overlay                       │
-│            │  Usado para: service-to-service            │
-│            │  Servicios: postgres, n8n, traefik,        │
-│            │             jupyter, ollama,               │
-│            │             opensearch, portainer-agent    │
-└────────────┴───────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Redes Overlay                             │
+├────────────┬───────────────────────────────────────────────┤
+│  public    │  attachable, overlay                           │
+│            │  Usado para: Traefik ↔ backends                │
+│            │  Servicios: traefik, portainer, n8n,           │
+│            │             jupyter, ollama,                   │
+│            │             opensearch, dashboards,            │
+│            │             minio, spark_*, airflow_webserver, │
+│            │             airflow_flower                     │
+├────────────┼───────────────────────────────────────────────┤
+│  internal  │  attachable, overlay                           │
+│            │  Usado para: service-to-service                │
+│            │  Servicios: postgres, n8n, traefik,            │
+│            │             jupyter, ollama,                   │
+│            │             opensearch, portainer-agent,       │
+│            │             minio, spark_*, redis,             │
+│            │             airflow_* (todos)                  │
+└────────────┴───────────────────────────────────────────────┘
 ```
 
 **Regla de acceso**:
@@ -271,19 +326,22 @@ deploy:
 │                    Capas de seguridad                            │
 │                                                                  │
 │  1. Perimetral: LAN solo (192.168.80.0/24)                       │
-│     └─ Traefik middleware: lan-whitelist                         │
+│     └─ Traefik middleware: lan-whitelist / lan-allow             │
 │                                                                  │
-│  2. Autenticación: BasicAuth por servicio                        │
+│  2. Autenticación: BasicAuth por servicio (donde aplica)         │
 │     └─ Secrets: traefik_basic_auth, jupyter_basicauth_v2,        │
 │                 ollama_basicauth, opensearch_basicauth,           │
 │                 dashboards_basicauth                              │
+│     └─ Auth nativa: Portainer, Airflow, MinIO, n8n               │
 │                                                                  │
 │  3. Transporte: TLS self-signed en todos los endpoints           │
 │     └─ Secrets: traefik_tls_cert, traefik_tls_key               │
 │                                                                  │
-│  4. Credenciales DB: Docker Swarm Secrets                        │
-│     └─ Secrets: pg_super_pass, pg_n8n_pass                      │
+│  4. Credenciales DB/App: Docker Swarm Secrets                    │
+│     └─ Secrets: pg_super_pass, pg_n8n_pass, pg_airflow_pass      │
+│                 minio_access_key, minio_secret_key               │
 │                 n8n_encryption_key, n8n_user_mgmt_jwt_secret     │
+│                 airflow_fernet_key, airflow_webserver_secret      │
 │                                                                  │
 │  5. Red interna: Overlay cifrado (no expuesto a LAN directa)     │
 │     └─ Servicios internos: NO tienen puertos publicados         │
