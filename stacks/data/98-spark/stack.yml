@@ -23,6 +23,12 @@ version: "3.9"
 # Secrets requeridos:
 #   minio_access_key  → para que Spark acceda a MinIO (s3a)
 #   minio_secret_key
+#
+# NOTA sobre credenciales S3A:
+#   bitnami/spark lee AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY como env vars.
+#   El proveedor SimpleAWSCredentialsProvider usa esas env vars directamente.
+#   No existe un estándar "_FILE" para estas variables en Hadoop/S3A.
+#   Usamos un entrypoint wrapper que lee los secrets y los exporta correctamente.
 # ============================================================
 
 networks:
@@ -37,53 +43,61 @@ secrets:
   minio_secret_key:
     external: true
 
-# Configuración Spark compartida entre master y worker
-# Inyectada como environment — evita duplicación
-x-spark-common: &spark-common
-  image: bitnami/spark:3.5.3
-  networks:
-    - internal
-    - public
-  secrets:
-    - minio_access_key
-    - minio_secret_key
-  environment:
-    # ── MinIO / S3A ──────────────────────────────────────────
-    # Spark usa s3a:// para leer/escribir en MinIO
-    # Endpoint interno del overlay network (no Traefik)
-    AWS_ACCESS_KEY_ID_FILE: /run/secrets/minio_access_key
-    AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_secret_key
-    SPARK_HADOOP_FS_S3A_ENDPOINT: http://minio:9000
-    SPARK_HADOOP_FS_S3A_PATH_STYLE_ACCESS: "true"
-    SPARK_HADOOP_FS_S3A_IMPL: org.apache.hadoop.fs.s3a.S3AFileSystem
-    SPARK_HADOOP_FS_S3A_AWS_CREDENTIALS_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
-    # ── Delta Lake ───────────────────────────────────────────
-    SPARK_CONF_spark_sql_extensions: io.delta.sql.DeltaSparkSessionExtension
-    SPARK_CONF_spark_sql_catalog_spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
-    # ── History Server ───────────────────────────────────────
-    SPARK_HISTORY_OPTS: -Dspark.history.fs.logDirectory=s3a://spark-warehouse/history
-    SPARK_CONF_spark_eventLog_enabled: "true"
-    SPARK_CONF_spark_eventLog_dir: s3a://spark-warehouse/history
-    # ── Network ──────────────────────────────────────────────
-    SPARK_RPC_AUTHENTICATION_ENABLED: "no"
-    SPARK_RPC_ENCRYPTION_ENABLED: "no"
-    SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
-    SPARK_SSL_ENABLED: "no"
-    # ── Logging ──────────────────────────────────────────────
-    SPARK_LOG_LEVEL: WARN
+# ── Variables de entorno S3A/MinIO comunes ───────────────────
+# SOLO env vars — sin image/networks/secrets para evitar
+# conflictos al hacer merge con <<: en cada servicio
+x-spark-env: &spark-env
+  # ── MinIO / S3A ──────────────────────────────────────────
+  # Spark lee AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY como vars de entorno
+  # El entrypoint wrapper las lee de /run/secrets/* y las exporta
+  SPARK_HADOOP_FS_S3A_ENDPOINT: http://minio:9000
+  SPARK_HADOOP_FS_S3A_PATH_STYLE_ACCESS: "true"
+  SPARK_HADOOP_FS_S3A_IMPL: org.apache.hadoop.fs.s3a.S3AFileSystem
+  SPARK_HADOOP_FS_S3A_AWS_CREDENTIALS_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+  # ── Delta Lake ───────────────────────────────────────────
+  SPARK_CONF_spark_sql_extensions: io.delta.sql.DeltaSparkSessionExtension
+  SPARK_CONF_spark_sql_catalog_spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+  # ── History Server ───────────────────────────────────────
+  SPARK_HISTORY_OPTS: -Dspark.history.fs.logDirectory=s3a://spark-warehouse/history
+  SPARK_CONF_spark_eventLog_enabled: "true"
+  SPARK_CONF_spark_eventLog_dir: s3a://spark-warehouse/history
+  # ── Network ──────────────────────────────────────────────
+  SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+  SPARK_RPC_ENCRYPTION_ENABLED: "no"
+  SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+  SPARK_SSL_ENABLED: "no"
+  # ── Logging ──────────────────────────────────────────────
+  SPARK_LOG_LEVEL: WARN
 
 services:
 
   # ── Spark Master ─────────────────────────────────────────────
   spark_master:
-    <<: *spark-common
+    image: bitnami/spark:3.5.3
     hostname: spark_master
+
+    # Wrapper: lee /run/secrets → exporta AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY → exec spark
+    command: >
+      bash -c "
+        export AWS_ACCESS_KEY_ID=$$(cat /run/secrets/minio_access_key) &&
+        export AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/minio_secret_key) &&
+        exec /opt/bitnami/scripts/spark/run.sh
+      "
+
     environment:
-      <<: *spark-common
+      <<: *spark-env
       SPARK_MODE: master
       SPARK_MASTER_HOST: spark_master
       SPARK_MASTER_PORT: "7077"
       SPARK_MASTER_WEBUI_PORT: "8080"
+
+    secrets:
+      - minio_access_key
+      - minio_secret_key
+
+    networks:
+      - internal
+      - public
 
     deploy:
       replicas: 1
@@ -117,11 +131,18 @@ services:
 
   # ── Spark Worker ─────────────────────────────────────────────
   spark_worker:
-    <<: *spark-common
+    image: bitnami/spark:3.5.3
     hostname: spark_worker
 
+    command: >
+      bash -c "
+        export AWS_ACCESS_KEY_ID=$$(cat /run/secrets/minio_access_key) &&
+        export AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/minio_secret_key) &&
+        exec /opt/bitnami/scripts/spark/run.sh
+      "
+
     environment:
-      <<: *spark-common
+      <<: *spark-env
       SPARK_MODE: worker
       SPARK_MASTER_URL: spark://spark_master:7077
       SPARK_WORKER_WEBUI_PORT: "8081"
@@ -129,6 +150,14 @@ services:
       # 10 CPUs y 14GB: deja headroom para Jupyter+Ollama+MinIO
       SPARK_WORKER_CORES: "10"
       SPARK_WORKER_MEMORY: 14g
+
+    secrets:
+      - minio_access_key
+      - minio_secret_key
+
+    networks:
+      - internal
+      - public
 
     volumes:
       # Scratch local para shuffle y spill a NVMe (máximo rendimiento)
@@ -169,20 +198,30 @@ services:
 
   # ── Spark History Server ──────────────────────────────────────
   spark_history:
-    <<: *spark-common
+    image: bitnami/spark:3.5.3
     hostname: spark_history
 
-    environment:
-      <<: *spark-common
-      SPARK_MODE: master    # bitnami no tiene "history" mode; usamos entrypoint custom
-      SPARK_NO_DAEMONIZE: "true"
-
-    # Override del entrypoint para correr history server directamente
+    # bitnami/spark no tiene un modo "history" nativo.
+    # Exportamos credenciales y arrancamos el history server directamente.
     command: >
       bash -c "
+        export AWS_ACCESS_KEY_ID=$$(cat /run/secrets/minio_access_key) &&
+        export AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/minio_secret_key) &&
         /opt/bitnami/spark/sbin/start-history-server.sh &&
-        tail -f /opt/bitnami/spark/logs/*.out
+        tail -f /opt/bitnami/spark/logs/*.out 2>/dev/null || sleep infinity
       "
+
+    environment:
+      <<: *spark-env
+      SPARK_NO_DAEMONIZE: "true"
+
+    secrets:
+      - minio_access_key
+      - minio_secret_key
+
+    networks:
+      - internal
+      - public
 
     deploy:
       replicas: 1

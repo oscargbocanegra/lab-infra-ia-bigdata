@@ -1,6 +1,6 @@
 # Nodos del Clúster
 
-> Actualizado: 2026-03-30
+> Actualizado: 2026-03-30 — Fase 5: MinIO, Spark, Airflow
 
 ---
 
@@ -38,6 +38,12 @@ docker node update --label-add net=lan master1
 | Portainer Agent | core/01-portainer | global |
 | OpenSearch | data/11-opensearch | `tier=control` |
 | OpenSearch Dashboards | data/11-opensearch | `tier=control` |
+| Spark Master | data/98-spark | `tier=control` |
+| Spark History Server | data/98-spark | `tier=control` |
+| Airflow Webserver | automation/03-airflow | `tier=control` |
+| Airflow Scheduler | automation/03-airflow | `tier=control` |
+| Airflow Flower | automation/03-airflow | `tier=control` |
+| Redis (Airflow broker) | automation/03-airflow | `tier=control` |
 
 ### Mounts en master1
 
@@ -45,6 +51,10 @@ docker node update --label-add net=lan master1
 /srv/fastdata/        → HDD local (no LVM) — Portainer data, OpenSearch data
 /srv/fastdata/portainer
 /srv/fastdata/opensearch
+/srv/fastdata/airflow/dags     → DAGs compartidos (accedido por webserver + scheduler)
+/srv/fastdata/airflow/logs     → Logs locales de tareas (antes de remote logging)
+/srv/fastdata/airflow/plugins  → Plugins de Airflow
+/srv/fastdata/airflow/redis    → Persistencia Redis (broker Celery)
 /srv/backups/master2  → (planeado) backups recibidos desde master2 por rsync
 ```
 
@@ -114,6 +124,9 @@ docker node inspect master2 --format '{{ json .Description.Resources.GenericReso
 | JupyterLab (ogiovanni) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/ogiovanni` (NVMe) |
 | JupyterLab (odavid) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/odavid` (NVMe) |
 | Ollama | ai-ml/02-ollama | `tier=compute` + `gpu=nvidia` | `/srv/datalake/models/ollama` (HDD) |
+| MinIO | data/12-minio | `tier=compute` + hostname | `/srv/datalake/minio` (HDD) |
+| Spark Worker | data/98-spark | `tier=compute` + hostname | `/srv/fastdata/spark-tmp` (NVMe) |
+| Airflow Worker (Celery) | automation/03-airflow | `tier=compute` + hostname | `/srv/fastdata/airflow/dags` (compartido) |
 | Portainer Agent | core/01-portainer | global | — |
 
 ### Mounts en master2
@@ -122,17 +135,21 @@ docker node inspect master2 --format '{{ json .Description.Resources.GenericReso
 /srv/fastdata/        → LVM sobre NVMe (600 GB, ext4)
 │   ├── postgres/     → PostgreSQL data
 │   ├── n8n/          → n8n config/data
-│   ├── opensearch/   → (prep) OpenSearch si se mueve a master2
-│   ├── airflow/      → (prep) Airflow metadata
+│   ├── airflow/      → DAGs, logs, plugins (compartidos con master1 via volumen/sync)
+│   │   ├── dags/
+│   │   ├── logs/
+│   │   └── plugins/
+│   ├── spark-tmp/    → Scratch Spark: shuffle, spill (NVMe para máxima velocidad)
 │   └── jupyter/
 │       ├── ogiovanni/
-│       │   ├── .venv/   → virtualenv IA/LLM kernels (persistente)
+│       │   ├── .venv/   → virtualenv IA/LLM/BigData kernels (persistente)
 │       │   └── .local/  → kernelspecs (persistente)
 │       └── odavid/
 │           ├── .venv/
 │           └── .local/
 
 /srv/datalake/        → HDD 2TB (montado por fstab, UUID)
+    ├── minio/        → MinIO object storage (buckets de datos)
     ├── datasets/     → datos crudos (CSV, Parquet, JSON)
     ├── models/
     │   └── ollama/   → modelos .gguf de Ollama

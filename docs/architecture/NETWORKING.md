@@ -1,6 +1,6 @@
 # Networking — Redes, Dominios y Flujo de Tráfico
 
-> Actualizado: 2026-03-30
+> Actualizado: 2026-03-30 — Fase 5: MinIO, Spark, Airflow
 
 ---
 
@@ -62,6 +62,9 @@ docker network create --driver overlay --attachable public
 - jupyter-ogiovanni / jupyter-odavid
 - ollama
 - opensearch / dashboards
+- minio (console + API)
+- spark-master / spark-worker / spark-history
+- airflow-webserver / airflow-flower
 
 ### Red `internal` (overlay, attachable)
 
@@ -86,6 +89,10 @@ docker network create --driver overlay --attachable internal
 - ollama (accedido por jupyter internamente)
 - opensearch (accedido por dashboards, jupyter, n8n)
 - portainer-agent
+- minio (accedido por spark, jupyter, airflow via s3a/boto3)
+- redis (accedido por airflow scheduler + worker)
+- spark-master (accedido por jupyter via spark://)
+- airflow-scheduler / airflow-worker / airflow-flower
 
 ---
 
@@ -105,6 +112,13 @@ Todos los servicios se publican bajo el dominio `.sexydad` (dominio interno de l
 192.168.80.100  ollama.sexydad
 192.168.80.100  jupyter-ogiovanni.sexydad
 192.168.80.100  jupyter-odavid.sexydad
+192.168.80.100  minio.sexydad
+192.168.80.100  minio-api.sexydad
+192.168.80.100  spark-master.sexydad
+192.168.80.100  spark-worker.sexydad
+192.168.80.100  spark-history.sexydad
+192.168.80.100  airflow.sexydad
+192.168.80.100  airflow-flower.sexydad
 ```
 
 > Todos apuntan a `192.168.80.100` (master1) porque **Traefik actúa como único ingress**.
@@ -137,12 +151,21 @@ Todos los servicios se publican bajo el dominio `.sexydad` (dominio interno de l
 | Puerto | Servicio | Accedido por |
 |--------|---------|--------------|
 | 5678 | n8n | Traefik (via public) |
-| 9200 | OpenSearch | Traefik, Jupyter, n8n |
+| 9200 | OpenSearch | Traefik, Jupyter, n8n, Airflow |
 | 5601 | OpenSearch Dashboards | Traefik |
 | 11434 | Ollama | Traefik, Jupyter |
 | 8888 | JupyterLab (por usuario) | Traefik |
 | 9000 | Portainer | Traefik |
 | 9001 | Portainer Agent | Portainer server |
+| 9000 | MinIO API (S3) | Spark (s3a), Jupyter (boto3/s3fs), Airflow |
+| 9001 | MinIO Console | Traefik |
+| 7077 | Spark Master (Spark protocol) | Jupyter (SparkSession), Airflow |
+| 8080 | Spark Master WebUI | Traefik |
+| 8081 | Spark Worker WebUI | Traefik |
+| 18080 | Spark History Server | Traefik |
+| 8080 | Airflow Webserver | Traefik |
+| 5555 | Airflow Flower | Traefik |
+| 6379 | Redis | Airflow scheduler + worker (Celery) |
 
 ---
 

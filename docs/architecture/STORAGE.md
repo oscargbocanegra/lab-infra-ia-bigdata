@@ -1,6 +1,6 @@
 # Storage — Mapa de Discos y Paths
 
-> Actualizado: 2026-03-30
+> Actualizado: 2026-03-30 — Fase 5: MinIO, Spark, Airflow
 
 ---
 
@@ -70,12 +70,16 @@ UUID=<UUID_HDD_DATALAKE>   /srv/datalake   ext4   defaults,nofail   0 2
 ├── postgres/                     PostgreSQL 16 data directory
 │   └── [archivos PG internos]    owner: 999:999, mode: 700
 ├── n8n/                          n8n config, workflows, credentials
-├── opensearch/                   (prep) OpenSearch si se migra a master2
-├── airflow/                      (prep) Airflow metadata DB y logs
+├── airflow/                      Airflow DAGs, logs, plugins, Redis data
+│   ├── dags/                     DAGs de Python (montado en master1 y master2)
+│   ├── logs/                     Logs locales de tareas (antes de habilitar MinIO)
+│   ├── plugins/                  Plugins custom de Airflow
+│   └── redis/                    Persistencia Redis (broker Celery — 60s/1 key)
+├── spark-tmp/                    Scratch Spark: shuffle/spill (NVMe máx velocidad)
 └── jupyter/
     ├── ogiovanni/
     │   ├── work/                 Home de JupyterLab (notebooks, scripts)
-    │   ├── .venv/                virtualenv IA/LLM kernels (persistente)
+    │   ├── .venv/                virtualenv IA/LLM/BigData kernels (persistente)
     │   └── .local/               kernelspecs JupyterLab
     └── odavid/
         ├── work/
@@ -83,7 +87,14 @@ UUID=<UUID_HDD_DATALAKE>   /srv/datalake   ext4   defaults,nofail   0 2
         └── .local/
 
 /srv/datalake/                    (HDD 2TB — almacenamiento masivo)
-├── datasets/                     Datos crudos: CSV, Parquet, JSON, JSONL
+├── minio/                        MinIO object storage (todos los buckets)
+│   ├── lab-datasets/             → datos crudos (CSV, JSON, Parquet)
+│   ├── lab-artifacts/            → modelos entrenados, checkpoints
+│   ├── lab-notebooks/            → exports de notebooks
+│   ├── airflow-logs/             → logs de tareas Airflow (remote logging)
+│   └── spark-warehouse/          → Delta Lake / Spark SQL warehouse
+│       └── history/              → Event logs del Spark History Server
+├── datasets/                     Datasets locales (acceso directo sin MinIO)
 ├── models/
 │   └── ollama/                   Modelos LLM en formato .gguf
 │       └── [llama3/, mistral/]   Descargados por Ollama al hacer pull
@@ -100,8 +111,11 @@ UUID=<UUID_HDD_DATALAKE>   /srv/datalake   ext4   defaults,nofail   0 2
 |--------------|----------|--------|
 | PostgreSQL data | `/srv/fastdata/postgres` | IOPS crítico — NVMe evita I/O wait |
 | n8n state | `/srv/fastdata/n8n` | Metadata + credentials — NVMe |
-| OpenSearch index | `/srv/fastdata/opensearch` | Query latency — NVMe (si se mueve a master2) |
+| Airflow DAGs/logs/plugins | `/srv/fastdata/airflow` | Acceso frecuente — NVMe |
+| Spark shuffle/spill | `/srv/fastdata/spark-tmp` | I/O masivo en joins — NVMe obligatorio |
+| OpenSearch index | `/srv/fastdata/opensearch` | Query latency — HDD en master1 (suficiente para lab) |
 | Jupyter home | `/srv/fastdata/jupyter/{user}` | .venv y kernels — NVMe para pip install rápido |
+| MinIO buckets | `/srv/datalake/minio` | Bulk object storage — HDD suficiente (datos fríos) |
 | Modelos LLM (.gguf) | `/srv/datalake/models/ollama` | Archivos grandes (4–30 GB) — HDD suficiente |
 | Datasets ML | `/srv/datalake/datasets` | Bulk data — HDD suficiente para read sequential |
 | Artifacts/experimentos | `/srv/datalake/artifacts` | Outputs — HDD suficiente |

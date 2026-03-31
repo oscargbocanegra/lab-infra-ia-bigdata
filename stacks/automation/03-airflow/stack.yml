@@ -60,10 +60,10 @@ secrets:
 # Airflow 2.9: usa __FILE suffix para leer secrets de archivos
 x-airflow-common-env: &airflow-env
   # ── Base de datos ──────────────────────────────────────────
-  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:$(cat /run/secrets/pg_airflow_pass)@postgres_postgres:5432/airflow
-  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: /run/secrets/pg_airflow_pass
-  # Usamos variable de template que Airflow resuelve en runtime:
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD: "cat /run/secrets/pg_airflow_pass | xargs -I{} echo 'postgresql+psycopg2://airflow:{}@postgres_postgres:5432/airflow'"
+  # Airflow 2.x soporta el sufijo _CMD para leer el valor de un comando shell.
+  # El comando se ejecuta en runtime dentro del contenedor Airflow.
+  # NUNCA usar $(cat ...) — eso es expansión de shell en deploy time, no en runtime.
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: "printf 'postgresql+psycopg2://airflow:%s@postgres_postgres:5432/airflow' \"$(cat /run/secrets/pg_airflow_pass)\""
 
   # ── Executor ──────────────────────────────────────────────
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -81,13 +81,22 @@ x-airflow-common-env: &airflow-env
   AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: America/Bogota
 
   # ── Logs remotos en MinIO ─────────────────────────────────
-  AIRFLOW__LOGGING__REMOTE_LOGGING: "true"
+  # IMPORTANTE: deshabilitado para el primer deploy (chicken-and-egg).
+  # Para habilitarlo después:
+  #   1. Crear bucket "airflow-logs" en MinIO
+  #   2. Crear conexión "minio_s3" en Airflow UI (Admin > Connections)
+  #      conn_type=Amazon S3, extra={"endpoint_url":"http://minio:9000"}
+  #   3. Cambiar REMOTE_LOGGING a "true" y hacer service update
+  AIRFLOW__LOGGING__REMOTE_LOGGING: "false"
   AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs/
   AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_s3
   AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: "false"
 
-  # ── Conexión MinIO para logs (configurar también en UI) ───
-  AIRFLOW_CONN_MINIO_S3: '{"conn_type":"s3","extra":{"endpoint_url":"http://minio:9000","aws_access_key_id_cmd":"cat /run/secrets/minio_access_key","aws_secret_access_key_cmd":"cat /run/secrets/minio_secret_key"}}'
+  # ── Conexión MinIO (pre-configurada vía env) ─────────────────
+  # Airflow permite definir conexiones vía AIRFLOW_CONN_<ID> en formato URI o JSON.
+  # Las credenciales se leen de /run/secrets en runtime por el CMD del webserver init.
+  # Descomentar y ajustar tras el primer deploy cuando se habilite remote logging:
+  # AIRFLOW_CONN_MINIO_S3: '{"conn_type":"s3","extra":{"endpoint_url":"http://minio:9000"}}'
 
   # ── URL pública ───────────────────────────────────────────
   AIRFLOW__WEBSERVER__BASE_URL: https://airflow.sexydad

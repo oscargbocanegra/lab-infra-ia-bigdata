@@ -49,9 +49,9 @@ services:
       - CHOWN_HOME_OPTS=-R
       # Spark: apuntar al master del cluster
       - SPARK_MASTER_URL=spark://spark_master:7077
-      # MinIO / S3A: credenciales via env (Jupyter las necesita para PySpark)
-      - AWS_ACCESS_KEY_ID_FILE=/run/secrets/minio_access_key
-      - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/minio_secret_key
+      # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY son exportadas por entrypoint.sh
+      # leyendo /run/secrets/minio_access_key y /run/secrets/minio_secret_key
+      # NO usar AWS_ACCESS_KEY_ID_FILE — boto3/s3fs/PySpark no reconocen ese sufijo
 
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
@@ -132,8 +132,8 @@ services:
       - CHOWN_HOME=yes
       - CHOWN_HOME_OPTS=-R
       - SPARK_MASTER_URL=spark://spark_master:7077
-      - AWS_ACCESS_KEY_ID_FILE=/run/secrets/minio_access_key
-      - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/minio_secret_key
+      # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY son exportadas por entrypoint.sh
+      # leyendo /run/secrets/minio_access_key y /run/secrets/minio_secret_key
 
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work
