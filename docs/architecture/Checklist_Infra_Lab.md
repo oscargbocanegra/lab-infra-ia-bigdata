@@ -1,6 +1,6 @@
 # Checklist de Infra — lab-infra-ia-bigdata
 
-Última actualización: 2026-02-03 (Update: Ollama OPERATIVO + Infrastructure Complete)
+Última actualización: 2026-03-30 (Update: Portainer 2.39.1 + Docs restructuración completa)
 
 Este documento centraliza el **estado real** (OK / Pendiente) para levantar la infraestructura completa del laboratorio, con **orden recomendado**, **dependencias** y **verificaciones mínimas**.
 
@@ -43,13 +43,12 @@ Hardening mínimo recomendado (no bloquea, pero conviene):
 | # | Stack | Estado | Versión/Detalle |
 |---|-------|--------|-----------------|
 | 1 | **Traefik** | ✅ | Reverse Proxy + TLS + BasicAuth |
-| 2 | **Portainer** | ✅ | v2.11 - Web UI para Swarm |
+| 2 | **Portainer** | ✅ | v2.39.1 - Web UI para Swarm (actualizado de 2.21.0) |
 | 3 | **Postgres** | ✅ | v16 - Stateful DB (fastdata) |
 | 4 | **n8n** | ✅ | Automation Core + Postgres Backend |
 | 5 | **Jupyter Lab** | ✅ | Multi-usuario (ogiovanni, odavid) + GPU + Kernels IA/LLM |
 | 6 | **Ollama** | ✅ | LLM API + GPU (RTX 2080 Ti) - OPERATIVO |
-| 7 | **OpenSearch** | ✅ | v2.19.4 - Search & Analytics + Dashboards UI (master1) - OPERATIVO |
-| 8 | **Airflow** | ⏳ | Pendiente - Directorio creado |
+| 7 | **OpenSearch** | ✅ | v2.19.4 - Search & Analytics + Dashboards UI (master1) - OPERATIVO || 8 | **Airflow** | ⏳ | Pendiente - Directorio creado |
 | 9 | **Spark** | ⏳ | Pendiente - Directorio creado |
 | 10 | **Backups/Hardening** | ⏳ | Pendiente planificación |
 
@@ -418,6 +417,21 @@ Checklist:
 ---
 
 ## Changelog Reciente
+
+### 2026-03-30: Portainer Upgrade + Docs Restructuración ✅
+- ✅ Portainer CE + Agent actualizados: **2.21.0 → 2.39.1**
+- ✅ Persistencia Portainer corregida: `/srv/portainer/data` → `/srv/fastdata/portainer`
+- ✅ README raíz reescrito con arquitectura completa y diagramas
+- ✅ `docs/architecture/ARCHITECTURE.md` — diseño del sistema, flujos, ADRs
+- ✅ `docs/architecture/NODES.md` — specs físicas de master1 y master2
+- ✅ `docs/architecture/STORAGE.md` — mapa de discos, LVM, paths
+- ✅ `docs/architecture/NETWORKING.md` — redes overlay, dominios, flujos
+- ✅ `docs/architecture/SERVICES.md` — inventario completo de servicios
+- ✅ `docs/adrs/` — 6 ADRs documentados
+- ✅ `docs/runbooks/` — runbooks para OpenSearch, Ollama, Jupyter, Portainer
+- ✅ `docs/ROADMAP.md` — plan Fase 5 y 6
+- ✅ Archivos .txt obsoletos eliminados de `docs/architecture/`
+- ✅ OpenSearch stack: placement alineado (tier=control) y comentarios corregidos
 
 ### 2026-02-04: OpenSearch Stack DEPLOYED ✅
 - ✅ Stack desplegado y operativo en **master1** (control plane)
