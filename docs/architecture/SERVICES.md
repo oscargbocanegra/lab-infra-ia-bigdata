@@ -177,7 +177,7 @@ Spark History    ⏳
 | **URL Console** | `https://minio.sexydad` |
 | **URL API S3** | `https://minio-api.sexydad` |
 | **URL interna** | `http://minio:9000` (para Spark/Airflow/Jupyter) |
-| **Buckets** | `lab-datasets` `lab-artifacts` `lab-notebooks` `airflow-logs` `spark-warehouse` |
+| **Buckets** | `bronze` (raw) · `silver` (Delta) · `gold` (Delta) · `airflow-logs` · `spark-warehouse` · `lab-notebooks` |
 | **Secrets** | `minio_access_key` `minio_secret_key` |
 | **Runbook** | [`runbook_minio.md`](../runbooks/runbook_minio.md) |
 

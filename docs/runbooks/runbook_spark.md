@@ -73,61 +73,101 @@ docker service logs spark_spark_master 2>&1 | grep -i worker
 
 ## Usar Spark desde Jupyter (kernel BigData)
 
-### Conexión básica al cluster
+### Conexión básica al cluster con S3A + Delta Lake
 
 ```python
-import findspark
-findspark.init()
-
 from pyspark.sql import SparkSession
+import os
 
 spark = SparkSession.builder \
     .appName("Mi primer job") \
     .master("spark://spark_master:7077") \
     .config("spark.executor.memory", "4g") \
     .config("spark.executor.cores", "4") \
+    # MinIO via S3A (credenciales ya están en el entorno)
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
-    .config("spark.hadoop.fs.s3a.access.key", "TU_ACCESS_KEY") \
-    .config("spark.hadoop.fs.s3a.secret.key", "TU_SECRET_KEY") \
+    .config("spark.hadoop.fs.s3a.access.key", os.environ["AWS_ACCESS_KEY_ID"]) \
+    .config("spark.hadoop.fs.s3a.secret.key", os.environ["AWS_SECRET_ACCESS_KEY"]) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    # Delta Lake
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
 
 print(f"Spark version: {spark.version}")
 print(f"Master: {spark.sparkContext.master}")
 ```
 
-### Leer CSV desde MinIO → procesar → guardar Delta
+### Pipeline Medallion: Bronze → Silver → Gold
 
 ```python
-# Leer datos crudos
-df = spark.read \
-    .option("header", "true") \
-    .option("inferSchema", "true") \
-    .csv("s3a://lab-datasets/ventas.csv")
-
-df.printSchema()
-df.show(5)
-
-# Transformaciones
 from pyspark.sql import functions as F
 
-resultado = df \
-    .filter(F.col("monto") > 1000) \
-    .groupBy("categoria") \
-    .agg(
-        F.sum("monto").alias("total"),
-        F.count("*").alias("cantidad")
-    ) \
-    .orderBy("total", ascending=False)
+# ── Bronze: ingestar CSV crudo ─────────────────────────────────────────────
+df_raw = spark.read \
+    .option("header", "true") \
+    .option("inferSchema", "true") \
+    .csv("/data/datasets/ventas.csv")
 
-# Guardar como Delta Lake en MinIO
-resultado.write \
+df_raw.write \
+    .mode("append") \
+    .partitionBy("fecha") \
+    .parquet("s3a://bronze/ventas/")
+
+# ── Silver: limpiar + tipar + Delta Lake ───────────────────────────────────
+df_bronze = spark.read.parquet("s3a://bronze/ventas/")
+
+df_silver = df_bronze \
+    .dropDuplicates(["id_transaccion"]) \
+    .filter(F.col("monto").isNotNull() & (F.col("monto") > 0)) \
+    .withColumn("fecha", F.to_date(F.col("fecha"), "yyyy-MM-dd")) \
+    .withColumn("monto", F.col("monto").cast("double")) \
+    .withColumn("_ingest_ts", F.current_timestamp())
+
+df_silver.write \
     .format("delta") \
     .mode("overwrite") \
-    .save("s3a://spark-warehouse/ventas_resumen/")
+    .option("overwriteSchema", "true") \
+    .partitionBy("fecha") \
+    .save("s3a://silver/ventas/")
 
-print("Job completado!")
+# ── Gold: KPIs + Delta Lake ────────────────────────────────────────────────
+df_silver = spark.read.format("delta").load("s3a://silver/ventas/")
+
+df_gold = df_silver \
+    .groupBy("fecha", "categoria") \
+    .agg(
+        F.sum("monto").alias("total_ventas"),
+        F.count("*").alias("cantidad_transacciones"),
+        F.avg("monto").alias("ticket_promedio")
+    )
+
+df_gold.write \
+    .format("delta") \
+    .mode("overwrite") \
+    .partitionBy("fecha") \
+    .save("s3a://gold/ventas_kpis_diarios/")
+
+print("Pipeline Medallion completado.")
 spark.stop()
+```
+
+### Time Travel en Delta Lake
+
+```python
+from delta.tables import DeltaTable
+
+# Ver historial de versiones
+dt = DeltaTable.forPath(spark, "s3a://silver/ventas/")
+dt.history().select("version", "timestamp", "operation").show()
+
+# Leer versión específica
+df_v0 = spark.read.format("delta") \
+    .option("versionAsOf", 0) \
+    .load("s3a://silver/ventas/")
+
+# Revertir a versión anterior
+dt.restoreToVersion(0)
 ```
 
 ### Leer archivos locales del datalake

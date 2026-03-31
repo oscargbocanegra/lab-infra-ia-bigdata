@@ -18,12 +18,13 @@ version: "3.9"
 #   spark.hadoop.fs.s3a.secret.key=<minio_secret_key>
 #   spark.hadoop.fs.s3a.path.style.access=true
 #
-# Buckets iniciales (crear via UI o mc tras deploy):
-#   lab-datasets   → datos crudos (CSV, JSON, Parquet)
-#   lab-artifacts  → modelos entrenados, checkpoints
-#   lab-notebooks  → exports de notebooks
-#   airflow-logs   → logs de tareas Airflow
-#   spark-warehouse→ Delta Lake / Spark SQL warehouse
+# Buckets Medallion Architecture (crear via UI o mc tras deploy):
+#   bronze         → Capa Raw: CSV/JSON/Parquet ingesta cruda (append-only)
+#   silver         → Capa Curated: Delta Lake ACID (clean, tipado, deduplicado)
+#   gold           → Capa Business: Delta Lake KPIs, features ML, reportes
+#   airflow-logs   → Logs de tareas Airflow (texto plano)
+#   spark-warehouse→ Catalog Delta + History Server logs (spark-warehouse/history/)
+#   lab-notebooks  → Exports de notebooks (.ipynb)
 # ============================================================
 
 networks:

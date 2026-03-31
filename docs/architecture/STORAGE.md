@@ -88,11 +88,12 @@ UUID=<UUID_HDD_DATALAKE>   /srv/datalake   ext4   defaults,nofail   0 2
 
 /srv/datalake/                    (HDD 2TB — almacenamiento masivo)
 ├── minio/                        MinIO object storage (todos los buckets)
-│   ├── lab-datasets/             → datos crudos (CSV, JSON, Parquet)
-│   ├── lab-artifacts/            → modelos entrenados, checkpoints
-│   ├── lab-notebooks/            → exports de notebooks
+│   ├── bronze/                   → Medallion Bronze: datos crudos (CSV/JSON/Parquet, append-only)
+│   ├── silver/                   → Medallion Silver: Delta Lake ACID (clean, tipado, deduplicado)
+│   ├── gold/                     → Medallion Gold: Delta Lake (KPIs, features ML, reportes)
+│   ├── lab-notebooks/            → exports de notebooks (.ipynb)
 │   ├── airflow-logs/             → logs de tareas Airflow (remote logging)
-│   └── spark-warehouse/          → Delta Lake / Spark SQL warehouse
+│   └── spark-warehouse/          → Delta catalog + Spark SQL warehouse
 │       └── history/              → Event logs del Spark History Server
 ├── datasets/                     Datasets locales (acceso directo sin MinIO)
 ├── models/

@@ -372,11 +372,12 @@ Checklist:
 - ✅ (Repo) Stack creado: [stacks/data/12-minio/stack.yml](stacks/data/12-minio/stack.yml)
 - ✅ (Repo) Runbook: [docs/runbooks/runbook_minio.md](docs/runbooks/runbook_minio.md)
 - ⏳ Deploy: `docker stack deploy -c stacks/data/12-minio/stack.yml minio`
-- ⏳ Crear buckets iniciales via MinIO Console o `mc`:
-  - `lab-datasets`
-  - `lab-artifacts`
-  - `lab-notebooks`
-  - `airflow-logs`
+- ⏳ Crear buckets Medallion Architecture via MinIO Console o `mc`:
+  - `bronze`          → capa raw (CSV/JSON/Parquet, append-only)
+  - `silver`          → capa curated (Delta Lake, ACID)
+  - `gold`            → capa business (Delta Lake, KPIs/ML features)
+  - `lab-notebooks`   → exports de notebooks
+  - `airflow-logs`    → logs de tareas Airflow
   - `spark-warehouse` (y dentro: `spark-warehouse/history/`)
 
 Criterios de "OK":

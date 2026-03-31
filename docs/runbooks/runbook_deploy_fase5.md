@@ -211,21 +211,23 @@ curl -sk https://minio-api.sexydad/minio/health/live
 # Respuesta esperada: HTTP 200 (sin body)
 ```
 
-### Crear buckets iniciales en MinIO
+### Crear buckets Medallion Architecture en MinIO
 
 ```bash
 # Opción A: via mc (MinIO Client) desde dentro del contenedor
 docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
   mc alias set local http://localhost:9000 \$(cat /run/secrets/minio_access_key) \$(cat /run/secrets/minio_secret_key) &&
-  mc mb local/lab-datasets local/lab-artifacts local/lab-notebooks local/airflow-logs local/spark-warehouse &&
+  mc mb local/bronze local/silver local/gold \
+        local/lab-notebooks local/airflow-logs local/spark-warehouse &&
   mc mb local/spark-warehouse/history
 "
 
-# Verificar:
+# Verificar los 6 buckets + subdirectorio:
 docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
   mc alias set local http://localhost:9000 \$(cat /run/secrets/minio_access_key) \$(cat /run/secrets/minio_secret_key) &&
   mc ls local
 "
+# Esperado: bronze/ silver/ gold/ lab-notebooks/ airflow-logs/ spark-warehouse/
 ```
 
 ---
@@ -311,7 +313,7 @@ s3 = boto3.client(
 )
 buckets = s3.list_buckets()['Buckets']
 print([b['Name'] for b in buckets])
-# Esperado: ['airflow-logs', 'lab-artifacts', 'lab-datasets', 'lab-notebooks', 'spark-warehouse']
+# Esperado: ['airflow-logs', 'bronze', 'gold', 'lab-notebooks', 'silver', 'spark-warehouse']
 ```
 
 ### Test de integración Jupyter → Spark (desde notebook)
@@ -330,7 +332,7 @@ spark.range(100).count()  # Debe retornar 100
 ### Test de integración Spark → MinIO (desde notebook)
 
 ```python
-df = spark.read.parquet("s3a://lab-datasets/")
+df = spark.read.parquet("s3a://bronze/")
 # Si hay datos en el bucket, debe leerlos. Si está vacío, no hay error tampoco.
 ```
 
