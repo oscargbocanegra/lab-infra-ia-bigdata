@@ -15,7 +15,7 @@ secrets:
 
 services:
   ollama:
-    image: ollama/ollama:0.6.1
+    image: ollama/ollama:0.19.0
     hostname: ollama
     
     networks:
@@ -30,6 +30,14 @@ services:
     
     secrets:
       - ollama_basicauth
+    
+    # Expose port directly on host — acceso por IP sin pasar por Traefik
+    # http://192.168.80.200:11434 desde cualquier equipo de la red
+    ports:
+      - target: 11434
+        published: 11434
+        protocol: tcp
+        mode: host
     
     environment:
       # Core Ollama Configuration
@@ -52,7 +60,6 @@ services:
       
       # Performance Tuning
       - OLLAMA_NUM_GPU=1                   # Number of GPUs to use
-      - OLLAMA_GPU_OVERHEAD=0.1            # 10% overhead for GPU operations
       - OLLAMA_KEEP_ALIVE=5m               # Keep model loaded for 5 minutes after last request
       
       # Logging
