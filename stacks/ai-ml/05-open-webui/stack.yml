@@ -41,24 +41,29 @@ secrets:
   openwebui_secret_key:
     external: true
 
+configs:
+  openwebui_entrypoint:
+    external: true
+
 services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.6.5
+
+    # Custom entrypoint reads Docker secrets and exports them as env vars
+    # before starting Open WebUI. Required because Open WebUI does not support
+    # *_FILE env var conventions for DATABASE_URL, WEBUI_SECRET_KEY, QDRANT_API_KEY.
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
 
     environment:
       # Ollama backend — direct host port on master2
       OLLAMA_BASE_URL: "http://192.168.80.200:11434"
 
-      # Use Postgres instead of SQLite (reusing existing cluster DB)
-      DATABASE_URL: "postgresql://openwebui:$(cat /run/secrets/pg_openwebui_pass)@192.168.80.200:5432/openwebui"
-
-      # Security
-      WEBUI_SECRET_KEY_FILE: /run/secrets/openwebui_secret_key
+      # DATABASE_URL, WEBUI_SECRET_KEY, QDRANT_API_KEY are injected by entrypoint.sh
+      # from Docker secrets at container startup.
 
       # Qdrant integration for RAG
       VECTOR_DB: "qdrant"
       QDRANT_URI: "http://qdrant:6333"
-      QDRANT_API_KEY_FILE: /run/secrets/qdrant_api_key
 
       # Embedding model — nomic-embed-text via Ollama
       RAG_EMBEDDING_ENGINE: "ollama"
@@ -69,7 +74,7 @@ services:
       CHUNK_SIZE: "1000"
       CHUNK_OVERLAP: "100"
 
-      # Enable RAG web search and document features
+      # Disable web fetch features (air-gapped lab)
       ENABLE_RAG_WEB_SEARCH: "false"
       ENABLE_RAG_LOCAL_WEB_FETCH: "false"
       CONTENT_EXTRACTION_ENGINE: "default"
@@ -79,6 +84,10 @@ services:
       DEFAULT_LOCALE: "en-US"
       ENABLE_SIGNUP: "false"
 
+      # SSL verification — self-signed certs in internal network
+      REQUESTS_VERIFY: "false"
+      AIOHTTP_CLIENT_SESSION_SSL: "false"
+
       # Timezone
       TZ: "America/Bogota"
 
@@ -86,6 +95,11 @@ services:
       - pg_openwebui_pass
       - qdrant_api_key
       - openwebui_secret_key
+
+    configs:
+      - source: openwebui_entrypoint
+        target: /entrypoint.sh
+        mode: 0755
 
     volumes:
       # Persistent storage: uploaded docs, user avatars, config
