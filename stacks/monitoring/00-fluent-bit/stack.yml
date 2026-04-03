@@ -1,0 +1,104 @@
+version: "3.8"
+
+# ============================================================
+# Stack: Fluent Bit — Log Collector (Phase 6.1 — Observability)
+# ============================================================
+# Purpose: Collect all Docker container logs from BOTH Swarm nodes
+#          and ship them to OpenSearch for centralized log management.
+#
+# Mode: GLOBAL — 1 replica per node (master1 + master2)
+# Each Fluent Bit instance reads its own node's container logs.
+#
+# Index pattern: docker-logs-YYYY.MM.DD (daily rollover)
+# Retention: managed by OpenSearch ISM policy (7-day auto-delete)
+#
+# Pipeline:
+#   /var/lib/docker/containers/*/*.log (JSON-file driver)
+#     → Fluent Bit tail input
+#     → parser: docker (JSON)
+#     → filter: enrich with container_name, stack, node
+#     → output: OpenSearch  docker-logs-YYYY.MM.DD
+#
+# Pre-requisites:
+#   - OpenSearch stack running: docker stack ls | grep opensearch
+#   - internal overlay network exists
+#   - No secrets required (OpenSearch security plugin is disabled)
+#
+# Deploy:
+#   docker stack deploy -c stacks/monitoring/00-fluent-bit/stack.yml fluent-bit
+# ============================================================
+
+services:
+  fluent-bit:
+    image: fluent/fluent-bit:3.2
+
+    # GLOBAL mode: 1 instance per Swarm node
+    # This ensures logs from BOTH master1 and master2 are collected
+    deploy:
+      mode: global
+
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 60s
+
+    networks:
+      - internal
+
+    # Required volumes:
+    # 1. Docker container logs — read-only (source of truth)
+    # 2. Fluent Bit config — injected via bind mount
+    # 3. Fluent Bit state (tail DB) — persisted to avoid re-reading on restart
+    volumes:
+      - type: bind
+        source: /var/lib/docker/containers
+        target: /var/lib/docker/containers
+        read_only: true
+
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+
+      - type: bind
+        source: /srv/fastdata/fluent-bit
+        target: /fluent-bit/state
+
+      - type: bind
+        source: /etc/hostname
+        target: /etc/host_hostname
+        read_only: true
+
+    environment:
+      # Fluent Bit reads config from /fluent-bit/etc/fluent-bit.conf
+      # We pass OpenSearch host via env so it's easy to override
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+
+    # Inline config via command — keeps everything in this file
+    # Full config injected via Docker Configs below
+    configs:
+      - source: fluent_bit_config
+        target: /fluent-bit/etc/fluent-bit.conf
+      - source: fluent_bit_parsers
+        target: /fluent-bit/etc/parsers_docker.conf
+
+configs:
+  fluent_bit_config:
+    file: ./fluent-bit.conf
+  fluent_bit_parsers:
+    file: ./parsers_docker.conf
+
+networks:
+  internal:
+    external: true
+    name: internal

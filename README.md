@@ -22,7 +22,7 @@
 [![RTX 2080 Ti](https://img.shields.io/badge/RTX_2080_Ti_11GB_VRAM-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://www.nvidia.com/)
 [![Infrastructure as Code](https://img.shields.io/badge/Infrastructure_as_Code-IaC-success?style=for-the-badge&logo=terraform&logoColor=white)]()
 [![Status](https://img.shields.io/badge/Status-100%25_Operational-brightgreen?style=for-the-badge)]()
-[![Services](https://img.shields.io/badge/Services-20_Running-brightgreen?style=for-the-badge)]()
+[![Services](https://img.shields.io/badge/Services-22_Running-brightgreen?style=for-the-badge)]()
 
 </div>
 
@@ -105,7 +105,8 @@ LAN User (browser)
        ├──► ollama.sexydad           → Ollama LLM API      (master2)
        ├──► minio.sexydad            → MinIO Console       (master2)
        ├──► minio-api.sexydad        → MinIO S3 API        (master2)
-       └──► spark-worker.sexydad     → Spark Worker UI     (master2)
+        ├──► spark-worker.sexydad     → Spark Worker UI     (master2)
+        └──► fluent-bit               → Log Collector (global, no UI)
 ```
 
 ### Service Placement Strategy
@@ -437,7 +438,8 @@ The script verifies:
 | Phase 3 — IaC structure | ✅ Done | Repo structure, stack conventions, secrets pattern |
 | Phase 4 — Core services | ✅ Done | Traefik, Portainer, PostgreSQL, n8n, JupyterLab, Ollama, OpenSearch |
 | Phase 5 — Big Data | ✅ Done | MinIO, Apache Spark, Apache Airflow, Medallion pipeline |
-| Phase 6 — Observability | ⏳ Planned | Prometheus + Grafana + Loki + node_exporter + GPU metrics |
+| Phase 6.1 — Log Collection | ✅ Done | Fluent Bit (global) → OpenSearch · daily index rollover · 7-day ISM auto-delete |
+| Phase 6.2 — Metrics | ⏳ Planned | Prometheus + Grafana + node_exporter + cAdvisor + GPU metrics |
 | Phase 7 — Hardening | ⏳ Planned | UFW, SSH hardening, backup automation (restic), cert rotation |
 | Phase 8 — Vector DB | ⏳ Planned | Qdrant or pgvector for RAG pipelines with Ollama |
 

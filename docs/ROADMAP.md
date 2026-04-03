@@ -81,24 +81,57 @@ Redis (broker) → Scheduler → Worker (master2)
 
 ## Fase 6: Observabilidad + Hardening
 
-### 6.1 Observabilidad (Prometheus + Grafana + Loki) ⏳
+### 6.1 Logs centralizados (Fluent Bit → OpenSearch) ✅
 
-**Stack propuesto**: `stacks/monitoring/`
+**Stack**: `stacks/monitoring/00-fluent-bit/stack.yml`
+**Setup script**: `scripts/observability/setup-opensearch-logs.sh`
+
+**Arquitectura**:
+```
+master1 containers ──┐
+                     ├── Fluent Bit (global) ──► OpenSearch ──► Dashboards
+master2 containers ──┘
+
+Index:     docker-logs-YYYY.MM.DD  (daily rollover)
+Retención: 7 días → auto-delete via ISM policy
+```
+
+**Deploy**:
+```bash
+# 1. Configure OpenSearch (run once from Swarm manager)
+bash scripts/observability/setup-opensearch-logs.sh
+
+# 2. Create state directories on both nodes
+mkdir -p /srv/fastdata/fluent-bit                                        # manager node
+ssh <user>@<worker-node> "mkdir -p /srv/fastdata/fluent-bit"             # worker node
+
+# 3. Deploy
+docker stack deploy -c stacks/monitoring/00-fluent-bit/stack.yml fluent-bit
+```
+
+**Verify in Dashboards**:
+1. OpenSearch Dashboards → Management → Index Patterns
+2. Pattern: `docker-logs-*` | Time field: `@timestamp`
+
+---
+
+### 6.2 Métricas (Prometheus + Grafana) ⏳
+
+**Stack propuesto**: `stacks/monitoring/01-prometheus/` + `stacks/monitoring/02-grafana/`
 
 ```
-Prometheus    → scrape Docker + node_exporter + MinIO metrics
+Prometheus    → scrape node_exporter + cAdvisor + MinIO + Airflow + Traefik
 node_exporter → métricas OS en ambos nodos (global)
 cAdvisor      → métricas containers
-Grafana       → dashboards (Docker Swarm, GPU, Disk I/O)
-Loki          → logs centralizados
-Promtail      → agent de logs (global)
+nvidia-smi-exporter → GPU metrics (master2 RTX 2080 Ti)
+Grafana       → dashboards elegantes para operaciones
 ```
 
 **Dashboards prioritarios**:
-- [ ] Docker Swarm overview
-- [ ] GPU utilization (master2 RTX 2080 Ti)
-- [ ] Spark job metrics
-- [ ] MinIO throughput + space
+- [ ] Docker Swarm overview (servicios, replicas, estado)
+- [ ] GPU utilization (master2 RTX 2080 Ti — VRAM, temp, utilización)
+- [ ] Spark job metrics (jobs activos, stages, shuffle)
+- [ ] MinIO throughput + espacio por bucket
 - [ ] Alertas: servicio down, OOM, disco > 80%
 
 ---
@@ -168,7 +201,7 @@ Evaluar cuando se agreguen más de 3 usuarios.
 
 | Fecha | Cambio |
 |-------|--------|
-| 2026-04-03 | jupyter-ai + LSP instalados en JupyterLab — %%JARVIS magic + chat panel via Ollama |
+| 2026-04-03 | Phase 6.1: Fluent Bit → OpenSearch logs centralizados + ISM 7d retention |
 | 2026-04-03 | Ollama upgrade 0.6.1 → 0.19.0 — bug fix GGML parser + puerto 11434 publicado |
 | 2026-04-03 | JupyterLab: 3 kernels especializados (LLM, AI/ML, BigData) |
 | 2026-03-31 | README principal reescrito en inglés con badges para portfolio |
