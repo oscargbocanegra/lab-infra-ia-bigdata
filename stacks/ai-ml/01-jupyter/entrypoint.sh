@@ -123,10 +123,12 @@ try:
     _ip.run_line_magic('load_ext', 'jupyter_ai_magics')
 
     def JARVIS(line, cell):
-        """Magic %%JARVIS — envía el prompt al modelo configurado en JARVIS_MODEL."""
+        """Magic %%JARVIS / %%jarvis — envía el prompt al modelo configurado en JARVIS_MODEL."""
         _ip.run_cell_magic('ai', JARVIS_MODEL, cell)
 
+    # Registrar ambas variantes — IPython es case-sensitive
     _ip.register_magic_function(JARVIS, magic_kind='cell', magic_name='JARVIS')
+    _ip.register_magic_function(JARVIS, magic_kind='cell', magic_name='jarvis')
 
 except Exception:
     pass  # Silencioso si jupyter_ai_magics no está disponible en este kernel
