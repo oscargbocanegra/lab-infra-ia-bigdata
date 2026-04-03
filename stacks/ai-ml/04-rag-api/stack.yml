@@ -47,7 +47,9 @@ secrets:
 
 services:
   rag-api:
-    image: ghcr.io/oscargbocanegra/lab-rag-api:latest
+    # Image built locally on master1: docker build -t lab-rag-api:latest .
+    # No external registry needed — Swarm uses the local image on the pinned node.
+    image: lab-rag-api:latest
 
     environment:
       # Ollama — direct host port on master2 (GPU inference)

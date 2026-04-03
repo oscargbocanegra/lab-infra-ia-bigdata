@@ -20,5 +20,16 @@ if [ -f /run/secrets/qdrant_api_key ]; then
     export QDRANT_API_KEY=$(cat /run/secrets/qdrant_api_key)
 fi
 
+# Bootstrap admin account on first startup (no-op if admin already exists).
+# Open WebUI creates the admin account from these env vars when the DB is empty.
+# ENABLE_SIGNUP stays "false" so no other users can self-register.
+if [ -f /run/secrets/openwebui_admin_email ]; then
+    export WEBUI_ADMIN_EMAIL=$(cat /run/secrets/openwebui_admin_email)
+fi
+
+if [ -f /run/secrets/openwebui_admin_pass ]; then
+    export WEBUI_ADMIN_PASSWORD=$(cat /run/secrets/openwebui_admin_pass)
+fi
+
 # Start Open WebUI (default entrypoint)
 exec bash start.sh

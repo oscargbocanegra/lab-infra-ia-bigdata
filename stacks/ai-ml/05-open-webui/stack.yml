@@ -40,6 +40,10 @@ secrets:
     external: true
   openwebui_secret_key:
     external: true
+  openwebui_admin_email:
+    external: true
+  openwebui_admin_pass:
+    external: true
 
 configs:
   openwebui_entrypoint:
@@ -95,6 +99,8 @@ services:
       - pg_openwebui_pass
       - qdrant_api_key
       - openwebui_secret_key
+      - openwebui_admin_email
+      - openwebui_admin_pass
 
     configs:
       - source: openwebui_entrypoint
