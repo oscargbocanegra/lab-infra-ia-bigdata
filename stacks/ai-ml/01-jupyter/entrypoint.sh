@@ -85,7 +85,23 @@ if [ ! -f "$LSP_COMPLETION_SETTINGS" ]; then
   "waitForBusyKernel": true
 }
 EOF
-    echo "==> [lsp] Autocompletado continuo configurado ✓"
+    echo "==> [lsp] continuousHinting configurado ✓"
+fi
+
+# ── JupyterLab completer nativo: habilitar autoCompletion ──────
+# JupyterLab 4.x tiene su propio completer (@jupyterlab/completer-extension)
+# con autoCompletion: false por defecto. Sin esto, continuousHinting del LSP
+# no se activa — el schema del LSP lo dice explícitamente:
+#   "Requires enabling autocompletion in the other 'Code completion' settings"
+mkdir -p "$LAB_SETTINGS_DIR/@jupyterlab/completer-extension"
+COMPLETER_SETTINGS="$LAB_SETTINGS_DIR/@jupyterlab/completer-extension/manager.jupyterlab-settings"
+if [ ! -f "$COMPLETER_SETTINGS" ]; then
+    cat > "$COMPLETER_SETTINGS" << 'EOF'
+{
+  "autoCompletion": true
+}
+EOF
+    echo "==> [completer] autoCompletion nativo habilitado ✓"
 fi
 
 
