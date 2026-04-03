@@ -1,0 +1,111 @@
+version: "3.9"
+
+# ============================================================
+# Stack: Qdrant — Vector Database for RAG Pipelines
+# ============================================================
+# Node:     master1 (tier=control) — 348 GB free on /srv
+# Port:     6333 (REST API + Web UI, via Traefik)
+#           6334 (gRPC, internal only)
+# Storage:  /srv/fastdata/qdrant  (bind mount, persistent)
+#
+# Purpose:
+#   High-performance vector similarity search engine.
+#   Used as the primary semantic search backend for RAG pipelines.
+#   Stores dense embeddings (nomic-embed-text 768-dim, bge-m3 1024-dim).
+#
+# Collections created by RAG API at startup:
+#   - documents_nomic   (768 dims, cosine — nomic-embed-text)
+#   - documents_bge     (1024 dims, cosine — bge-m3)
+#
+# Web UI: https://qdrant.sexydad
+# REST API: http://qdrant:6333 (internal overlay network)
+# gRPC API: http://qdrant:6334 (internal overlay network)
+#
+# Logs: json-file driver → Fluent Bit → OpenSearch index docker-logs-YYYY.MM.DD
+# ============================================================
+
+networks:
+  internal:
+    external: true
+  public:
+    external: true
+
+secrets:
+  qdrant_api_key:
+    external: true
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+
+    environment:
+      # Enable API key authentication
+      QDRANT__SERVICE__API_KEY_FILE: /run/secrets/qdrant_api_key
+      # gRPC port
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      # Enable Web UI
+      QDRANT__SERVICE__ENABLE_STATIC_CONTENT: "true"
+      # Telemetry off — no data leaves the cluster
+      QDRANT__TELEMETRY_DISABLED: "true"
+      # Performance tuning
+      QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS: 4
+      QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 2
+
+    secrets:
+      - qdrant_api_key
+
+    volumes:
+      # Persistent vector storage — never lose index data on restart
+      - /srv/fastdata/qdrant:/qdrant/storage
+
+    networks:
+      - internal
+      - public
+
+    # Logging: json-file → Fluent Bit picks up automatically
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.stack.namespace"
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 0
+        window: 60s
+      labels:
+        # Traefik routing
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+
+        # HTTP Router — Web UI + REST API
+        - "traefik.http.routers.qdrant.rule=Host(`qdrant.sexydad`)"
+        - "traefik.http.routers.qdrant.entrypoints=websecure"
+        - "traefik.http.routers.qdrant.tls=true"
+        - "traefik.http.routers.qdrant.service=qdrant"
+        - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+
+        # Middleware: LAN whitelist only
+        - "traefik.http.routers.qdrant.middlewares=lan-whitelist@docker"
+
+        # Health check
+        - "traefik.http.services.qdrant.loadbalancer.healthcheck.path=/healthz"
+        - "traefik.http.services.qdrant.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.qdrant.loadbalancer.healthcheck.timeout=5s"
+
+        - "com.docker.stack.namespace=qdrant"
+        - "description=Qdrant vector database for RAG pipelines"

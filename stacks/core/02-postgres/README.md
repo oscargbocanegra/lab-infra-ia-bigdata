@@ -1,85 +1,137 @@
-# PostgreSQL 16 — Central Database
+# PostgreSQL 16 + pgvector — Central Database
+
+Central relational database for all lab services, with the pgvector extension for vector similarity search.
 
 ## Overview
 
-PostgreSQL is the central relational database for the cluster. Multiple services depend on it for metadata and workflow state. It runs on master2 to leverage the NVMe storage.
-
 | Property | Value |
-|----------|-------|
-| Image | `postgres:16` |
-| Node | master2 (`hostname=master2`) |
-| Port | `5432` (host mode — LAN direct access from master2 IP) |
-| Host for services | `postgres_postgres` (Swarm DNS via overlay) |
+|---|---|
+| Image | `pgvector/pgvector:pg16` |
+| Node | master2 (`node.hostname == master2`) |
+| Port | `5432` (mode: host — master2 LAN only) |
+| Storage | `/srv/fastdata/postgres` (NVMe bind mount) |
+| Access | `192.168.80.200:5432` from any cluster node |
 
-## Databases
+> **Image note**: `pgvector/pgvector:pg16` is a **drop-in replacement** for `postgres:16`. It adds the `pgvector` extension and is 100% binary compatible with existing data.
 
-| Database | Owner | Consumer |
-|----------|-------|----------|
-| `postgres` | postgres | Superuser / admin |
-| `n8n` | n8n | n8n automation workflows |
-| `airflow` | airflow | Airflow DAG metadata, task history |
+## Managed Databases
 
-> **Policy**: Before adding a new service, check if it can reuse Postgres. It is the preferred backend for any service that supports PostgreSQL.
+| Database | User | Purpose |
+|---|---|---|
+| `postgres` | `postgres` (superuser) | Admin, maintenance |
+| `n8n` | `n8n` | n8n workflow automation |
+| `airflow` | `airflow` | Apache Airflow metadata |
+| `rag` | `rag` | RAG pipelines — document metadata + pgvector embeddings |
+| `openwebui` | `postgres` | Open WebUI app data (conversations, users) |
 
-## Secrets Required
+## Required Secrets
 
-| Secret | Purpose |
-|--------|---------|
-| `pg_super_pass` | Password for `postgres` superuser |
-| `pg_n8n_pass` | Password for `n8n` user |
-| `pg_airflow_pass` | Password for `airflow` user |
+Create these Docker Swarm secrets before deploying:
 
 ```bash
-# Create secrets (first time only)
-echo "your_super_password"  | docker secret create pg_super_pass -
-echo "your_n8n_password"    | docker secret create pg_n8n_pass -
-echo "your_airflow_password"| docker secret create pg_airflow_pass -
+echo "your-super-pass"   | docker secret create pg_super_pass -
+echo "your-n8n-pass"     | docker secret create pg_n8n_pass -
+echo "your-airflow-pass" | docker secret create pg_airflow_pass -
+echo "your-rag-pass"     | docker secret create pg_rag_pass -
 ```
 
-## Init Scripts
+## pgvector Extension
 
-Executed once on first start (empty data directory):
+The `rag` database has the `vector` extension enabled and the following schema:
 
-| Config | Script | Action |
-|--------|--------|--------|
-| `init_n8n` | `initdb/01-init-n8n.sh` | Creates role + database `n8n` |
-| `init_airflow` | `initdb/02-init-airflow.sh` | Creates role + database `airflow` |
+```sql
+-- Document chunks and metadata
+CREATE TABLE documents (
+  id          BIGSERIAL PRIMARY KEY,
+  collection  TEXT        NOT NULL,
+  filename    TEXT        NOT NULL,
+  chunk_index INTEGER     NOT NULL,
+  chunk_text  TEXT        NOT NULL,
+  model       TEXT        NOT NULL,  -- embedding model used
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  metadata    JSONB
+);
 
-## Persistence
+-- Vector embeddings (768 dims for nomic-embed-text)
+CREATE TABLE embeddings (
+  id          BIGSERIAL PRIMARY KEY,
+  document_id BIGINT      REFERENCES documents(id) ON DELETE CASCADE,
+  embedding   vector(768) NOT NULL
+);
 
-| Path (host — master2) | Container | Purpose |
-|-----------------------|-----------|---------|
-| `/srv/fastdata/postgres` | `/var/lib/postgresql/data` | All database files |
-
-```bash
-# Run on master2 before first deploy
-mkdir -p /srv/fastdata/postgres
+-- HNSW index for fast ANN cosine similarity search
+CREATE INDEX embeddings_hnsw_idx
+  ON embeddings USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
 ```
 
-## Connection Details
+## Deployment
 
-| Parameter | Value |
-|-----------|-------|
-| Host (from overlay) | `postgres_postgres` |
-| Host (from LAN) | `192.168.80.200` |
-| Port | `5432` |
-| SSL | Not required (LAN only) |
+### Prerequisites
 
-## Deploy
+1. Create all required secrets (see above)
+2. Ensure `/srv/fastdata/postgres` exists on master2
+
+### Deploy (first time or upgrade)
+
+> **IMPORTANT**: Swarm configs are immutable. To update image or add init scripts, you must remove and redeploy the stack. Data is safe — it's in the bind-mounted volume.
 
 ```bash
+# Remove existing stack (data is preserved in bind mount)
+docker stack rm postgres
+
+# Wait for complete removal
+sleep 10
+
+# Redeploy with updated image and init scripts
 docker stack deploy -c stacks/core/02-postgres/stack.yml postgres
 ```
 
-## Backup
+### Post-deploy: create openwebui database manually
+
+Since `/srv/fastdata/postgres` already contains data, init scripts only run on empty volumes. Create the `openwebui` database manually:
 
 ```bash
-# Run from master1 — dumps all databases to /srv/fastdata/backups
-docker exec $(docker ps --filter name=postgres_postgres --format "{{.ID}}") \
-  pg_dumpall -U postgres > /srv/fastdata/backups/pg_dumpall_$(date +%Y%m%d).sql
+# From any node with Postgres client or from a container in the overlay network
+PGPASSWORD=your-super-pass psql -h 192.168.80.200 -U postgres -c "
+  CREATE DATABASE openwebui OWNER postgres;
+"
 ```
 
-## Logs → OpenSearch
+### Verify
 
-Logs are collected automatically by Fluent Bit via the default `json-file` driver.
-Index: `docker-logs-YYYY.MM.DD` | Field: `container_name = postgres_postgres`
+```bash
+# Check service
+docker service ls --filter name=postgres
+
+# List databases (from master1 if psql is available)
+PGPASSWORD=pass psql -h 192.168.80.200 -U postgres -l
+
+# Verify pgvector in rag database
+PGPASSWORD=pass psql -h 192.168.80.200 -U postgres -d rag \
+  -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
+```
+
+## Persistence
+
+Data is stored at `/srv/fastdata/postgres` on master2's NVMe drive. This path is a bind mount — data **survives container restarts and stack redeployments**.
+
+## Connection String Examples
+
+```
+# n8n
+postgresql://n8n:pass@192.168.80.200:5432/n8n
+
+# airflow
+postgresql://airflow:pass@192.168.80.200:5432/airflow
+
+# RAG API
+postgresql://rag:pass@192.168.80.200:5432/rag
+
+# Open WebUI
+postgresql://postgres:pass@192.168.80.200:5432/openwebui
+```
+
+## Logs
+
+Container logs → Fluent Bit → OpenSearch index `docker-logs-YYYY.MM.DD`.

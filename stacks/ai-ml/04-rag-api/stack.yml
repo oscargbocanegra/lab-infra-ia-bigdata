@@ -1,0 +1,146 @@
+version: "3.9"
+
+# ============================================================
+# Stack: RAG API — FastAPI service for RAG pipelines
+# ============================================================
+# Node:     master1 (tier=control)
+# URL:      https://rag-api.sexydad
+# Docs:     https://rag-api.sexydad/docs  (Swagger UI)
+#
+# Purpose:
+#   REST API that orchestrates the complete RAG workflow:
+#   - Document ingestion: chunk → embed → store in Qdrant + pgvector
+#   - Query: embed question → vector search → rerank → LLM answer
+#   - Collection management
+#
+# DB Strategy — REUSING existing infrastructure:
+#   - Qdrant:   primary vector store (semantic search)
+#   - Postgres/pgvector: metadata + relational filtering + hybrid search
+#   - MinIO:    raw document storage (S3-compatible)
+#   - Ollama:   embedding (nomic-embed-text, bge-m3) + LLM (qwen2.5:7b)
+#
+# Endpoints:
+#   POST /ingest          — upload and index a document
+#   POST /query           — RAG query against a collection
+#   GET  /collections     — list Qdrant collections
+#   DELETE /collection/{name} — drop a collection
+#   GET  /health          — liveness probe
+#
+# Logs: json-file → Fluent Bit → OpenSearch index docker-logs-YYYY.MM.DD
+# ============================================================
+
+networks:
+  internal:
+    external: true
+  public:
+    external: true
+
+secrets:
+  pg_rag_pass:
+    external: true
+  qdrant_api_key:
+    external: true
+  minio_access_key:
+    external: true
+  minio_secret_key:
+    external: true
+
+services:
+  rag-api:
+    image: ghcr.io/oscargbocanegra/lab-rag-api:latest
+
+    environment:
+      # Ollama — direct host port on master2 (GPU inference)
+      OLLAMA_BASE_URL: "http://192.168.80.200:11434"
+      EMBED_MODEL: "nomic-embed-text"
+      LLM_MODEL: "qwen2.5:7b"
+      EMBED_DIMS: "768"
+
+      # Qdrant vector store
+      QDRANT_URL: "http://qdrant:6333"
+      QDRANT_API_KEY_FILE: /run/secrets/qdrant_api_key
+      QDRANT_COLLECTION_PREFIX: "lab_"
+
+      # Postgres pgvector (reusing existing cluster DB)
+      PG_HOST: "192.168.80.200"
+      PG_PORT: "5432"
+      PG_DB: "rag"
+      PG_USER: "rag"
+      PG_PASSWORD_FILE: /run/secrets/pg_rag_pass
+
+      # MinIO document store (reusing existing cluster MinIO)
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY_FILE: /run/secrets/minio_access_key
+      MINIO_SECRET_KEY_FILE: /run/secrets/minio_secret_key
+      MINIO_BUCKET: "rag-documents"
+      MINIO_SECURE: "false"
+
+      # RAG chunking parameters
+      CHUNK_SIZE: "1000"
+      CHUNK_OVERLAP: "150"
+      TOP_K: "5"
+
+      # API settings
+      API_TITLE: "Lab RAG API"
+      API_VERSION: "1.0.0"
+      LOG_LEVEL: "INFO"
+
+      TZ: "America/Bogota"
+
+    secrets:
+      - pg_rag_pass
+      - qdrant_api_key
+      - minio_access_key
+      - minio_secret_key
+
+    networks:
+      - internal
+      - public
+
+    # Logging: json-file → Fluent Bit picks up automatically
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.stack.namespace"
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 60s
+      labels:
+        # Traefik routing
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+
+        # HTTP Router
+        - "traefik.http.routers.rag-api.rule=Host(`rag-api.sexydad`)"
+        - "traefik.http.routers.rag-api.entrypoints=websecure"
+        - "traefik.http.routers.rag-api.tls=true"
+        - "traefik.http.routers.rag-api.service=rag-api"
+        - "traefik.http.services.rag-api.loadbalancer.server.port=8000"
+
+        # Middleware: LAN whitelist only
+        - "traefik.http.routers.rag-api.middlewares=lan-whitelist@docker"
+
+        # Health check
+        - "traefik.http.services.rag-api.loadbalancer.healthcheck.path=/health"
+        - "traefik.http.services.rag-api.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.rag-api.loadbalancer.healthcheck.timeout=5s"
+
+        - "com.docker.stack.namespace=rag-api"
+        - "description=RAG API — FastAPI orchestration for RAG pipelines"

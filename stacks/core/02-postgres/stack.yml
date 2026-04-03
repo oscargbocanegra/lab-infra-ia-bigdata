@@ -1,24 +1,30 @@
 version: "3.9"
 
 # ============================================================
-# Stack: PostgreSQL 16 — Base de datos central del cluster
+# Stack: PostgreSQL 16 + pgvector — Central database cluster
 # ============================================================
-# Nodo:    master2 (hostname=master2, NVMe /srv/fastdata/postgres)
-# Puerto:  5432 (mode: host — solo accesible desde master2 LAN)
+# Node:    master2 (hostname=master2, NVMe /srv/fastdata/postgres)
+# Port:    5432 (mode: host — accessible from master2 LAN only)
 #
-# Bases de datos gestionadas:
-#   postgres  → superusuario (admin)
-#   n8n       → automatización de flujos (n8n)
-#   airflow   → metadata de DAGs y tareas (Apache Airflow)
+# Managed databases:
+#   postgres  → superuser (admin)
+#   n8n       → workflow automation (n8n)
+#   airflow   → DAG and task metadata (Apache Airflow)
+#   rag       → vector embeddings and document metadata (RAG pipelines)
 #
-# Secrets requeridos (externos, crear antes de deploy):
-#   pg_super_pass       → password superusuario 'postgres'
-#   pg_n8n_pass         → password usuario 'n8n'
-#   pg_airflow_pass     → password usuario 'airflow'
+# Required secrets (external, create before deploy):
+#   pg_super_pass       → superuser 'postgres' password
+#   pg_n8n_pass         → user 'n8n' password
+#   pg_airflow_pass     → user 'airflow' password
+#   pg_rag_pass         → user 'rag' password
 #
-# Init scripts (ejecutados una sola vez en volumen vacío):
-#   01-init-n8n.sh      → crea rol+db n8n
-#   02-init-airflow.sh  → crea rol+db airflow
+# Init scripts (executed once on empty volume):
+#   01-init-n8n.sh      → creates role+db n8n
+#   02-init-airflow.sh  → creates role+db airflow
+#   03-init-rag.sh      → creates role+db rag + pgvector extension + schema
+#
+# Image: pgvector/pgvector:pg16 — drop-in replacement for postgres:16
+#        adds the pgvector extension. Fully compatible with existing data.
 # ============================================================
 
 networks:
@@ -32,25 +38,28 @@ secrets:
     external: true
   pg_airflow_pass:
     external: true
+  pg_rag_pass:
+    external: true
 
 configs:
   init_n8n:
     file: ./initdb/01-init-n8n.sh
   init_airflow:
     file: ./initdb/02-init-airflow.sh
+  init_rag:
+    file: ./initdb/03-init-rag.sh
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
 
     environment:
-      # DB default neutral: 'postgres' (no acoplada a ninguna app)
+      # Default DB: neutral 'postgres' superuser (not tied to any app)
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_super_pass
-      # Locale estándar para compatibilidad con todas las apps
+      # Standard locale for cross-app compatibility
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
-      # Timezone explícita
       TZ: America/Bogota
       PGTZ: America/Bogota
 
@@ -58,6 +67,7 @@ services:
       - pg_super_pass
       - pg_n8n_pass
       - pg_airflow_pass
+      - pg_rag_pass
 
     configs:
       - source: init_n8n
@@ -65,6 +75,9 @@ services:
         mode: 0555
       - source: init_airflow
         target: /docker-entrypoint-initdb.d/02-init-airflow.sh
+        mode: 0555
+      - source: init_rag
+        target: /docker-entrypoint-initdb.d/03-init-rag.sh
         mode: 0555
 
     volumes:
@@ -74,8 +87,8 @@ services:
       - internal
 
     ports:
-      # mode: host → solo expone en master2, NO usa routing mesh Swarm
-      # Acceso LAN: master2-ip:5432 (DBeaver, psql, etc.)
+      # mode: host → binds to master2 only, bypasses Swarm routing mesh
+      # LAN access: 192.168.80.200:5432 (DBeaver, psql, app containers)
       - target: 5432
         published: 5432
         protocol: tcp
@@ -96,5 +109,5 @@ services:
       restart_policy:
         condition: any
         delay: 5s
-        max_attempts: 0   # reintentos infinitos — crítico para el cluster
+        max_attempts: 0   # infinite retries — critical for the cluster
         window: 60s

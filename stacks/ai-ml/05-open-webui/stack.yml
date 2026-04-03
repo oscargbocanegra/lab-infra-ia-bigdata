@@ -1,0 +1,144 @@
+version: "3.9"
+
+# ============================================================
+# Stack: Open WebUI — Chat UI for Ollama + RAG
+# ============================================================
+# Node:     master1 (tier=control)
+# URL:      https://chat.sexydad
+# Storage:  /srv/fastdata/open-webui  (bind mount, persistent)
+#
+# Purpose:
+#   Full-featured ChatGPT-like interface connected to Ollama.
+#   Supports RAG knowledge bases, document upload, multi-user,
+#   conversation history, and model management.
+#
+# DB Strategy — REUSING existing Postgres:
+#   Open WebUI uses its own SQLite by default.
+#   For production/multi-user we connect it to the existing
+#   Postgres instance (DB: openwebui, user: openwebui).
+#   This avoids SQLite limitations and centralizes backups.
+#   Requires pg_openwebui_pass secret and DB pre-created.
+#
+# Connections:
+#   - Ollama:   http://192.168.80.200:11434  (direct host port, master2)
+#   - Qdrant:   http://qdrant:6333           (overlay internal network)
+#   - Postgres: postgresql://openwebui@192.168.80.200:5432/openwebui
+#
+# Logs: json-file → Fluent Bit → OpenSearch index docker-logs-YYYY.MM.DD
+# ============================================================
+
+networks:
+  internal:
+    external: true
+  public:
+    external: true
+
+secrets:
+  pg_openwebui_pass:
+    external: true
+  qdrant_api_key:
+    external: true
+  openwebui_secret_key:
+    external: true
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.6.5
+
+    environment:
+      # Ollama backend — direct host port on master2
+      OLLAMA_BASE_URL: "http://192.168.80.200:11434"
+
+      # Use Postgres instead of SQLite (reusing existing cluster DB)
+      DATABASE_URL: "postgresql://openwebui:$(cat /run/secrets/pg_openwebui_pass)@192.168.80.200:5432/openwebui"
+
+      # Security
+      WEBUI_SECRET_KEY_FILE: /run/secrets/openwebui_secret_key
+
+      # Qdrant integration for RAG
+      VECTOR_DB: "qdrant"
+      QDRANT_URI: "http://qdrant:6333"
+      QDRANT_API_KEY_FILE: /run/secrets/qdrant_api_key
+
+      # Embedding model — nomic-embed-text via Ollama
+      RAG_EMBEDDING_ENGINE: "ollama"
+      RAG_EMBEDDING_MODEL: "nomic-embed-text"
+      RAG_OLLAMA_BASE_URL: "http://192.168.80.200:11434"
+
+      # RAG chunking strategy
+      CHUNK_SIZE: "1000"
+      CHUNK_OVERLAP: "100"
+
+      # Enable RAG web search and document features
+      ENABLE_RAG_WEB_SEARCH: "false"
+      ENABLE_RAG_LOCAL_WEB_FETCH: "false"
+      CONTENT_EXTRACTION_ENGINE: "default"
+
+      # UI settings
+      WEBUI_NAME: "Lab AI — Chat"
+      DEFAULT_LOCALE: "en-US"
+      ENABLE_SIGNUP: "false"
+
+      # Timezone
+      TZ: "America/Bogota"
+
+    secrets:
+      - pg_openwebui_pass
+      - qdrant_api_key
+      - openwebui_secret_key
+
+    volumes:
+      # Persistent storage: uploaded docs, user avatars, config
+      - /srv/fastdata/open-webui:/app/backend/data
+
+    networks:
+      - internal
+      - public
+
+    # Logging: json-file → Fluent Bit picks up automatically
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.stack.namespace"
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 60s
+      labels:
+        # Traefik routing
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+
+        # HTTP Router
+        - "traefik.http.routers.open-webui.rule=Host(`chat.sexydad`)"
+        - "traefik.http.routers.open-webui.entrypoints=websecure"
+        - "traefik.http.routers.open-webui.tls=true"
+        - "traefik.http.routers.open-webui.service=open-webui"
+        - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
+
+        # Middleware: LAN whitelist only
+        - "traefik.http.routers.open-webui.middlewares=lan-whitelist@docker"
+
+        # Health check
+        - "traefik.http.services.open-webui.loadbalancer.healthcheck.path=/health"
+        - "traefik.http.services.open-webui.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.open-webui.loadbalancer.healthcheck.timeout=10s"
+
+        - "com.docker.stack.namespace=open-webui"
+        - "description=Open WebUI — Chat interface for Ollama and RAG"
