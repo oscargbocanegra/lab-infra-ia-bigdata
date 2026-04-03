@@ -191,7 +191,8 @@ services:
     command:
       - --housekeeping_interval=30s
       - --max_housekeeping_interval=35s
-      - --disable_metrics=accelerator,cpu_topology,disk,memory_numa,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_bandwidth
+      # accelerator/memory_bandwidth removed in v0.56 — use only valid options
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,hugetlb,memory_numa,percpu,process,referenced_memory,resctrl,sched,tcp,udp
 
     volumes:
       - type: bind
@@ -244,7 +245,8 @@ services:
     command:
       - --housekeeping_interval=30s
       - --max_housekeeping_interval=35s
-      - --disable_metrics=accelerator,cpu_topology,disk,memory_numa,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_bandwidth
+      # accelerator/memory_bandwidth removed in v0.56 — use only valid options
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,hugetlb,memory_numa,percpu,process,referenced_memory,resctrl,sched,tcp,udp
 
     volumes:
       - type: bind
