@@ -103,7 +103,7 @@ services:
         - "traefik.http.routers.qdrant.middlewares=lan-whitelist@docker,qdrant-dashboard-redirect"
 
         # Redirect: https://qdrant.sexydad/ → https://qdrant.sexydad/dashboard
-        - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.regex=^https://qdrant\\.sexydad/?$"
+        - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.regex=^https://qdrant\\.sexydad/?$$"
         - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.replacement=https://qdrant.sexydad/dashboard"
         - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.permanent=false"
 
