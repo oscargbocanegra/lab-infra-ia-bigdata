@@ -20,6 +20,46 @@ fi
 # Endpoint MinIO para boto3/s3fs (s3:// sin prefijo s3a)
 export AWS_ENDPOINT_URL=http://minio:9000
 
+# ── Configurar jupyter-ai con Ollama como provider ───────────
+# jupyter-ai usa jupyter_ai_config.json para el modelo por defecto.
+# Ollama corre en la red internal (sin auth) → http://ollama:11434
+# Modelo: qwen2.5-coder:7b — especializado en código, ~5.5 GB VRAM
+# ─────────────────────────────────────────────────────────────
+JUPYTER_CONFIG_DIR="/home/jovyan/.jupyter"
+mkdir -p "$JUPYTER_CONFIG_DIR"
+
+# jupyter_server_config.py — configura el completion provider LSP
+# y el timeout para respuestas del LLM
+if [ ! -f "$JUPYTER_CONFIG_DIR/jupyter_server_config.py" ]; then
+    cat > "$JUPYTER_CONFIG_DIR/jupyter_server_config.py" << 'EOF'
+# ── jupyter-ai: Ollama provider (LAN, sin cloud) ──────────────
+# Modelo default: qwen2.5-coder:7b
+# Endpoint: http://ollama:11434 (red internal de Docker Swarm)
+c.AiExtension.default_language_model = "ollama:qwen2.5-coder:7b"
+c.AiExtension.allowed_providers = ["ollama"]
+
+# ── jupyter-lsp: Language Server Protocol ─────────────────────
+# jedi-language-server: autocompletado clásico con tipos y docstrings
+c.LanguageServerManager.autodetect = True
+EOF
+    echo "==> [jupyter-ai] jupyter_server_config.py creado ✓"
+fi
+
+# jupyter_ai_config.json — config persistente del chat panel
+# Se respeta si el usuario ya la modificó (idempotente)
+AI_CONFIG="$JUPYTER_CONFIG_DIR/jupyter_ai_config.json"
+if [ ! -f "$AI_CONFIG" ]; then
+    cat > "$AI_CONFIG" << 'EOF'
+{
+  "model_provider_id": "ollama:qwen2.5-coder:7b",
+  "fields": {
+    "base_url": "http://ollama:11434"
+  }
+}
+EOF
+    echo "==> [jupyter-ai] jupyter_ai_config.json creado ✓"
+fi
+
 echo "==> Ejecutando init de kernels..."
 
 # Ejecutar script de inicialización de kernels

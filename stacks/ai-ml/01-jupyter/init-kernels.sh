@@ -7,6 +7,12 @@
 #   ia       → Scikit-learn + TF/Keras + XGBoost + OpenCV
 #   bigdata  → PySpark + Delta Lake + MinIO (s3a) + Pandas + Dask
 #
+# Extensiones de servidor (instaladas en el Python base del container):
+#   jupyter-lsp              → protocolo LSP para intellisense clásico
+#   jedi-language-server     → backend LSP para Python (tipos, docs, go-to-def)
+#   jupyter-ai               → chat IA + %%ai magic via Ollama (LAN, sin cloud)
+#   langchain-community      → provider Ollama para jupyter-ai
+#
 # Los venvs se persisten en /home/jovyan/.venv (montado en NVMe)
 # Solo se instalan si el kernel NO existe ya → idempotente
 # ============================================================
@@ -18,6 +24,33 @@ VENV_BASE="/home/jovyan/.venv"
 kernel_exists() {
     [ -d "$KERNEL_DIR/$1" ]
 }
+
+# ── Extensiones de servidor (Python base del container) ──────
+# Se instalan una sola vez en el entorno base de JupyterLab.
+# jupyter-lsp + jedi: intellisense clásico (tipos, docstrings, go-to-def)
+# jupyter-ai + langchain-community: chat IA y %%ai magic vía Ollama (LAN)
+# ─────────────────────────────────────────────────────────────
+SERVER_EXT_FLAG="/home/jovyan/.local/.server-extensions-installed"
+
+if [ ! -f "$SERVER_EXT_FLAG" ]; then
+    echo "==> [server-ext] Instalando extensiones de servidor JupyterLab..."
+
+    pip install --no-cache-dir --quiet \
+        "jupyter-lsp>=2.2.0" \
+        "jedi-language-server>=0.41.0" \
+        "jupyter-ai>=2.20.0" \
+        "langchain-community>=0.3.0" \
+        "langchain-ollama>=0.2.0"
+
+    # Habilitar las extensiones en el servidor
+    jupyter server extension enable --user jupyter_lsp
+    jupyter server extension enable --user jupyter_ai
+
+    touch "$SERVER_EXT_FLAG"
+    echo "==> [server-ext] Extensiones instaladas y habilitadas ✓"
+else
+    echo "==> [server-ext] Ya instaladas, saltando."
+fi
 
 # ── Kernel: LLM ──────────────────────────────────────────────
 if ! kernel_exists "llm"; then
@@ -49,6 +82,7 @@ if ! kernel_exists "llm"; then
         tiktoken \
         ollama \
         huggingface_hub \
+        jedi \
         --quiet
 
     python -m ipykernel install --user --name=llm --display-name="Python (LLM - PyTorch + LangChain)"
@@ -88,6 +122,7 @@ if ! kernel_exists "ia"; then
         pillow \
         mlflow \
         optuna \
+        jedi \
         --quiet
 
     python -m ipykernel install --user --name=ia --display-name="Python (IA - Scikit + TF + XGBoost)"
@@ -120,6 +155,7 @@ if ! kernel_exists "bigdata"; then
         "boto3>=1.34" \
         "s3fs>=2024.2" \
         findspark \
+        jedi \
         --quiet
 
     python -m ipykernel install --user --name=bigdata --display-name="Python (BigData - PySpark + Delta + MinIO)"

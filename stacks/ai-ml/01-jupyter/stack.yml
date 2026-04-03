@@ -52,6 +52,8 @@ services:
       # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY son exportadas por entrypoint.sh
       # leyendo /run/secrets/minio_access_key y /run/secrets/minio_secret_key
       # NO usar AWS_ACCESS_KEY_ID_FILE — boto3/s3fs/PySpark no reconocen ese sufijo
+      # jupyter-ai: endpoint Ollama en red internal (sin BasicAuth desde dentro del Swarm)
+      - OLLAMA_API_BASE=http://ollama:11434
 
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
@@ -134,6 +136,8 @@ services:
       - SPARK_MASTER_URL=spark://spark_master:7077
       # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY son exportadas por entrypoint.sh
       # leyendo /run/secrets/minio_access_key y /run/secrets/minio_secret_key
+      # jupyter-ai: endpoint Ollama en red internal (sin BasicAuth desde dentro del Swarm)
+      - OLLAMA_API_BASE=http://ollama:11434
 
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work
