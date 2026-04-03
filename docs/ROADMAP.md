@@ -4,7 +4,7 @@
 
 ---
 
-## Estado actual: Fase 5 en progreso 🔧
+## Estado actual: Fase 5 completa ✅
 
 ```
 Fase 1: Base del clúster (Swarm + redes + labels + GPU)          ✅
@@ -12,7 +12,7 @@ Fase 2: Storage en master2 (LVM NVMe + datalake HDD)             ✅
 Fase 3: Repo IaC + estructura estándar                            ✅
 Fase 4: Stacks operativos (Traefik, Portainer, Postgres,
         n8n, JupyterLab x2, Ollama, OpenSearch)                  ✅
-Fase 5: Big Data + Automatización (MinIO, Spark, Airflow)         🔧 EN PROGRESO
+Fase 5: Big Data + Automatización (MinIO, Spark, Airflow)         ✅ COMPLETO
 Fase 6: Observabilidad + Hardening                                ⏳
 ```
 
@@ -168,6 +168,10 @@ Evaluar cuando se agreguen más de 3 usuarios.
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-04-03 | jupyter-ai + LSP instalados en JupyterLab — %%JARVIS magic + chat panel via Ollama |
+| 2026-04-03 | Ollama upgrade 0.6.1 → 0.19.0 — bug fix GGML parser + puerto 11434 publicado |
+| 2026-04-03 | JupyterLab: 3 kernels especializados (LLM, AI/ML, BigData) |
+| 2026-03-31 | README principal reescrito en inglés con badges para portfolio |
 | 2026-03-30 | Fase 5: MinIO + Spark + Airflow — stacks creados |
 | 2026-03-30 | Jupyter: reservations optimizadas + kernel BigData |
 | 2026-03-30 | Ollama: versión pineada a 0.6.1 |

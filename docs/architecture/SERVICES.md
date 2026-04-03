@@ -148,12 +148,12 @@ Portainer Agent  ✅
 |-----------|-------|
 | **Stack** | `ollama` |
 | **Archivo** | `stacks/ai-ml/02-ollama/stack.yml` |
-| **Imagen** | `ollama/ollama:0.6.1` (versión pineada) |
+| **Imagen** | `ollama/ollama:0.19.0` (versión pineada) |
 | **Nodo** | master2 (`tier=compute` + `gpu=nvidia`) |
 | **Persistencia** | `/srv/datalake/models/ollama` (HDD 2TB) |
 | **GPU** | RTX 2080 Ti — 11 GB VRAM — CUDA 12.2 |
 | **VRAM reservada** | 10 GB para modelos (1 GB overhead) |
-| **Estado** | ✅ OPERATIVO (sin modelos descargados aún) |
+| **Estado** | ✅ OPERATIVO |
 | **URL externa** | `https://ollama.sexydad` (BasicAuth + LAN whitelist) |
 | **URL interna** | `http://ollama:11434` |
 | **Auth** | BasicAuth (`ollama_basicauth`) |

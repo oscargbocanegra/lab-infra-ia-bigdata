@@ -107,7 +107,7 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 ║  ┌──────────────────────────────┐    ║  ║  └──────────────────────────────────┘    ║
 ║  │  Redis 7.2 (Celery broker)   │    ║  ║                                           ║
 ║  │  /srv/fastdata/airflow/redis │    ║  ║  ┌──────────────────────────────────┐    ║
-║  └──────────────────────────────┘    ║  ║  │  Ollama 0.6.1                    │    ║
+║  └──────────────────────────────┘    ║  ║  │  Ollama 0.19.0                   │    ║
 ║                                      ║  ║  │  /srv/datalake/models/ollama     │    ║
 ║  ┌──────────────────────────────┐    ║  ║  │  GPU RTX 2080 Ti (11 GB VRAM)    │    ║
 ║  │  Airflow Webserver 2.9.3     │    ║  ║  │  :11434 (internal)               │    ║
@@ -279,8 +279,8 @@ deploy:
 | Spark History | master1 | `tier=control` | Lee logs del filesystem |
 | PostgreSQL | master2 | `hostname=master2` | NVMe para I/O intensivo |
 | n8n | master2 | `tier=compute` | Junto con Postgres (misma red) |
-| JupyterLab | master2 | `tier=compute` + `hostname=master2` | GPU + NVMe para notebooks |
-| Ollama | master2 | `tier=compute` + `gpu=nvidia` | GPU obligatorio |
+| **JupyterLab** | master2 | `tier=compute` + `hostname=master2` | GPU + NVMe para notebooks + jupyter-ai (%%JARVIS) |
+| **Ollama** | master2 | `tier=compute` + `gpu=nvidia` | GPU obligatorio — v0.19.0 |
 | MinIO | master2 | `tier=compute` + `hostname=master2` | HDD 2TB datalake |
 | Spark Worker | master2 | `tier=compute` + `hostname=master2` | NVMe para shuffle/spill |
 | Airflow Worker | master2 | `tier=compute` + `hostname=master2` | Acceso a GPU, NVMe, datalake HDD |
