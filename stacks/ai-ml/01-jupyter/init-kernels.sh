@@ -45,6 +45,7 @@ if [ ! -f "$SERVER_EXT_FLAG" ]; then
     echo "==> [server-ext] Instalando extensiones jupyter-lsp y jupyter-ai..."
     pip install --no-cache-dir --quiet \
         "jupyter-lsp>=2.2.0,<3.0" \
+        "jupyterlab-lsp>=5.0.0,<6.0" \
         "jedi-language-server>=0.41.0" \
         "jupyter-ai>=2.20.0,<3.0" \
         "langchain-community>=0.3.0,<0.4.0" \
@@ -91,12 +92,20 @@ if ! kernel_exists "llm"; then
         ollama \
         huggingface_hub \
         jedi \
+        "jupyter-ai>=2.20.0,<3.0" \
         --quiet
 
     python -m ipykernel install --user --name=llm --display-name="Python (LLM - PyTorch + LangChain)"
     deactivate
     echo "==> [kernel:llm] Listo ✓"
 else
+    # Asegurar jupyter-ai en venv existente (idempotente)
+    if ! "$VENV_BASE/llm/bin/pip" show jupyter-ai > /dev/null 2>&1; then
+        echo "==> [kernel:llm] Instalando jupyter-ai en venv existente..."
+        "$VENV_BASE/llm/bin/pip" install --no-cache-dir --quiet \
+            "jupyter-ai>=2.20.0,<3.0" \
+            "langchain-ollama>=0.2.0,<1.0"
+    fi
     echo "==> [kernel:llm] Ya existe, saltando."
 fi
 
@@ -131,12 +140,21 @@ if ! kernel_exists "ia"; then
         mlflow \
         optuna \
         jedi \
+        "jupyter-ai>=2.20.0,<3.0" \
+        "langchain-ollama>=0.2.0,<1.0" \
         --quiet
 
     python -m ipykernel install --user --name=ia --display-name="Python (IA - Scikit + TF + XGBoost)"
     deactivate
     echo "==> [kernel:ia] Listo ✓"
 else
+    # Asegurar jupyter-ai en venv existente (idempotente)
+    if ! "$VENV_BASE/ia/bin/pip" show jupyter-ai > /dev/null 2>&1; then
+        echo "==> [kernel:ia] Instalando jupyter-ai en venv existente..."
+        "$VENV_BASE/ia/bin/pip" install --no-cache-dir --quiet \
+            "jupyter-ai>=2.20.0,<3.0" \
+            "langchain-ollama>=0.2.0,<1.0"
+    fi
     echo "==> [kernel:ia] Ya existe, saltando."
 fi
 
@@ -164,12 +182,21 @@ if ! kernel_exists "bigdata"; then
         "s3fs>=2024.2" \
         findspark \
         jedi \
+        "jupyter-ai>=2.20.0,<3.0" \
+        "langchain-ollama>=0.2.0,<1.0" \
         --quiet
 
     python -m ipykernel install --user --name=bigdata --display-name="Python (BigData - PySpark + Delta + MinIO)"
     deactivate
     echo "==> [kernel:bigdata] Listo ✓"
 else
+    # Asegurar jupyter-ai en venv existente (idempotente)
+    if ! "$VENV_BASE/bigdata/bin/pip" show jupyter-ai > /dev/null 2>&1; then
+        echo "==> [kernel:bigdata] Instalando jupyter-ai en venv existente..."
+        "$VENV_BASE/bigdata/bin/pip" install --no-cache-dir --quiet \
+            "jupyter-ai>=2.20.0,<3.0" \
+            "langchain-ollama>=0.2.0,<1.0"
+    fi
     echo "==> [kernel:bigdata] Ya existe, saltando."
 fi
 
