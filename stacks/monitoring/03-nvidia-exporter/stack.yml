@@ -1,0 +1,69 @@
+version: "3.8"
+
+# =============================================================================
+# Stack: NVIDIA GPU Exporter (Phase 6.2 — Observability)
+# =============================================================================
+# Exposes GPU metrics for Prometheus scraping:
+#   - GPU utilization (%)
+#   - VRAM used / free / total (MiB)
+#   - GPU temperature (°C)
+#   - Power draw (W)
+#   - Fan speed (%)
+#   - Running processes on GPU
+#
+# Why separate from the prometheus stack?
+#   This container requires privileged GPU device access
+#   (/dev/nvidiactl, /dev/nvidia0). Isolating it avoids giving
+#   the entire prometheus stack elevated privileges.
+#
+# Node: compute (master2) — where the RTX 2080 Ti lives
+# Port: 9835 (reachable via internal overlay as nvidia-exporter:9835)
+#
+# Pre-requisites:
+#   - NVIDIA drivers installed on master2 (535.x confirmed)
+#   - nvidia-container-toolkit installed on master2
+#   - node label: gpu=nvidia (already set)
+#
+# Deploy:
+#   docker stack deploy -c stacks/monitoring/03-nvidia-exporter/stack.yml nvidia-exporter
+# =============================================================================
+
+services:
+
+  nvidia-exporter:
+    image: utkuozdemir/nvidia_gpu_exporter:1.2.1
+    hostname: nvidia-exporter
+
+    # Required to access GPU device files on the host
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.gpu == nvidia
+
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+          generic_resources:
+            - discrete_resource_spec:
+                kind: nvidia.com/gpu
+                value: 1
+        limits:
+          cpus: '0.1'
+          memory: 64M
+
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+    networks:
+      - internal
+
+networks:
+  internal:
+    external: true
+    name: internal

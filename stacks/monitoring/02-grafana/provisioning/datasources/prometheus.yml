@@ -1,0 +1,22 @@
+# =============================================================================
+# Grafana Provisioning — Datasource: Prometheus
+# =============================================================================
+# This file is auto-loaded by Grafana on startup.
+# No manual datasource configuration needed in the UI.
+#
+# Prometheus is reachable via Docker overlay DNS on port 9090
+# (same internal network, service name = prometheus)
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST

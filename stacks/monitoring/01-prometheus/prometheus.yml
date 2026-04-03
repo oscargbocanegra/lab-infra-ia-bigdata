@@ -1,0 +1,105 @@
+# =============================================================================
+# Prometheus Configuration — Lab Infra AI + Big Data
+# =============================================================================
+# Scrape interval: 15s global (fine-grained per job where needed)
+# Retention:       15 days (set via CLI flag in stack.yml)
+# Storage:         /prometheus (bind-mounted to /srv/fastdata/prometheus)
+#
+# Targets:
+#   - node_exporter   : OS metrics (CPU, RAM, disk, network) — both nodes
+#   - cadvisor        : Docker container metrics              — both nodes
+#   - nvidia-exporter : GPU metrics (RTX 2080 Ti)            — compute node only
+#   - traefik         : Reverse-proxy metrics                 — control node
+#   - prometheus      : Self-monitoring
+# =============================================================================
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  scrape_timeout:      10s
+
+  # Labels added to all time series and alerts produced by this server
+  external_labels:
+    cluster: lab-swarm
+    environment: lab
+
+# =============================================================================
+# Alerting (placeholder — Alertmanager can be added in a future phase)
+# =============================================================================
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# =============================================================================
+# Scrape configs
+# =============================================================================
+
+scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # ---------------------------------------------------------------------------
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+        labels:
+          node: control
+
+  # ---------------------------------------------------------------------------
+  # node_exporter — OS-level metrics (CPU, RAM, disk, network, load)
+  # Deployed as global service: 1 instance per Swarm node
+  # Reachable via Docker overlay DNS on port 9100
+  # ---------------------------------------------------------------------------
+  - job_name: node
+    static_configs:
+      - targets:
+          - node-exporter:9100
+        labels:
+          node: control
+      - targets:
+          - node-exporter-compute:9100
+        labels:
+          node: compute
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor — Docker container metrics
+  # (CPU, RAM, network I/O, disk I/O per container)
+  # Deployed as global service: 1 instance per Swarm node
+  # ---------------------------------------------------------------------------
+  - job_name: cadvisor
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - cadvisor:8080
+        labels:
+          node: control
+      - targets:
+          - cadvisor-compute:8080
+        labels:
+          node: compute
+
+  # ---------------------------------------------------------------------------
+  # NVIDIA GPU exporter — RTX 2080 Ti metrics
+  # (utilization %, VRAM used/free, temperature, power draw)
+  # Only on compute node (master2) — where the GPU lives
+  # ---------------------------------------------------------------------------
+  - job_name: nvidia_gpu
+    static_configs:
+      - targets:
+          - nvidia-exporter:9835
+        labels:
+          node: compute
+          gpu: rtx2080ti
+
+  # ---------------------------------------------------------------------------
+  # Traefik — reverse proxy metrics
+  # Traefik exposes Prometheus metrics natively on port 8082
+  # ---------------------------------------------------------------------------
+  - job_name: traefik
+    static_configs:
+      - targets:
+          - traefik:8082
+        labels:
+          node: control

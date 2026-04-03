@@ -1,22 +1,22 @@
 version: "3.8"
 
-# ============================================================
+# =============================================================================
 # Stack: Traefik v2.11 — Reverse Proxy + TLS + Gateway
-# ============================================================
-# Nodo:   master1 (tier=control)
-# Puertos: 80 (redirect→443), 443 (TLS, mode: host)
+# =============================================================================
+# Node:   control (master1)
+# Ports:  80 (redirect→443), 443 (TLS, mode: host), 8082 (metrics, internal)
 #
-# Responsabilidades:
-#   - Terminar TLS (cert self-signed desde secrets)
-#   - LAN whitelist: solo 192.168.80.0/24
-#   - Routing hacia todos los servicios del cluster
-#   - Middlewares de auth referenciados por cada stack
+# Responsibilities:
+#   - TLS termination (self-signed cert via Swarm Secrets)
+#   - LAN-only whitelist (restricts access to internal network)
+#   - Routing to all cluster services
+#   - BasicAuth middlewares referenced by each stack
+#   - Prometheus metrics endpoint on :8082 (internal only, not exposed via Traefik)
 #
-# NOTA sobre secrets en Traefik:
-#   Traefik DEBE tener montados todos los secrets de BasicAuth
-#   que define como middlewares, porque los otros stacks los
-#   referencian con @docker pero Traefik es quien los ejecuta.
-# ============================================================
+# Note on Traefik secrets:
+#   Traefik MUST have all BasicAuth secrets mounted because other stacks
+#   reference them as @docker middlewares — Traefik is the one executing them.
+# =============================================================================
 
 networks:
   public:
@@ -25,14 +25,14 @@ networks:
     external: true
 
 secrets:
-  # ── Traefik propio ─────────────────────────────────────────
+  # Traefik own credentials
   traefik_basic_auth:
     external: true
   traefik_tls_cert:
     external: true
   traefik_tls_key:
     external: true
-  # ── Servicios que usan BasicAuth via Traefik ───────────────
+  # Service BasicAuth secrets (executed by Traefik middleware)
   jupyter_basicauth_v2:
     external: true
   ollama_basicauth:
@@ -40,6 +40,13 @@ secrets:
   opensearch_basicauth:
     external: true
   dashboards_basicauth:
+    external: true
+  # Monitoring secrets
+  prometheus_basicauth:
+    external: true
+  grafana_admin_user:
+    external: true
+  grafana_admin_password:
     external: true
 
 configs:
@@ -67,6 +74,11 @@ services:
 
       - --entrypoints.websecure.address=:443
 
+      # Prometheus metrics endpoint — internal only, not exposed via Traefik router
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=metrics
+      - --entrypoints.metrics.address=:8082
+
       - --accesslog=true
       - --log.level=INFO
 
@@ -79,6 +91,7 @@ services:
         published: 443
         protocol: tcp
         mode: host
+      # Port 8082 (metrics) is NOT published to host — only reachable via overlay
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -99,6 +112,9 @@ services:
       - ollama_basicauth
       - opensearch_basicauth
       - dashboards_basicauth
+      - prometheus_basicauth
+      - grafana_admin_user
+      - grafana_admin_password
 
     deploy:
       placement:
@@ -112,7 +128,7 @@ services:
       labels:
         - traefik.enable=true
 
-        # ── Dashboard ────────────────────────────────────────
+        # Traefik dashboard
         - traefik.http.routers.traefik.rule=Host(`traefik.sexydad`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
         - traefik.http.routers.traefik.entrypoints=websecure
         - traefik.http.routers.traefik.tls=true
@@ -120,33 +136,15 @@ services:
         - traefik.http.services.traefik-dashboard.loadbalancer.server.port=8080
         - traefik.http.routers.traefik.middlewares=lan-whitelist@docker,traefik-auth@docker
 
-        # ── Middlewares globales de red ───────────────────────
-        # LAN whitelist — referenciado por todos los routers
+        # Global network middlewares
         - traefik.http.middlewares.lan-whitelist.ipwhitelist.sourcerange=192.168.80.0/24
-
-        # Alias más corto para los stacks nuevos (MinIO, Spark, Airflow)
         - traefik.http.middlewares.lan-allow.ipwhitelist.sourcerange=192.168.80.0/24
 
-        # ── Middlewares de autenticación ──────────────────────
-        # Traefik dashboard
+        # Auth middlewares
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
-
-        # Jupyter (chain: LAN + BasicAuth)
         - traefik.http.middlewares.jupyter-auth.basicauth.usersfile=/run/secrets/jupyter_basicauth_v2
         - traefik.http.middlewares.jupyter-chain.chain.middlewares=lan-allow,jupyter-auth
-
-        # Ollama
         - traefik.http.middlewares.ollama-auth.basicauth.usersfile=/run/secrets/ollama_basicauth
-
-        # OpenSearch
         - traefik.http.middlewares.opensearch-auth.basicauth.usersfile=/run/secrets/opensearch_basicauth
-
-        # OpenSearch Dashboards
         - traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth
-
-        # ── Nota para operadores ──────────────────────────────
-        # Los stacks nuevos (MinIO, Spark, Airflow) usan solo
-        # lan-whitelist@docker (sin BasicAuth adicional).
-        # La auth de Airflow y MinIO es nativa de la aplicación.
-        # Si querés agregar BasicAuth a alguno, agrega el secret
-        # aquí y define el middleware como los anteriores.
+        - traefik.http.middlewares.prometheus-auth.basicauth.usersfile=/run/secrets/prometheus_basicauth

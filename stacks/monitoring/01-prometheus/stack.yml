@@ -1,0 +1,300 @@
+version: "3.8"
+
+# =============================================================================
+# Stack: Prometheus — Metrics Collection (Phase 6.2 — Observability)
+# =============================================================================
+# Services:
+#   prometheus       — TSDB + scrape engine         (control node, master1)
+#   node-exporter    — OS metrics                   (control node, master1)
+#   node-exporter-compute — OS metrics              (compute node, master2)
+#   cadvisor         — container metrics             (control node, master1)
+#   cadvisor-compute — container metrics             (compute node, master2)
+#
+# Note: NVIDIA GPU exporter is in a separate stack (03-nvidia-exporter)
+#       because it requires GPU device access — cleaner isolation.
+#
+# Storage: /srv/fastdata/prometheus on master1 (348 GB free)
+# Retention: 15 days (configurable via PROMETHEUS_RETENTION env)
+#
+# Pre-requisites:
+#   mkdir -p /srv/fastdata/prometheus
+#   chown 65534:65534 /srv/fastdata/prometheus   # nobody:nobody (Prometheus UID)
+#
+# Deploy:
+#   docker stack deploy -c stacks/monitoring/01-prometheus/stack.yml prometheus
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Prometheus — time-series database + scrape engine
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    hostname: prometheus
+
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+      - --web.listen-address=0.0.0.0:9090
+
+    volumes:
+      - type: bind
+        source: /srv/fastdata/prometheus
+        target: /prometheus
+
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+
+    networks:
+      - internal
+      - public
+
+    user: "65534"   # nobody — Prometheus default UID
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.tier == control
+
+      resources:
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+        limits:
+          cpus: '1.0'
+          memory: 1536M
+
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        - "traefik.http.routers.prometheus.rule=Host(`prometheus.sexydad`)"
+        - "traefik.http.routers.prometheus.entrypoints=websecure"
+        - "traefik.http.routers.prometheus.tls=true"
+        - "traefik.http.routers.prometheus.service=prometheus"
+        - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+        - "traefik.http.routers.prometheus.middlewares=lan-whitelist@docker,prometheus-auth@docker"
+        - "com.docker.stack.namespace=prometheus"
+        - "com.docker.service.name=prometheus"
+
+  # ---------------------------------------------------------------------------
+  # node-exporter — OS metrics for master1 (control node)
+  # Exposes: CPU, RAM, disk I/O, network, load average, filesystem
+  # Constrained to control node — has its own counterpart on compute node
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    hostname: node-exporter
+
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+      - --no-collector.ipvs
+
+    volumes:
+      - type: bind
+        source: /
+        target: /host
+        read_only: true
+        bind:
+          propagation: rslave
+
+    networks:
+      - internal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.tier == control
+
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+        limits:
+          cpus: '0.2'
+          memory: 128M
+
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # ---------------------------------------------------------------------------
+  # node-exporter-compute — OS metrics for master2 (compute node)
+  # Same config, different placement constraint
+  # ---------------------------------------------------------------------------
+  node-exporter-compute:
+    image: prom/node-exporter:v1.8.1
+    hostname: node-exporter-compute
+
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+      - --no-collector.ipvs
+
+    volumes:
+      - type: bind
+        source: /
+        target: /host
+        read_only: true
+        bind:
+          propagation: rslave
+
+    networks:
+      - internal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.tier == compute
+
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+        limits:
+          cpus: '0.2'
+          memory: 128M
+
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor — Docker container metrics for master1
+  # Exposes: CPU/RAM/net/disk per container, image info
+  # ---------------------------------------------------------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    hostname: cadvisor
+
+    command:
+      - --housekeeping_interval=30s
+      - --max_housekeeping_interval=35s
+      - --disable_metrics=accelerator,cpu_topology,disk,memory_numa,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_bandwidth
+
+    volumes:
+      - type: bind
+        source: /
+        target: /rootfs
+        read_only: true
+      - type: bind
+        source: /var/run
+        target: /var/run
+        read_only: true
+      - type: bind
+        source: /sys
+        target: /sys
+        read_only: true
+      - type: bind
+        source: /var/lib/docker
+        target: /var/lib/docker
+        read_only: true
+
+    networks:
+      - internal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.tier == control
+
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor-compute — Docker container metrics for master2
+  # ---------------------------------------------------------------------------
+  cadvisor-compute:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    hostname: cadvisor-compute
+
+    command:
+      - --housekeeping_interval=30s
+      - --max_housekeeping_interval=35s
+      - --disable_metrics=accelerator,cpu_topology,disk,memory_numa,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_bandwidth
+
+    volumes:
+      - type: bind
+        source: /
+        target: /rootfs
+        read_only: true
+      - type: bind
+        source: /var/run
+        target: /var/run
+        read_only: true
+      - type: bind
+        source: /sys
+        target: /sys
+        read_only: true
+      - type: bind
+        source: /var/lib/docker
+        target: /var/lib/docker
+        read_only: true
+
+    networks:
+      - internal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.tier == compute
+
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
+      restart_policy:
+        condition: any
+        delay: 5s
+
+configs:
+  prometheus_config:
+    file: ./prometheus.yml
+
+networks:
+  internal:
+    external: true
+    name: internal
+  public:
+    external: true
+    name: public

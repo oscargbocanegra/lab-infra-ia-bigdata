@@ -18,11 +18,14 @@
 [![n8n](https://img.shields.io/badge/n8n-EA4B71?style=for-the-badge&logo=n8n&logoColor=white)](https://n8n.io/)
 [![Traefik](https://img.shields.io/badge/Traefik_v2.11-24A1C1?style=for-the-badge&logo=traefikproxy&logoColor=white)](https://traefik.io/)
 
+[![Prometheus](https://img.shields.io/badge/Prometheus_v2.52-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana_11.1-F46800?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
+
 [![NVIDIA CUDA](https://img.shields.io/badge/NVIDIA_CUDA_12.2-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![RTX 2080 Ti](https://img.shields.io/badge/RTX_2080_Ti_11GB_VRAM-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://www.nvidia.com/)
 [![Infrastructure as Code](https://img.shields.io/badge/Infrastructure_as_Code-IaC-success?style=for-the-badge&logo=terraform&logoColor=white)]()
 [![Status](https://img.shields.io/badge/Status-100%25_Operational-brightgreen?style=for-the-badge)]()
-[![Services](https://img.shields.io/badge/Services-22_Running-brightgreen?style=for-the-badge)]()
+[![Services](https://img.shields.io/badge/Services-27_Running-brightgreen?style=for-the-badge)]()
 
 </div>
 
@@ -34,7 +37,7 @@ This repository is a **fully reproducible Infrastructure-as-Code** definition fo
 
 Every component is production-grade: secrets management via Docker Swarm Secrets (zero passwords in code), TLS on all endpoints, LAN whitelist, GPU-accelerated inference, and a complete **Medallion Architecture** data pipeline (Bronze → Silver → Gold) using **Apache Spark + Delta Lake + MinIO**.
 
-> **20 services running — 100% operational.** Deploys from scratch in one sitting.
+> **27 services running — 100% operational.** Deploys from scratch in one sitting.
 
 ### What makes this lab special
 
@@ -106,7 +109,9 @@ LAN User (browser)
        ├──► minio.sexydad            → MinIO Console       (master2)
        ├──► minio-api.sexydad        → MinIO S3 API        (master2)
         ├──► spark-worker.sexydad     → Spark Worker UI     (master2)
-        └──► fluent-bit               → Log Collector (global, no UI)
+        ├──► fluent-bit               → Log Collector (global, no UI)
+        ├──► prometheus.sexydad       → Prometheus UI       (master1)
+        └──► grafana.sexydad          → Grafana Dashboards  (master1)
 ```
 
 ### Service Placement Strategy
@@ -115,7 +120,7 @@ LAN User (browser)
 |------|----------|-----------|
 | **master1** | Traefik, Portainer, OpenSearch, Airflow (web/scheduler/flower), Redis, Spark (master/history) | Lightweight control-plane services — HDD sufficient |
 | **master2** | PostgreSQL, n8n, JupyterLab ×2, Ollama, MinIO, Spark Worker, Airflow Worker | Heavy I/O + GPU workloads on NVMe + RTX 2080 Ti |
-| **global** | Portainer Agent | Required on all nodes for Swarm management |
+| **global** | Portainer Agent, Fluent Bit | Required on all nodes for Swarm management and log collection |
 
 ---
 
@@ -211,6 +216,23 @@ Data Sources (CSV, JSON, APIs, DB exports)
 
 ---
 
+## 📊 Observability
+
+| Service | Version | Node | URL | Status |
+|---------|---------|------|-----|--------|
+| **Fluent Bit** — Log collector | 3.2 | global (both) | — (internal) | ✅ |
+| **Prometheus** — Metrics TSDB | v2.52.0 | master1 | `https://prometheus.sexydad` | ✅ |
+| **node-exporter** (master1) | v1.8.1 | master1 | — (internal :9100) | ✅ |
+| **node-exporter** (master2) | v1.8.1 | master2 | — (internal :9100) | ✅ |
+| **cAdvisor** (master1) | v0.49.1 | master1 | — (internal :8080) | ✅ |
+| **cAdvisor** (master2) | v0.49.1 | master2 | — (internal :8080) | ✅ |
+| **NVIDIA GPU Exporter** | 1.2.1 | master2 | — (internal :9835) | ✅ |
+| **Grafana** — Dashboards | 11.1.0 | master1 | `https://grafana.sexydad` | ✅ |
+
+> **Total: 27 services — all 1/1 (or N/N) ✅**
+
+---
+
 ## 🤖 AI Features in JupyterLab
 
 Each JupyterLab instance ships with three specialized kernels and full AI integration:
@@ -274,9 +296,14 @@ lab-infra-ia-bigdata/
 │   │   ├── 11-opensearch/          # Search engine + dashboards
 │   │   ├── 12-minio/               # S3-compatible object storage
 │   │   └── 98-spark/               # Distributed processing cluster
-│   └── ai-ml/
+│   ├── ai-ml/
 │       ├── 01-jupyter/             # Multi-user JupyterLab + GPU + AI
 │       └── 02-ollama/              # Local LLM inference engine
+│   └── monitoring/
+│       ├── 00-fluent-bit/          # Centralized log collection → OpenSearch
+│       ├── 01-prometheus/          # Prometheus TSDB + node/container exporters
+│       ├── 02-grafana/             # Grafana dashboards (auto-provisioned)
+│       └── 03-nvidia-exporter/     # NVIDIA GPU metrics exporter
 │
 ├── docs/
 │   ├── architecture/               # System design documentation
@@ -347,6 +374,17 @@ docker stack deploy -c stacks/ai-ml/02-ollama/stack.yml   ollama
 # === PHASE 5: Data Processing ===
 docker stack deploy -c stacks/data/11-opensearch/stack.yml opensearch
 docker stack deploy -c stacks/data/98-spark/stack.yml      spark
+
+# === PHASE 6: Observability ===
+# Run setup script first (creates dirs + Swarm Secrets interactively):
+bash scripts/observability/setup-prometheus.sh
+# Then update Traefik (adds metrics endpoint + new secrets):
+docker stack deploy -c stacks/core/00-traefik/stack.yml    traefik
+# Deploy monitoring stacks:
+docker stack deploy -c stacks/monitoring/00-fluent-bit/stack.yml    fluent-bit
+docker stack deploy -c stacks/monitoring/01-prometheus/stack.yml    prometheus
+docker stack deploy -c stacks/monitoring/03-nvidia-exporter/stack.yml nvidia-exporter
+docker stack deploy -c stacks/monitoring/02-grafana/stack.yml       grafana
 ```
 
 ### LAN DNS Setup
@@ -360,6 +398,7 @@ Add to `/etc/hosts` on each LAN client (or configure a local DNS wildcard):
 192.168.80.100  spark-master.sexydad spark-worker.sexydad spark-history.sexydad
 192.168.80.100  ollama.sexydad jupyter-ogiovanni.sexydad jupyter-odavid.sexydad
 192.168.80.100  minio.sexydad minio-api.sexydad n8n.sexydad
+192.168.80.100  prometheus.sexydad grafana.sexydad
 ```
 
 > All endpoints use self-signed TLS. Accept the browser security exception on first visit.
@@ -376,7 +415,7 @@ bash ~/lab-infra-ia-bigdata/scripts/verify/post-reboot-check.sh
 
 The script verifies:
 - Both Swarm nodes are `Ready` + `Active`
-- All 20 services are at their expected replica count (N/N)
+- All 27 services are at their expected replica count (N/N)
 - Internal connectivity: PostgreSQL, Redis, MinIO, OpenSearch, Ollama, Spark
 - All HTTPS endpoints reachable through Traefik
 
@@ -439,7 +478,7 @@ The script verifies:
 | Phase 4 — Core services | ✅ Done | Traefik, Portainer, PostgreSQL, n8n, JupyterLab, Ollama, OpenSearch |
 | Phase 5 — Big Data | ✅ Done | MinIO, Apache Spark, Apache Airflow, Medallion pipeline |
 | Phase 6.1 — Log Collection | ✅ Done | Fluent Bit (global) → OpenSearch · daily index rollover · 7-day ISM auto-delete |
-| Phase 6.2 — Metrics | ⏳ Planned | Prometheus + Grafana + node_exporter + cAdvisor + GPU metrics |
+| Phase 6.2 — Metrics | ✅ Done | Prometheus + Grafana + node_exporter + cAdvisor + NVIDIA GPU exporter |
 | Phase 7 — Hardening | ⏳ Planned | UFW, SSH hardening, backup automation (restic), cert rotation |
 | Phase 8 — Vector DB | ⏳ Planned | Qdrant or pgvector for RAG pipelines with Ollama |
 

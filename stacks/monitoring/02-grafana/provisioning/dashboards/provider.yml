@@ -1,0 +1,25 @@
+# =============================================================================
+# Grafana Provisioning — Dashboard Provider
+# =============================================================================
+# Tells Grafana where to look for dashboard JSON files.
+# Any .json file placed in /etc/grafana/provisioning/dashboards/
+# is automatically loaded on startup (or hot-reloaded every 30s).
+#
+# To add dashboards:
+#   1. Export from Grafana UI as JSON
+#   2. Add to stacks/monitoring/02-grafana/provisioning/dashboards/
+#   3. Add as a Docker Config in stack.yml and mount to the path below
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: Lab Dashboards
+    orgId: 1
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

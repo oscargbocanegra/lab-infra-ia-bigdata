@@ -1,0 +1,126 @@
+version: "3.8"
+
+# =============================================================================
+# Stack: Grafana — Metrics Dashboards (Phase 6.2 — Observability)
+# =============================================================================
+# Grafana is auto-provisioned on startup:
+#   - Datasource: Prometheus (no manual config needed)
+#   - Dashboard provider: watches /etc/grafana/provisioning/dashboards/
+#
+# Access: https://grafana.sexydad  (Traefik + BasicAuth + LAN whitelist)
+#
+# Credentials: set via Docker Swarm Secrets (see deploy instructions)
+#
+# Pre-requisites:
+#   mkdir -p /srv/fastdata/grafana
+#   chown 472:472 /srv/fastdata/grafana    # Grafana UID
+#
+#   Create secrets:
+#   echo "admin" | docker secret create grafana_admin_user -
+#   echo "YourSecurePassword" | docker secret create grafana_admin_password -
+#
+# Deploy:
+#   docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
+# =============================================================================
+
+secrets:
+  grafana_admin_user:
+    external: true
+  grafana_admin_password:
+    external: true
+
+services:
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    hostname: grafana
+
+    environment:
+      # Admin credentials from Swarm Secrets
+      - GF_SECURITY_ADMIN_USER__FILE=/run/secrets/grafana_admin_user
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password
+
+      # Server
+      - GF_SERVER_ROOT_URL=https://grafana.sexydad
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+
+      # Disable telemetry / update checks
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_NEWS_NEWS_FEED_ENABLED=false
+
+      # Allow embedding (useful for ops portal in future)
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+
+      # Provisioning path
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+
+      # Logging
+      - GF_LOG_LEVEL=warn
+
+    secrets:
+      - grafana_admin_user
+      - grafana_admin_password
+
+    volumes:
+      - type: bind
+        source: /srv/fastdata/grafana
+        target: /var/lib/grafana
+
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana_dashboard_provider
+        target: /etc/grafana/provisioning/dashboards/provider.yml
+
+    networks:
+      - internal
+      - public
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.labels.tier == control
+
+      resources:
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        - "traefik.http.routers.grafana.rule=Host(`grafana.sexydad`)"
+        - "traefik.http.routers.grafana.entrypoints=websecure"
+        - "traefik.http.routers.grafana.tls=true"
+        - "traefik.http.routers.grafana.service=grafana"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+        - "traefik.http.routers.grafana.middlewares=lan-whitelist@docker"
+        - "com.docker.stack.namespace=grafana"
+        - "com.docker.service.name=grafana"
+
+configs:
+  grafana_datasources:
+    file: ./provisioning/datasources/prometheus.yml
+  grafana_dashboard_provider:
+    file: ./provisioning/dashboards/provider.yml
+
+networks:
+  internal:
+    external: true
+    name: internal
+  public:
+    external: true
+    name: public
