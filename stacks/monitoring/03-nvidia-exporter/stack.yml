@@ -34,7 +34,14 @@ services:
     image: utkuozdemir/nvidia_gpu_exporter:1.4.1
     hostname: nvidia-exporter
 
-    # Required to access GPU device files on the host
+    # Required to access GPU device files on the host.
+    # The nvidia-container-runtime (default on master2) exposes GPU devices
+    # to the container when NVIDIA_VISIBLE_DEVICES is set. Without this env
+    # var the runtime skips GPU injection even though it is the default runtime.
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: utility
+
     deploy:
       mode: replicated
       replicas: 1
