@@ -103,17 +103,35 @@ IPYTHON_STARTUP="/home/jovyan/.ipython/profile_default/startup"
 mkdir -p "$IPYTHON_STARTUP"
 
 MAGIC_STARTUP="$IPYTHON_STARTUP/00-jupyter-ai-magics.py"
-if [ ! -f "$MAGIC_STARTUP" ]; then
-    cat > "$MAGIC_STARTUP" << 'EOF'
-# Auto-carga jupyter_ai_magics al iniciar el kernel.
-# Habilita el magic %%ai sin necesidad de %load_ext manual.
+# Siempre sobreescribir — permite actualizar JARVIS_MODEL sin borrar manualmente
+cat > "$MAGIC_STARTUP" << 'EOF'
+# ── Jarvis: magic personalizado para jupyter-ai ───────────────────────────────
+# Carga jupyter_ai_magics y registra %%JARVIS como alias del modelo configurado.
+#
+# Para cambiar el modelo basta editar JARVIS_MODEL aquí o en el entrypoint.sh:
+#   JARVIS_MODEL = "ollama:gemma3:4b"
+#   JARVIS_MODEL = "ollama:qwen2.5-coder:7b"
+#
+# Uso en cualquier notebook (sin %load_ext, sin especificar modelo):
+#   %%JARVIS
+#   crea una función que calcule fibonacci
+# ─────────────────────────────────────────────────────────────────────────────
+JARVIS_MODEL = "ollama:qwen2.5-coder:7b"
+
 try:
-    get_ipython().run_line_magic('load_ext', 'jupyter_ai_magics')
+    _ip = get_ipython()
+    _ip.run_line_magic('load_ext', 'jupyter_ai_magics')
+
+    def JARVIS(line, cell):
+        """Magic %%JARVIS — envía el prompt al modelo configurado en JARVIS_MODEL."""
+        _ip.run_cell_magic('ai', JARVIS_MODEL, cell)
+
+    _ip.register_magic_function(JARVIS, magic_kind='cell', magic_name='JARVIS')
+
 except Exception:
-    pass  # jupyter_ai_magics no disponible en este entorno — se ignora silenciosamente
+    pass  # Silencioso si jupyter_ai_magics no está disponible en este kernel
 EOF
-    echo "==> [ipython] Auto-carga de jupyter_ai_magics configurada ✓"
-fi
+echo "==> [ipython] Magic %%JARVIS configurado (modelo: ollama:qwen2.5-coder:7b) ✓"
 
 echo "==> Iniciando Jupyter Lab..."
 
