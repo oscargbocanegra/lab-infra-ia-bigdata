@@ -21,34 +21,28 @@ fi
 export AWS_ENDPOINT_URL=http://minio:9000
 
 # ── Configurar jupyter-ai con Ollama como provider ───────────
-# jupyter-ai usa jupyter_ai_config.json para el modelo por defecto.
-# Ollama corre en la red internal (sin auth) → http://ollama:11434
-# Modelo: qwen2.5-coder:7b — especializado en código, ~5.5 GB VRAM
-#
-# IMPORTANTE: usamos jupyter_lab_config.py (no jupyter_server_config.py)
-# porque Jupyter regenera jupyter_server_config.py al arrancar, pisando
-# cualquier configuración que pongamos ahí. jupyter_lab_config.py es
-# cargado por el servidor pero NUNCA regenerado automáticamente.
-# ─────────────────────────────────────────────────────────────
+# JARVIS_MODEL viene como variable de entorno desde stack.yml.
+# Desde Portainer: Services → jupyter_jupyter_ogiovanni/odavid
+#                  → Environment → JARVIS_MODEL → cambiar valor → Update
+# Fallback: qwen2.5-coder:7b si la variable no está seteada
+JARVIS_MODEL="${JARVIS_MODEL:-ollama:qwen2.5-coder:7b}"
 JUPYTER_CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p "$JUPYTER_CONFIG_DIR"
 
 # jupyter_lab_config.py — Jupyter lo carga pero nunca lo regenera
 # Siempre lo escribimos para garantizar que la config de Ollama esté activa
-cat > "$JUPYTER_CONFIG_DIR/jupyter_lab_config.py" << 'EOF'
+cat > "$JUPYTER_CONFIG_DIR/jupyter_lab_config.py" << EOF
 # ── jupyter-ai: Ollama provider (LAN, sin cloud) ──────────────
-# Modelo default: qwen2.5-coder:7b
+# Modelo activo: ${JARVIS_MODEL}
 # Endpoint: http://ollama:11434 (red internal de Docker Swarm)
 # NOTA: initial_language_model es el traitlet correcto en jupyter-ai 2.x
-#       (default_language_model no existe)
-c.AiExtension.initial_language_model = "ollama:qwen2.5-coder:7b"
+c.AiExtension.initial_language_model = "${JARVIS_MODEL}"
 c.AiExtension.allowed_providers = ["ollama"]
 
 # ── jupyter-lsp: Language Server Protocol ─────────────────────
-# jedi-language-server: autocompletado clásico con tipos y docstrings
 c.LanguageServerManager.autodetect = True
 EOF
-echo "==> [jupyter-ai] jupyter_lab_config.py escrito ✓"
+echo "==> [jupyter-ai] jupyter_lab_config.py escrito (modelo: ${JARVIS_MODEL}) ✓"
 
 # jupyter_jupyter_ai_config.json — config persistente del chat panel
 # Nombre correcto según la doc oficial de jupyter-ai 2.x
@@ -103,20 +97,17 @@ IPYTHON_STARTUP="/home/jovyan/.ipython/profile_default/startup"
 mkdir -p "$IPYTHON_STARTUP"
 
 MAGIC_STARTUP="$IPYTHON_STARTUP/00-jupyter-ai-magics.py"
-# Siempre sobreescribir — permite actualizar JARVIS_MODEL sin borrar manualmente
-cat > "$MAGIC_STARTUP" << 'EOF'
+# Siempre sobreescribir — el modelo viene de $JARVIS_MODEL (env var), se actualiza en cada arranque
+cat > "$MAGIC_STARTUP" << EOF
 # ── Jarvis: magic personalizado para jupyter-ai ───────────────────────────────
-# Carga jupyter_ai_magics y registra %%JARVIS como alias del modelo configurado.
+# Modelo activo: ${JARVIS_MODEL}
+# Para cambiar el modelo: Portainer → Service → Environment → JARVIS_MODEL
 #
-# Para cambiar el modelo basta editar JARVIS_MODEL aquí o en el entrypoint.sh:
-#   JARVIS_MODEL = "ollama:gemma3:4b"
-#   JARVIS_MODEL = "ollama:qwen2.5-coder:7b"
-#
-# Uso en cualquier notebook (sin %load_ext, sin especificar modelo):
+# Uso en cualquier notebook:
 #   %%JARVIS
 #   crea una función que calcule fibonacci
 # ─────────────────────────────────────────────────────────────────────────────
-JARVIS_MODEL = "ollama:qwen2.5-coder:7b"
+JARVIS_MODEL = "${JARVIS_MODEL}"
 
 try:
     _ip = get_ipython()
@@ -126,8 +117,6 @@ try:
 
     def JARVIS(line, cell):
         """Magic %%JARVIS / %%jarvis — envía el prompt al modelo configurado en JARVIS_MODEL."""
-        # run_cell_magic devuelve un objeto Markdown — hay que llamar display()
-        # explícitamente o no se renderiza en la celda
         result = _ip.run_cell_magic('ai', JARVIS_MODEL, cell)
         if result is not None:
             display(result)
@@ -139,7 +128,7 @@ try:
 except Exception:
     pass  # Silencioso si jupyter_ai_magics no está disponible en este kernel
 EOF
-echo "==> [ipython] Magic %%JARVIS configurado (modelo: ollama:qwen2.5-coder:7b) ✓"
+echo "==> [ipython] Magic %%JARVIS configurado (modelo: ${JARVIS_MODEL}) ✓"
 
 echo "==> Iniciando Jupyter Lab..."
 

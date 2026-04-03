@@ -55,6 +55,10 @@ services:
       # jupyter-ai: OLLAMA_HOST es la variable que realmente lee jupyter-ai/langchain-ollama
       # (OLLAMA_API_BASE era incorrecta — no la reconoce el provider de jupyter-ai)
       - OLLAMA_HOST=http://ollama:11434
+      # JARVIS_MODEL: modelo usado por %%JARVIS y el chat panel
+      # Modificable desde Portainer sin redeploy del stack:
+      #   Services → jupyter_jupyter_ogiovanni → Environment → JARVIS_MODEL
+      - JARVIS_MODEL=ollama:qwen2.5-coder:7b
 
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
@@ -140,6 +144,10 @@ services:
       # jupyter-ai: OLLAMA_HOST es la variable que realmente lee jupyter-ai/langchain-ollama
       # (OLLAMA_API_BASE era incorrecta — no la reconoce el provider de jupyter-ai)
       - OLLAMA_HOST=http://ollama:11434
+      # JARVIS_MODEL: modelo usado por %%JARVIS y el chat panel
+      # Modificable desde Portainer sin redeploy del stack:
+      #   Services → jupyter_jupyter_odavid → Environment → JARVIS_MODEL
+      - JARVIS_MODEL=ollama:qwen2.5-coder:7b
 
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work
