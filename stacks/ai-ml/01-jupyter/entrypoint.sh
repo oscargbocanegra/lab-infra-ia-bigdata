@@ -24,14 +24,18 @@ export AWS_ENDPOINT_URL=http://minio:9000
 # jupyter-ai usa jupyter_ai_config.json para el modelo por defecto.
 # Ollama corre en la red internal (sin auth) → http://ollama:11434
 # Modelo: qwen2.5-coder:7b — especializado en código, ~5.5 GB VRAM
+#
+# IMPORTANTE: usamos jupyter_lab_config.py (no jupyter_server_config.py)
+# porque Jupyter regenera jupyter_server_config.py al arrancar, pisando
+# cualquier configuración que pongamos ahí. jupyter_lab_config.py es
+# cargado por el servidor pero NUNCA regenerado automáticamente.
 # ─────────────────────────────────────────────────────────────
 JUPYTER_CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p "$JUPYTER_CONFIG_DIR"
 
-# jupyter_server_config.py — configura el completion provider LSP
-# y el timeout para respuestas del LLM
-if [ ! -f "$JUPYTER_CONFIG_DIR/jupyter_server_config.py" ]; then
-    cat > "$JUPYTER_CONFIG_DIR/jupyter_server_config.py" << 'EOF'
+# jupyter_lab_config.py — Jupyter lo carga pero nunca lo regenera
+# Siempre lo escribimos para garantizar que la config de Ollama esté activa
+cat > "$JUPYTER_CONFIG_DIR/jupyter_lab_config.py" << 'EOF'
 # ── jupyter-ai: Ollama provider (LAN, sin cloud) ──────────────
 # Modelo default: qwen2.5-coder:7b
 # Endpoint: http://ollama:11434 (red internal de Docker Swarm)
@@ -42,11 +46,10 @@ c.AiExtension.allowed_providers = ["ollama"]
 # jedi-language-server: autocompletado clásico con tipos y docstrings
 c.LanguageServerManager.autodetect = True
 EOF
-    echo "==> [jupyter-ai] jupyter_server_config.py creado ✓"
-fi
+echo "==> [jupyter-ai] jupyter_lab_config.py escrito ✓"
 
 # jupyter_ai_config.json — config persistente del chat panel
-# Se respeta si el usuario ya la modificó (idempotente)
+# Solo se crea si no existe para respetar cambios del usuario
 AI_CONFIG="$JUPYTER_CONFIG_DIR/jupyter_ai_config.json"
 if [ ! -f "$AI_CONFIG" ]; then
     cat > "$AI_CONFIG" << 'EOF'
