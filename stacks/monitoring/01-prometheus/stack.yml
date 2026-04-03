@@ -30,7 +30,7 @@ services:
   # Prometheus — time-series database + scrape engine
   # ---------------------------------------------------------------------------
   prometheus:
-    image: prom/prometheus:v2.52.0
+    image: prom/prometheus:v2.53.5
     hostname: prometheus
 
     command:
@@ -97,7 +97,7 @@ services:
   # Constrained to control node — has its own counterpart on compute node
   # ---------------------------------------------------------------------------
   node-exporter:
-    image: prom/node-exporter:v1.8.1
+    image: prom/node-exporter:v1.10.2
     hostname: node-exporter
 
     command:
@@ -141,7 +141,7 @@ services:
   # Same config, different placement constraint
   # ---------------------------------------------------------------------------
   node-exporter-compute:
-    image: prom/node-exporter:v1.8.1
+    image: prom/node-exporter:v1.10.2
     hostname: node-exporter-compute
 
     command:
@@ -185,7 +185,7 @@ services:
   # Exposes: CPU/RAM/net/disk per container, image info
   # ---------------------------------------------------------------------------
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.56.2
     hostname: cadvisor
 
     command:
@@ -238,7 +238,7 @@ services:
   # cAdvisor-compute — Docker container metrics for master2
   # ---------------------------------------------------------------------------
   cadvisor-compute:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.56.2
     hostname: cadvisor-compute
 
     command:

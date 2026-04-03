@@ -11,7 +11,7 @@ This is a separate stack from the main Prometheus stack to isolate the GPU devic
 
 | Service | Image | Node | Purpose |
 |---|---|---|---|
-| `nvidia-exporter` | `utkuozdemir/nvidia_gpu_exporter:1.2.1` | compute (master2) | GPU metrics exporter |
+| `nvidia-exporter` | `utkuozdemir/nvidia_gpu_exporter:1.4.1` | compute (master2) | GPU metrics exporter |
 
 ---
 

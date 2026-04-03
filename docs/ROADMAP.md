@@ -110,13 +110,13 @@ Retention: 15 days (TSDB on /srv/fastdata/prometheus)
 ```
 
 **Services deployed:**
-- `prometheus` — TSDB + scrape engine (control node)
-- `node-exporter` — OS metrics, master1
-- `node-exporter-compute` — OS metrics, master2
-- `cadvisor` — container metrics, master1
-- `cadvisor-compute` — container metrics, master2
-- `nvidia-exporter` — NVIDIA RTX 2080 Ti metrics, master2
-- `grafana` — dashboards (auto-provisioned with Prometheus datasource)
+- `prometheus` — TSDB + scrape engine (control node) — `prom/prometheus:v2.53.5`
+- `node-exporter` — OS metrics, master1 — `prom/node-exporter:v1.10.2`
+- `node-exporter-compute` — OS metrics, master2 — `prom/node-exporter:v1.10.2`
+- `cadvisor` — container metrics, master1 — `ghcr.io/google/cadvisor:v0.56.2`
+- `cadvisor-compute` — container metrics, master2 — `ghcr.io/google/cadvisor:v0.56.2`
+- `nvidia-exporter` — NVIDIA RTX 2080 Ti metrics, master2 — `utkuozdemir/nvidia_gpu_exporter:1.4.1`
+- `grafana` — dashboards (auto-provisioned with Prometheus datasource) — `grafana/grafana:11.6.14`
 
 **Recommended Grafana dashboards (import by ID):**
 - `1860` — Node Exporter Full (OS metrics)

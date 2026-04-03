@@ -31,7 +31,7 @@ version: "3.8"
 services:
 
   nvidia-exporter:
-    image: utkuozdemir/nvidia_gpu_exporter:1.2.1
+    image: utkuozdemir/nvidia_gpu_exporter:1.4.1
     hostname: nvidia-exporter
 
     # Required to access GPU device files on the host

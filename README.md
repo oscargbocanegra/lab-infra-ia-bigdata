@@ -18,8 +18,8 @@
 [![n8n](https://img.shields.io/badge/n8n-EA4B71?style=for-the-badge&logo=n8n&logoColor=white)](https://n8n.io/)
 [![Traefik](https://img.shields.io/badge/Traefik_v2.11-24A1C1?style=for-the-badge&logo=traefikproxy&logoColor=white)](https://traefik.io/)
 
-[![Prometheus](https://img.shields.io/badge/Prometheus_v2.52-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
-[![Grafana](https://img.shields.io/badge/Grafana_11.1-F46800?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
+[![Prometheus](https://img.shields.io/badge/Prometheus_v2.53-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana_11.6-F46800?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
 
 [![NVIDIA CUDA](https://img.shields.io/badge/NVIDIA_CUDA_12.2-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![RTX 2080 Ti](https://img.shields.io/badge/RTX_2080_Ti_11GB_VRAM-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://www.nvidia.com/)
@@ -221,13 +221,13 @@ Data Sources (CSV, JSON, APIs, DB exports)
 | Service | Version | Node | URL | Status |
 |---------|---------|------|-----|--------|
 | **Fluent Bit** — Log collector | 3.2 | global (both) | — (internal) | ✅ |
-| **Prometheus** — Metrics TSDB | v2.52.0 | master1 | `https://prometheus.sexydad` | ✅ |
-| **node-exporter** (master1) | v1.8.1 | master1 | — (internal :9100) | ✅ |
-| **node-exporter** (master2) | v1.8.1 | master2 | — (internal :9100) | ✅ |
-| **cAdvisor** (master1) | v0.49.1 | master1 | — (internal :8080) | ✅ |
-| **cAdvisor** (master2) | v0.49.1 | master2 | — (internal :8080) | ✅ |
-| **NVIDIA GPU Exporter** | 1.2.1 | master2 | — (internal :9835) | ✅ |
-| **Grafana** — Dashboards | 11.1.0 | master1 | `https://grafana.sexydad` | ✅ |
+| **Prometheus** — Metrics TSDB | v2.53.5 | master1 | `https://prometheus.sexydad` | ✅ |
+| **node-exporter** (master1) | v1.10.2 | master1 | — (internal :9100) | ✅ |
+| **node-exporter** (master2) | v1.10.2 | master2 | — (internal :9100) | ✅ |
+| **cAdvisor** (master1) | v0.56.2 | master1 | — (internal :8080) | ✅ |
+| **cAdvisor** (master2) | v0.56.2 | master2 | — (internal :8080) | ✅ |
+| **NVIDIA GPU Exporter** | 1.4.1 | master2 | — (internal :9835) | ✅ |
+| **Grafana** — Dashboards | 11.6.14 | master1 | `https://grafana.sexydad` | ✅ |
 
 > **Total: 27 services — all 1/1 (or N/N) ✅**
 

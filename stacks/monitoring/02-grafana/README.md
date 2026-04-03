@@ -11,7 +11,7 @@ It is fully auto-provisioned on startup — no manual UI configuration required.
 
 | Service | Image | Node | Purpose |
 |---|---|---|---|
-| `grafana` | `grafana/grafana:11.1.0` | control (master1) | Dashboard + visualization |
+| `grafana` | `grafana/grafana:11.6.14` | control (master1) | Dashboard + visualization |
 
 ---
 

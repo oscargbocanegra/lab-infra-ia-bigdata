@@ -11,11 +11,11 @@ It collects OS-level and container-level metrics from both nodes and exposes the
 
 | Service | Image | Node | Purpose |
 |---|---|---|---|
-| `prometheus` | `prom/prometheus:v2.52.0` | control (master1) | TSDB + scrape engine |
-| `node-exporter` | `prom/node-exporter:v1.8.1` | control (master1) | OS metrics |
-| `node-exporter-compute` | `prom/node-exporter:v1.8.1` | compute (master2) | OS metrics |
-| `cadvisor` | `gcr.io/cadvisor/cadvisor:v0.49.1` | control (master1) | Container metrics |
-| `cadvisor-compute` | `gcr.io/cadvisor/cadvisor:v0.49.1` | compute (master2) | Container metrics |
+| `prometheus` | `prom/prometheus:v2.53.5` | control (master1) | TSDB + scrape engine |
+| `node-exporter` | `prom/node-exporter:v1.10.2` | control (master1) | OS metrics |
+| `node-exporter-compute` | `prom/node-exporter:v1.10.2` | compute (master2) | OS metrics |
+| `cadvisor` | `ghcr.io/google/cadvisor:v0.56.2` | control (master1) | Container metrics |
+| `cadvisor-compute` | `ghcr.io/google/cadvisor:v0.56.2` | compute (master2) | Container metrics |
 
 > NVIDIA GPU metrics are in a separate stack (`03-nvidia-exporter`) — see that README for details.
 
