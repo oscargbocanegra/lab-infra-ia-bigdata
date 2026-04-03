@@ -1,0 +1,11 @@
+# Forzar LF para scripts bash — crítico para ejecución en Linux/Docker
+# Sin esto, editar en Windows produce CRLF y el container falla con:
+# "bad interpreter: /bin/bash^M: No such file or directory" (exit 126)
+*.sh    text eol=lf
+
+# YAML también con LF para evitar problemas en Docker Compose / Swarm
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# Python con LF
+*.py    text eol=lf

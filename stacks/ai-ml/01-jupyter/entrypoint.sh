@@ -39,7 +39,9 @@ cat > "$JUPYTER_CONFIG_DIR/jupyter_lab_config.py" << 'EOF'
 # ── jupyter-ai: Ollama provider (LAN, sin cloud) ──────────────
 # Modelo default: qwen2.5-coder:7b
 # Endpoint: http://ollama:11434 (red internal de Docker Swarm)
-c.AiExtension.default_language_model = "ollama:qwen2.5-coder:7b"
+# NOTA: initial_language_model es el traitlet correcto en jupyter-ai 2.x
+#       (default_language_model no existe)
+c.AiExtension.initial_language_model = "ollama:qwen2.5-coder:7b"
 c.AiExtension.allowed_providers = ["ollama"]
 
 # ── jupyter-lsp: Language Server Protocol ─────────────────────
@@ -48,9 +50,10 @@ c.LanguageServerManager.autodetect = True
 EOF
 echo "==> [jupyter-ai] jupyter_lab_config.py escrito ✓"
 
-# jupyter_ai_config.json — config persistente del chat panel
+# jupyter_jupyter_ai_config.json — config persistente del chat panel
+# Nombre correcto según la doc oficial de jupyter-ai 2.x
 # Solo se crea si no existe para respetar cambios del usuario
-AI_CONFIG="$JUPYTER_CONFIG_DIR/jupyter_ai_config.json"
+AI_CONFIG="$JUPYTER_CONFIG_DIR/jupyter_jupyter_ai_config.json"
 if [ ! -f "$AI_CONFIG" ]; then
     cat > "$AI_CONFIG" << 'EOF'
 {
@@ -89,6 +92,27 @@ if [ ! -f "$LSP_COMPLETION_SETTINGS" ]; then
 }
 EOF
     echo "==> [lsp] Autocompletado continuo configurado ✓"
+fi
+
+
+# ── IPython startup: auto-cargar jupyter_ai_magics en todos los kernels ──
+# Los archivos en ~/.ipython/profile_default/startup/ se ejecutan
+# automáticamente al iniciar cualquier kernel IPython (python3, llm, ia, bigdata).
+# Esto evita tener que correr %load_ext jupyter_ai_magics manualmente.
+IPYTHON_STARTUP="/home/jovyan/.ipython/profile_default/startup"
+mkdir -p "$IPYTHON_STARTUP"
+
+MAGIC_STARTUP="$IPYTHON_STARTUP/00-jupyter-ai-magics.py"
+if [ ! -f "$MAGIC_STARTUP" ]; then
+    cat > "$MAGIC_STARTUP" << 'EOF'
+# Auto-carga jupyter_ai_magics al iniciar el kernel.
+# Habilita el magic %%ai sin necesidad de %load_ext manual.
+try:
+    get_ipython().run_line_magic('load_ext', 'jupyter_ai_magics')
+except Exception:
+    pass  # jupyter_ai_magics no disponible en este entorno — se ignora silenciosamente
+EOF
+    echo "==> [ipython] Auto-carga de jupyter_ai_magics configurada ✓"
 fi
 
 echo "==> Iniciando Jupyter Lab..."
