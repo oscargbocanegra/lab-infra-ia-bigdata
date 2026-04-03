@@ -15,6 +15,7 @@
 #
 # Los venvs se persisten en /home/jovyan/.venv (montado en NVMe)
 # Solo se instalan si el kernel NO existe ya → idempotente
+# Las extensiones de servidor se reinstalan en CADA arranque (opt/conda es efímero)
 # ============================================================
 set -e
 
@@ -26,40 +27,33 @@ kernel_exists() {
 }
 
 # ── Extensiones de servidor (Python base del container) ──────
-# Se instalan una sola vez en el entorno base de JupyterLab.
-# jupyter-lsp + jedi: intellisense clásico (tipos, docstrings, go-to-def)
-# jupyter-ai + langchain-community: chat IA y %%ai magic vía Ollama (LAN)
+# Se instalan en CADA arranque del container porque /opt/conda es
+# efímero (capa del container, no persistida en NVMe).
+# jupyter-lsp + jupyterlab-lsp + jedi: intellisense clásico
+# jupyter-ai + langchain: chat IA y %%ai magic vía Ollama (LAN)
 #
 # La imagen base trae JupyterLab 4.0.7. jupyter-ai 2.x requiere >=4.2.
 # Actualizamos jupyterlab a 4.2.x antes de instalar las extensiones.
-# El upgrade se hace en el entorno base /opt/conda (no en los venvs).
 # ─────────────────────────────────────────────────────────────
-SERVER_EXT_FLAG="/home/jovyan/.local/.server-extensions-installed"
+echo "==> [server-ext] Actualizando JupyterLab a 4.2.x..."
+pip install --no-cache-dir --quiet \
+    "jupyterlab>=4.2.0,<4.3.0" \
+    "jupyterlab-server>=2.27.0"
 
-if [ ! -f "$SERVER_EXT_FLAG" ]; then
-    echo "==> [server-ext] Actualizando JupyterLab a 4.2.x..."
-    pip install --no-cache-dir --quiet \
-        "jupyterlab>=4.2.0,<4.3.0" \
-        "jupyterlab-server>=2.27.0"
+echo "==> [server-ext] Instalando extensiones jupyter-lsp y jupyter-ai..."
+pip install --no-cache-dir --quiet \
+    "jupyter-lsp>=2.2.0,<3.0" \
+    "jupyterlab-lsp>=5.0.0,<6.0" \
+    "jedi-language-server>=0.41.0" \
+    "jupyter-ai>=2.20.0,<3.0" \
+    "langchain-community>=0.3.0,<0.4.0" \
+    "langchain-ollama>=0.2.0,<1.0"
 
-    echo "==> [server-ext] Instalando extensiones jupyter-lsp y jupyter-ai..."
-    pip install --no-cache-dir --quiet \
-        "jupyter-lsp>=2.2.0,<3.0" \
-        "jupyterlab-lsp>=5.0.0,<6.0" \
-        "jedi-language-server>=0.41.0" \
-        "jupyter-ai>=2.20.0,<3.0" \
-        "langchain-community>=0.3.0,<0.4.0" \
-        "langchain-ollama>=0.2.0,<1.0"
+# Habilitar las extensiones en el servidor (idempotente)
+jupyter server extension enable --user jupyter_lsp
+jupyter server extension enable --user jupyter_ai
 
-    # Habilitar las extensiones en el servidor
-    jupyter server extension enable --user jupyter_lsp
-    jupyter server extension enable --user jupyter_ai
-
-    touch "$SERVER_EXT_FLAG"
-    echo "==> [server-ext] Extensiones instaladas y habilitadas ✓"
-else
-    echo "==> [server-ext] Ya instaladas, saltando."
-fi
+echo "==> [server-ext] Extensiones instaladas y habilitadas ✓"
 
 # ── Kernel: LLM ──────────────────────────────────────────────
 if ! kernel_exists "llm"; then
