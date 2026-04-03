@@ -866,8 +866,8 @@
       },
       "targets": [
         {
-          "expr": "sum by(router) (rate(traefik_router_requests_total{code!~\"4..|5..\"}[2m]))",
-          "legendFormat": "{{router}}",
+          "expr": "sum by(service) (rate(traefik_service_requests_total{code!~\"4..|5..\"}[2m]))",
+          "legendFormat": "{{service}}",
           "refId": "A"
         }
       ],
@@ -900,8 +900,8 @@
       },
       "targets": [
         {
-          "expr": "sum by(router, code) (rate(traefik_router_requests_total{code=~\"4..|5..\"}[2m]))",
-          "legendFormat": "{{router}} HTTP {{code}}",
+          "expr": "sum by(service, code) (rate(traefik_service_requests_total{code=~\"4..|5..\"}[2m]))",
+          "legendFormat": "{{service}} HTTP {{code}}",
           "refId": "A"
         }
       ],
