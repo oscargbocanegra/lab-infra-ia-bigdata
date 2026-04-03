@@ -224,8 +224,8 @@ Data Sources (CSV, JSON, APIs, DB exports)
 | **Prometheus** — Metrics TSDB | v2.53.5 | master1 | `https://prometheus.sexydad` | ✅ |
 | **node-exporter** (master1) | v1.10.2 | master1 | — (internal :9100) | ✅ |
 | **node-exporter** (master2) | v1.10.2 | master2 | — (internal :9100) | ✅ |
-| **cAdvisor** (master1) | v0.56.2 | master1 | — (internal :8080) | ✅ |
-| **cAdvisor** (master2) | v0.56.2 | master2 | — (internal :8080) | ✅ |
+| **cAdvisor** (master1) | 0.56.2 | master1 | — (internal :8080) | ✅ |
+| **cAdvisor** (master2) | 0.56.2 | master2 | — (internal :8080) | ✅ |
 | **NVIDIA GPU Exporter** | 1.4.1 | master2 | — (internal :9835) | ✅ |
 | **Grafana** — Dashboards | 11.6.14 | master1 | `https://grafana.sexydad` | ✅ |
 

@@ -185,7 +185,7 @@ services:
   # Exposes: CPU/RAM/net/disk per container, image info
   # ---------------------------------------------------------------------------
   cadvisor:
-    image: ghcr.io/google/cadvisor:v0.56.2
+    image: ghcr.io/google/cadvisor:0.56.2
     hostname: cadvisor
 
     command:
@@ -238,7 +238,7 @@ services:
   # cAdvisor-compute — Docker container metrics for master2
   # ---------------------------------------------------------------------------
   cadvisor-compute:
-    image: ghcr.io/google/cadvisor:v0.56.2
+    image: ghcr.io/google/cadvisor:0.56.2
     hostname: cadvisor-compute
 
     command:
