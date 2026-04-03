@@ -70,6 +70,27 @@ if [ -f /tmp/init-kernels.sh ]; then
     bash /tmp/init-kernels.sh
 fi
 
+# ── JupyterLab settings: autocompletado continuo (as-you-type) ─
+# jupyterlab-lsp por default requiere Tab para mostrar completions.
+# Con continuousHinting: true se activa el modo automático (Hinterland mode).
+# El archivo va en el Settings directory de JupyterLab (persistido en NVMe).
+LAB_SETTINGS_DIR="/home/jovyan/.jupyter/lab/user-settings"
+mkdir -p "$LAB_SETTINGS_DIR/@jupyter-lsp/jupyterlab-lsp"
+
+LSP_COMPLETION_SETTINGS="$LAB_SETTINGS_DIR/@jupyter-lsp/jupyterlab-lsp/completion.jupyterlab-settings"
+if [ ! -f "$LSP_COMPLETION_SETTINGS" ]; then
+    cat > "$LSP_COMPLETION_SETTINGS" << 'EOF'
+{
+  "continuousHinting": true,
+  "suppressContinuousHintingIn": ["Comment", "BlockComment", "LineComment", "String"],
+  "theme": "vscode",
+  "layout": "side-by-side",
+  "waitForBusyKernel": true
+}
+EOF
+    echo "==> [lsp] Autocompletado continuo configurado ✓"
+fi
+
 echo "==> Iniciando Jupyter Lab..."
 
 # Ejecutar el comando original de Jupyter
