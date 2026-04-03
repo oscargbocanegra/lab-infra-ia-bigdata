@@ -30,15 +30,19 @@ kernel_exists() {
 # jupyter-lsp + jedi: intellisense clásico (tipos, docstrings, go-to-def)
 # jupyter-ai + langchain-community: chat IA y %%ai magic vía Ollama (LAN)
 #
-# VERSIONES PINNEADAS para JupyterLab 4.0.x:
-#   jupyter-ai 2.x  → compatible con JupyterLab 4.0.x (la 3.x requiere 4.2+)
-#   jupyter-lsp 2.2 → compatible con JupyterLab 4.0.x
+# La imagen base trae JupyterLab 4.0.7. jupyter-ai 2.x requiere >=4.2.
+# Actualizamos jupyterlab a 4.2.x antes de instalar las extensiones.
+# El upgrade se hace en el entorno base /opt/conda (no en los venvs).
 # ─────────────────────────────────────────────────────────────
 SERVER_EXT_FLAG="/home/jovyan/.local/.server-extensions-installed"
 
 if [ ! -f "$SERVER_EXT_FLAG" ]; then
-    echo "==> [server-ext] Instalando extensiones de servidor JupyterLab..."
+    echo "==> [server-ext] Actualizando JupyterLab a 4.2.x..."
+    pip install --no-cache-dir --quiet \
+        "jupyterlab>=4.2.0,<4.3.0" \
+        "jupyterlab-server>=2.27.0"
 
+    echo "==> [server-ext] Instalando extensiones jupyter-lsp y jupyter-ai..."
     pip install --no-cache-dir --quiet \
         "jupyter-lsp>=2.2.0,<3.0" \
         "jedi-language-server>=0.41.0" \
