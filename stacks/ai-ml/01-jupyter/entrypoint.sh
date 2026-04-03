@@ -122,9 +122,15 @@ try:
     _ip = get_ipython()
     _ip.run_line_magic('load_ext', 'jupyter_ai_magics')
 
+    from IPython.display import display
+
     def JARVIS(line, cell):
         """Magic %%JARVIS / %%jarvis — envía el prompt al modelo configurado en JARVIS_MODEL."""
-        _ip.run_cell_magic('ai', JARVIS_MODEL, cell)
+        # run_cell_magic devuelve un objeto Markdown — hay que llamar display()
+        # explícitamente o no se renderiza en la celda
+        result = _ip.run_cell_magic('ai', JARVIS_MODEL, cell)
+        if result is not None:
+            display(result)
 
     # Registrar ambas variantes — IPython es case-sensitive
     _ip.register_magic_function(JARVIS, magic_kind='cell', magic_name='JARVIS')
