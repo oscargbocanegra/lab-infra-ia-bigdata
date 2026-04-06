@@ -5,10 +5,11 @@
 # Run from master1 BEFORE deploying the openmetadata stack.
 #
 # What this script does:
-#   1. Creates governance MinIO buckets and folder structure
-#   2. Creates OpenMetadata Docker Swarm secrets
-#   3. Creates directories on master1 for OpenMetadata persistence
-#   4. Adds dnsmasq entry for openmetadata.sexydad (if needed)
+#   1. Creates OpenMetadata Docker Swarm secrets (passwords)
+#   2. Creates persistence directories on master1 (/srv/fastdata/openmetadata/)
+#   3. Creates governance MinIO buckets (governance, bronze, silver, gold)
+#   4. Creates Docker Config 'openmetadata-env' for secret injection into JVM
+#   5. Creates Great Expectations base config for Airflow DAGs
 #
 # Usage:
 #   bash scripts/governance/setup-governance.sh
@@ -100,8 +101,37 @@ else
     echo "    mc mb minio/gold"
 fi
 
-# ── Step 4: Great Expectations base config ───────────────────────────────────
-info "Step 4: Creating Great Expectations base config for Airflow DAGs..."
+# ── Step 4: Docker Config — openmetadata-env ─────────────────────────────────
+info "Step 4: Creating Docker Config 'openmetadata-env' for secret injection..."
+
+# OpenMetadata 1.4 does NOT support Docker's _FILE env var convention.
+# Instead, we mount a shell script over the empty /opt/openmetadata/conf/openmetadata-env.sh
+# which the start script sources before the JVM boots.  This script reads the
+# Docker secrets from /run/secrets/ and exports them as plain env vars.
+
+OM_ENV_SCRIPT=$(cat << 'OMENV'
+#!/bin/bash
+# OpenMetadata secret injection — sourced by openmetadata-server-start.sh
+# DO NOT mount a volume over /opt/openmetadata/conf — it overwrites openmetadata.yaml
+if [ -f /run/secrets/om_mysql_user_password ]; then
+  export DB_USER_PASSWORD=$(cat /run/secrets/om_mysql_user_password)
+fi
+if [ -f /run/secrets/om_admin_password ]; then
+  export ADMIN_PASSWORD=$(cat /run/secrets/om_admin_password)
+fi
+OMENV
+)
+
+if docker config inspect openmetadata-env &>/dev/null; then
+    warn "Docker Config 'openmetadata-env' already exists — skipping"
+    warn "To recreate: docker config rm openmetadata-env && re-run this script"
+else
+    echo "$OM_ENV_SCRIPT" | docker config create openmetadata-env -
+    success "Docker Config 'openmetadata-env' created"
+fi
+
+# ── Step 5: Great Expectations base config ───────────────────────────────────
+info "Step 5: Creating Great Expectations base config for Airflow DAGs..."
 
 GE_DIR="/srv/fastdata/airflow/great_expectations"
 mkdir -p "$GE_DIR/expectations"
@@ -176,17 +206,31 @@ echo ""
 echo "  1. Deploy OpenMetadata stack:"
 echo "     docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata"
 echo ""
-echo "  2. Wait ~2 min for startup, then open:"
+echo "  2. Bootstrap the database (FIRST TIME ONLY — takes 3-5 min):"
+echo "     # Run in a screen/tmux session to avoid timeout:"
+echo "     screen -S om-bootstrap"
+echo "     docker run --rm --network internal \\"
+echo "       -e DB_HOST=openmetadata-mysql -e DB_PORT=3306 \\"
+echo "       -e DB_SCHEME=mysql -e DB_USER=openmetadata \\"
+echo "       -e DB_USER_PASSWORD=\$(docker secret inspect om_mysql_user_password --format '{{.Spec.Name}}' 2>/dev/null || echo '<om_mysql_user_password>') \\"
+echo "       -e OM_DATABASE=openmetadata_db \\"
+echo "       -e DB_DRIVER_CLASS=com.mysql.cj.jdbc.Driver \\"
+echo "       openmetadata/server:1.4.7 \\"
+echo "       ./bootstrap/bootstrap_storage.sh migrate-all"
+echo "     # NOTE: Pass the actual MySQL user password you set during secret creation."
+echo "     # After bootstrap, force restart the server service:"
+echo "     docker service update --force openmetadata_openmetadata-server"
+echo ""
+echo "  3. Wait ~2 min after bootstrap, then open:"
 echo "     https://openmetadata.sexydad"
 echo ""
-echo "  3. Login: admin / <om_admin_password>"
+echo "  4. Login: admin / <om_admin_password>"
 echo ""
-echo "  4. Configure connectors via UI:"
+echo "  5. Configure connectors via UI:"
 echo "     Settings → Services → Add Service"
 echo "     - Database: Postgres (<master2-ip>:5432)"
 echo "     - Storage:  MinIO (https://minio-api.sexydad)"
 echo "     - Pipeline: Airflow (http://airflow_airflow_webserver:8080)"
 echo ""
-echo "  5. Deploy governance DAGs:"
-echo "     (DAGs are auto-loaded from /srv/fastdata/airflow/dags/)"
+echo "  6. Governance DAGs are auto-loaded from /srv/fastdata/airflow/dags/"
 echo ""
