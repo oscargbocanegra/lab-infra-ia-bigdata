@@ -101,7 +101,8 @@ services:
       DB_PORT: "3306"
       OM_DATABASE: openmetadata_db
       DB_USER: openmetadata
-      DB_USER_PASSWORD_FILE: /run/secrets/om_mysql_user_password
+      # NOTE: OpenMetadata 1.4 does NOT support the _FILE convention for DB_USER_PASSWORD.
+      # The password is injected via the entrypoint wrapper (see `command` below).
 
       # Server config
       SERVER_HOST_API_URL: https://openmetadata.sexydad/api
@@ -129,6 +130,16 @@ services:
       PIPELINE_SERVICE_CLIENT_CLASS_NAME: "org.openmetadata.service.clients.pipeline.airflow.AirflowRESTClient"
 
       TZ: America/Bogota
+
+    # Read secrets from files and export as env vars before starting the server.
+    # Required because OpenMetadata 1.4 reads DB_USER_PASSWORD and ADMIN_PASSWORD
+    # as plain env vars — it does not support the Docker _FILE convention.
+    command: >
+      sh -c '
+        export DB_USER_PASSWORD=$$(cat /run/secrets/om_mysql_user_password) &&
+        export ADMIN_PASSWORD=$$(cat /run/secrets/om_admin_password) &&
+        exec ./bin/openmetadata-server-start.sh conf/openmetadata.yaml
+      '
 
     secrets:
       - om_admin_password
