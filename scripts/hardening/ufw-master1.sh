@@ -10,13 +10,19 @@ set -euo pipefail
 
 echo "=== UFW hardening for master1 ==="
 
+# CRITICAL: UFW's DEFAULT_FORWARD_POLICY must be ACCEPT for Docker to forward
+# traffic to containers. Without this, UFW drops all forwarded packets before
+# they reach the DOCKER-USER chain — breaking all Docker-published ports.
+sed -i 's/DEFAULT_FORWARD_POLICY="DROP"/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
+
 # Reset to clean state
 ufw --force reset
 
 # Default policies
 ufw default deny incoming
 ufw default allow outgoing
-ufw default deny forward
+# Note: forward policy is controlled by /etc/default/ufw DEFAULT_FORWARD_POLICY=ACCEPT above.
+# 'ufw default deny forward' would override it back to DROP — intentionally omitted.
 
 # SSH (must come FIRST — never lock yourself out)
 ufw allow 22/tcp comment 'SSH'
