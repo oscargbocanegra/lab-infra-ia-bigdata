@@ -64,11 +64,13 @@ DEFAULT_FORWARD_POLICY="ACCEPT"
 # DOCKER-USER — restrict Docker-published ports to LAN only
 *filter
 :DOCKER-USER - [0:0]
-# Allow responses FROM containers TO the LAN (SYN-ACK, data replies)
-# Container replies arrive with src=172.19.x.x (internal IP), not <lan-cidr>.
-# Without this rule the TCP handshake never completes: SYN passes but SYN-ACK is dropped.
+# Allow traffic from Docker overlay/bridge subnets (172.16.0.0/12)
+# Without these rules, inter-container traffic and container→internet is dropped
+# because containers use 172.x.x.x IPs which don't match the LAN RETURN rules below.
+-A DOCKER-USER -s 172.16.0.0/12 -j RETURN
+-A DOCKER-USER -d 172.16.0.0/12 -j RETURN
+# Allow traffic from private LAN
 -A DOCKER-USER -d <lan-cidr> -j RETURN
-# Allow requests FROM the LAN TO containers
 -A DOCKER-USER -s <lan-cidr> -j RETURN
 # Drop everything else (non-LAN traffic hitting Docker-published ports)
 -A DOCKER-USER -j DROP
@@ -76,13 +78,14 @@ COMMIT
 # END DOCKER-USER
 ```
 
-**WHY two RETURN rules are required:**
+**WHY four RETURN rules are required:**
 
-TCP is bidirectional. A single connection involves:
-1. `SRC=<client-ip> → DST=172.19.0.16:443` (client SYN) → matched by `-s <lan-cidr> RETURN` ✅
-2. `SRC=172.19.0.16 → DST=<client-ip>` (container SYN-ACK) → NOT matched by source rule → hits DROP ❌
+1. `-s 172.16.0.0/12 RETURN` — allows container→internet and container→container traffic (source is 172.x.x.x)
+2. `-d 172.16.0.0/12 RETURN` — allows internet→container replies (destination is 172.x.x.x)
+3. `-s <lan-cidr> RETURN` — allows LAN client requests to reach containers
+4. `-d <lan-cidr> RETURN` — allows container SYN-ACK replies back to LAN clients
 
-The `-d <lan-cidr> RETURN` rule allows container replies to reach LAN clients, completing the TCP handshake.
+Without rules 1 and 2, containers have no internet access and cannot communicate with each other through the overlay network. This causes service crashes on startup (e.g. `pip install` in entrypoint scripts failing with `Network is unreachable`).
 
 ---
 

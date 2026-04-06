@@ -133,6 +133,9 @@ services:
 
     environment:
       - JUPYTER_ENABLE_LAB=yes
+      # NOTE: NB_UID/NB_GID are NOT used here because entrypoint.sh bypasses the
+      # image's start-notebook.sh where NB_UID is processed. Instead, the host
+      # volume dirs must be owned by uid=1000 (jovyan) — see runbook_jupyter.md
       - NVIDIA_VISIBLE_DEVICES=0
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - CUDA_VISIBLE_DEVICES=0

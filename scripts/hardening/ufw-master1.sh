@@ -54,11 +54,13 @@ cat >> "${AFTER_RULES}" << 'DOCKER_RULES'
 # DOCKER-USER — restrict Docker-published ports to LAN only
 *filter
 :DOCKER-USER - [0:0]
-# Allow responses FROM containers TO the LAN (SYN-ACK, data replies)
-# Without this rule, container replies (src=172.19.x.x dst=192.168.80.x) are dropped,
-# breaking the TCP handshake even though the inbound SYN was allowed.
+# Allow traffic from Docker overlay/bridge subnets (172.16.0.0/12)
+# Without these rules, inter-container traffic and container→internet is dropped
+# because containers use 172.x.x.x IPs, not 192.168.80.x
+-A DOCKER-USER -s 172.16.0.0/12 -j RETURN
+-A DOCKER-USER -d 172.16.0.0/12 -j RETURN
+# Allow traffic from private LAN
 -A DOCKER-USER -d 192.168.80.0/24 -j RETURN
-# Allow requests FROM the LAN TO containers
 -A DOCKER-USER -s 192.168.80.0/24 -j RETURN
 # Drop everything else (non-LAN traffic hitting Docker-published ports)
 -A DOCKER-USER -j DROP
