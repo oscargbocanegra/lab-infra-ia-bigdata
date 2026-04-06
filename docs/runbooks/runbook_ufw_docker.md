@@ -1,7 +1,7 @@
 # Runbook: UFW Firewall + Docker Swarm
 
 > **Last updated:** 2026-04-06  
-> **Applies to:** master1 (192.168.80.100) and master2 (192.168.80.200)
+> **Applies to:** master1 (`<master1-ip>`) and master2 (`<master2-ip>`)
 
 ---
 
@@ -22,7 +22,7 @@ Incoming packet (from LAN client → host:443)
          │
          ▼
    PREROUTING (nat)
-         │  DNAT: 192.168.80.100:443 → 172.19.0.16:443  (docker-proxy)
+         │  DNAT: <master1-ip>:443 → 172.19.0.16:443  (docker-proxy)
          ▼
    FORWARD chain
          │
@@ -65,11 +65,11 @@ DEFAULT_FORWARD_POLICY="ACCEPT"
 *filter
 :DOCKER-USER - [0:0]
 # Allow responses FROM containers TO the LAN (SYN-ACK, data replies)
-# Container replies arrive with src=172.19.x.x (internal IP), not 192.168.80.x.
+# Container replies arrive with src=172.19.x.x (internal IP), not <lan-cidr>.
 # Without this rule the TCP handshake never completes: SYN passes but SYN-ACK is dropped.
--A DOCKER-USER -d 192.168.80.0/24 -j RETURN
+-A DOCKER-USER -d <lan-cidr> -j RETURN
 # Allow requests FROM the LAN TO containers
--A DOCKER-USER -s 192.168.80.0/24 -j RETURN
+-A DOCKER-USER -s <lan-cidr> -j RETURN
 # Drop everything else (non-LAN traffic hitting Docker-published ports)
 -A DOCKER-USER -j DROP
 COMMIT
@@ -79,10 +79,10 @@ COMMIT
 **WHY two RETURN rules are required:**
 
 TCP is bidirectional. A single connection involves:
-1. `SRC=192.168.80.10 → DST=172.19.0.16:443` (client SYN) → matched by `-s 192.168.80.0/24 RETURN` ✅
-2. `SRC=172.19.0.16 → DST=192.168.80.10` (container SYN-ACK) → NOT matched by source rule → hits DROP ❌
+1. `SRC=<client-ip> → DST=172.19.0.16:443` (client SYN) → matched by `-s <lan-cidr> RETURN` ✅
+2. `SRC=172.19.0.16 → DST=<client-ip>` (container SYN-ACK) → NOT matched by source rule → hits DROP ❌
 
-The `-d 192.168.80.0/24 RETURN` rule allows container replies to reach LAN clients, completing the TCP handshake.
+The `-d <lan-cidr> RETURN` rule allows container replies to reach LAN clients, completing the TCP handshake.
 
 ---
 
@@ -96,10 +96,10 @@ Port      Protocol  From                  Purpose
 22/tcp    TCP       Anywhere              SSH
 80/tcp    TCP       Anywhere              HTTP (Traefik redirect)
 443/tcp   TCP       Anywhere              HTTPS (Traefik + all services)
-2377/tcp  TCP       192.168.80.200 only   Docker Swarm management
-7946/tcp  TCP       192.168.80.200 only   Swarm node communication
-7946/udp  UDP       192.168.80.200 only   Swarm node communication
-4789/udp  UDP       192.168.80.200 only   Swarm overlay network (VXLAN)
+2377/tcp  TCP       <master2-ip> only     Docker Swarm management
+7946/tcp  TCP       <master2-ip> only     Swarm node communication
+7946/udp  UDP       <master2-ip> only     Swarm node communication
+4789/udp  UDP       <master2-ip> only     Swarm overlay network (VXLAN)
 ```
 
 > Port 80 and 443 accept from Anywhere because they pass through DOCKER-USER which enforces the LAN allowlist at the container level.
@@ -110,12 +110,12 @@ Port      Protocol  From                  Purpose
 Port      Protocol  From                  Purpose
 ────────  ────────  ──────────────────    ─────────────────────────
 22/tcp    TCP       Anywhere              SSH
-2377/tcp  TCP       192.168.80.100 only   Docker Swarm management
-7946/tcp  TCP       192.168.80.100 only   Swarm node communication
-7946/udp  UDP       192.168.80.100 only   Swarm node communication
-4789/udp  UDP       192.168.80.100 only   Swarm overlay network (VXLAN)
-5432/tcp  TCP       192.168.80.100 only   PostgreSQL (for DBeaver SSH tunnel)
-9000/tcp  TCP       192.168.80.100 only   MinIO API (restic backups)
+2377/tcp  TCP       <master1-ip> only     Docker Swarm management
+7946/tcp  TCP       <master1-ip> only     Swarm node communication
+7946/udp  UDP       <master1-ip> only     Swarm node communication
+4789/udp  UDP       <master1-ip> only     Swarm overlay network (VXLAN)
+5432/tcp  TCP       <master1-ip> only     PostgreSQL (for DBeaver SSH tunnel)
+9000/tcp  TCP       <master1-ip> only     MinIO API (restic backups)
 ```
 
 ---
@@ -127,8 +127,8 @@ Port      Protocol  From                  Purpose
 sudo bash scripts/hardening/ufw-master1.sh
 
 # On master2 (run from master1 via scp + ssh)
-scp scripts/hardening/ufw-master2.sh ogiovanni@192.168.80.200:/tmp/
-ssh ogiovanni@192.168.80.200 'sudo bash /tmp/ufw-master2.sh'
+scp scripts/hardening/ufw-master2.sh '<admin-user>@<master2-ip>:/tmp/'
+ssh '<admin-user>@<master2-ip>' 'sudo bash /tmp/ufw-master2.sh'
 ```
 
 ---
@@ -152,8 +152,8 @@ sudo iptables -L DOCKER-USER -n -v --line-numbers
 Expected output:
 ```
 num  pkts bytes target  prot opt in  out  source           destination
-1       X     X RETURN   0   --  *   *    0.0.0.0/0        192.168.80.0/24
-2       X     X RETURN   0   --  *   *    192.168.80.0/24  0.0.0.0/0
+1       X     X RETURN   0   --  *   *    0.0.0.0/0        <lan-cidr>
+2       X     X RETURN   0   --  *   *    <lan-cidr>       0.0.0.0/0
 3       X     X DROP     0   --  *   *    0.0.0.0/0        0.0.0.0/0
 ```
 
@@ -189,22 +189,22 @@ sudo sed -i 's/DEFAULT_FORWARD_POLICY="DROP"/DEFAULT_FORWARD_POLICY="ACCEPT"/' /
 sudo ufw reload
 ```
 
-#### Cause 2: Missing `-d 192.168.80.0/24 RETURN` in DOCKER-USER
+#### Cause 2: Missing `-d <lan-cidr> RETURN` in DOCKER-USER
 
 Check:
 ```bash
 sudo iptables -L DOCKER-USER -n -v
 ```
-If you only see `-s 192.168.80.0/24 RETURN` (no `-d` rule), container replies are being dropped.
+If you only see `-s <lan-cidr> RETURN` (no `-d` rule), container replies are being dropped.
 
 Fix (live — survives until next ufw reload):
 ```bash
-sudo iptables -I DOCKER-USER 1 -d 192.168.80.0/24 -j RETURN
+sudo iptables -I DOCKER-USER 1 -d <lan-cidr> -j RETURN
 ```
 
 Fix (persistent — add to `/etc/ufw/after.rules` before the `-s` rule):
 ```bash
-sudo sed -i 's/-A DOCKER-USER -s 192.168.80.0\/24 -j RETURN/-A DOCKER-USER -d 192.168.80.0\/24 -j RETURN\n-A DOCKER-USER -s 192.168.80.0\/24 -j RETURN/' /etc/ufw/after.rules
+sudo sed -i 's/-A DOCKER-USER -s <lan-cidr> -j RETURN/-A DOCKER-USER -d <lan-cidr> -j RETURN\n-A DOCKER-USER -s <lan-cidr> -j RETURN/' /etc/ufw/after.rules
 sudo ufw reload
 ```
 
@@ -241,8 +241,8 @@ sudo iptables -D DOCKER-USER 1
 
 Sample output showing the bidirectional flow:
 ```
-DU: IN=enp0s31f6 OUT=docker_gwbridge SRC=192.168.80.10 DST=172.19.0.16 DPT=443  ← client SYN
-DU: IN=docker_gwbridge OUT=enp0s31f6 SRC=172.19.0.16 DST=192.168.80.10 SPT=443  ← container SYN-ACK
+DU: IN=<host-nic> OUT=docker_gwbridge SRC=<client-ip> DST=172.19.0.16 DPT=443  ← client SYN
+DU: IN=docker_gwbridge OUT=<host-nic> SRC=172.19.0.16 DST=<client-ip> SPT=443  ← container SYN-ACK
 ```
 
 ---

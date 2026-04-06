@@ -1,15 +1,15 @@
-# Runbook: Apache Spark 3.5 — Procesamiento distribuido
+# Runbook: Apache Spark 3.5 — Distributed Processing
 
-> Stack: `spark` | Master: master1 | Worker: master2 | Última revisión: 2026-03-30
+> Stack: `spark` | Master: master1 | Worker: master2 | Last updated: 2026-03-30
 
 ---
 
-## Descripción
+## Description
 
-Apache Spark es el motor de procesamiento distribuido del lab. Permite ejecutar jobs batch, SQL analítico y ML sobre datasets grandes, usando MinIO (S3A) como capa de storage y Delta Lake como formato transaccional.
+Apache Spark is the lab's distributed processing engine. It runs batch jobs, analytical SQL, and ML over large datasets, using MinIO (S3A) as the storage layer and Delta Lake as the transactional format.
 
 ```
-Componente         Nodo      Recursos             URL
+Component          Node      Resources            URL
 ──────────────── ──────── ─────────────────── ──────────────────────────
 spark_master       master1  0.5 CPU / 1 GB     https://spark-master.sexydad
 spark_worker       master2  10 CPUs / 14 GB    https://spark-worker.sexydad
@@ -18,19 +18,19 @@ spark_history      master1  0.25 CPU / 512 MB  https://spark-history.sexydad
 
 ---
 
-## Secrets requeridos
+## Required Secrets
 
-Los mismos que MinIO (compartidos):
+Same as MinIO (shared):
 
 ```bash
-# Ya creados si desplegaste MinIO:
+# Already created if MinIO was deployed:
 # minio_access_key
 # minio_secret_key
 ```
 
 ---
 
-## Preparación de directorios (master2)
+## Directory Preparation (master2)
 
 ```bash
 ssh master2 "sudo mkdir -p /srv/fastdata/spark-tmp && sudo chmod 777 /srv/fastdata/spark-tmp"
@@ -41,16 +41,16 @@ ssh master2 "sudo mkdir -p /srv/fastdata/spark-tmp && sudo chmod 777 /srv/fastda
 ## Deploy
 
 ```bash
-# 1. MinIO debe estar desplegado y corriendo primero
-#    (Spark History Server escribe logs en s3a://spark-warehouse/history)
+# 1. MinIO must be deployed and running first
+#    (Spark History Server writes logs to s3a://spark-warehouse/history)
 
-# 2. Crear bucket spark-warehouse en MinIO (si no existe)
-#    Ver runbook_minio.md — sección "Crear buckets"
+# 2. Create the spark-warehouse bucket in MinIO (if it doesn't exist)
+#    See runbook_minio.md — "Create buckets" section
 
-# 3. Desplegar stack
+# 3. Deploy the stack
 docker stack deploy -c stacks/data/98-spark/stack.yml spark
 
-# 4. Verificar
+# 4. Verify
 docker stack ps spark
 docker service logs spark_spark_master --tail 20
 docker service logs spark_spark_worker --tail 20
@@ -58,33 +58,33 @@ docker service logs spark_spark_worker --tail 20
 
 ---
 
-## Verificar que el worker se registró
+## Verify the worker registered
 
 ```bash
-# Desde la UI: https://spark-master.sexydad
-# Debe mostrar 1 Worker Alive con 10 CPUs y 14 GB RAM
+# From the UI: https://spark-master.sexydad
+# Should show 1 Worker Alive with 10 CPUs and 14 GB RAM
 
-# O por logs:
+# Or via logs:
 docker service logs spark_spark_master 2>&1 | grep -i worker
-# Esperado: "Registering worker ... with 10 cores, 14.0 GiB RAM"
+# Expected: "Registering worker ... with 10 cores, 14.0 GiB RAM"
 ```
 
 ---
 
-## Usar Spark desde Jupyter (kernel BigData)
+## Using Spark from Jupyter (BigData kernel)
 
-### Conexión básica al cluster con S3A + Delta Lake
+### Basic cluster connection with S3A + Delta Lake
 
 ```python
 from pyspark.sql import SparkSession
 import os
 
 spark = SparkSession.builder \
-    .appName("Mi primer job") \
+    .appName("My first job") \
     .master("spark://spark_master:7077") \
     .config("spark.executor.memory", "4g") \
     .config("spark.executor.cores", "4") \
-    # MinIO via S3A (credenciales ya están en el entorno)
+    # MinIO via S3A (credentials already in environment)
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
     .config("spark.hadoop.fs.s3a.access.key", os.environ["AWS_ACCESS_KEY_ID"]) \
     .config("spark.hadoop.fs.s3a.secret.key", os.environ["AWS_SECRET_ACCESS_KEY"]) \
@@ -98,146 +98,146 @@ print(f"Spark version: {spark.version}")
 print(f"Master: {spark.sparkContext.master}")
 ```
 
-### Pipeline Medallion: Bronze → Silver → Gold
+### Medallion Pipeline: Bronze → Silver → Gold
 
 ```python
 from pyspark.sql import functions as F
 
-# ── Bronze: ingestar CSV crudo ─────────────────────────────────────────────
+# ── Bronze: ingest raw CSV ─────────────────────────────────────────────
 df_raw = spark.read \
     .option("header", "true") \
     .option("inferSchema", "true") \
-    .csv("/data/datasets/ventas.csv")
+    .csv("/data/datasets/sales.csv")
 
 df_raw.write \
     .mode("append") \
-    .partitionBy("fecha") \
-    .parquet("s3a://bronze/ventas/")
+    .partitionBy("date") \
+    .parquet("s3a://bronze/sales/")
 
-# ── Silver: limpiar + tipar + Delta Lake ───────────────────────────────────
-df_bronze = spark.read.parquet("s3a://bronze/ventas/")
+# ── Silver: clean + type + Delta Lake ───────────────────────────────────
+df_bronze = spark.read.parquet("s3a://bronze/sales/")
 
 df_silver = df_bronze \
-    .dropDuplicates(["id_transaccion"]) \
-    .filter(F.col("monto").isNotNull() & (F.col("monto") > 0)) \
-    .withColumn("fecha", F.to_date(F.col("fecha"), "yyyy-MM-dd")) \
-    .withColumn("monto", F.col("monto").cast("double")) \
+    .dropDuplicates(["transaction_id"]) \
+    .filter(F.col("amount").isNotNull() & (F.col("amount") > 0)) \
+    .withColumn("date", F.to_date(F.col("date"), "yyyy-MM-dd")) \
+    .withColumn("amount", F.col("amount").cast("double")) \
     .withColumn("_ingest_ts", F.current_timestamp())
 
 df_silver.write \
     .format("delta") \
     .mode("overwrite") \
     .option("overwriteSchema", "true") \
-    .partitionBy("fecha") \
-    .save("s3a://silver/ventas/")
+    .partitionBy("date") \
+    .save("s3a://silver/sales/")
 
-# ── Gold: KPIs + Delta Lake ────────────────────────────────────────────────
-df_silver = spark.read.format("delta").load("s3a://silver/ventas/")
+# ── Gold: KPIs + Delta Lake ────────────────────────────────────────────
+df_silver = spark.read.format("delta").load("s3a://silver/sales/")
 
 df_gold = df_silver \
-    .groupBy("fecha", "categoria") \
+    .groupBy("date", "category") \
     .agg(
-        F.sum("monto").alias("total_ventas"),
-        F.count("*").alias("cantidad_transacciones"),
-        F.avg("monto").alias("ticket_promedio")
+        F.sum("amount").alias("total_sales"),
+        F.count("*").alias("transaction_count"),
+        F.avg("amount").alias("average_ticket")
     )
 
 df_gold.write \
     .format("delta") \
     .mode("overwrite") \
-    .partitionBy("fecha") \
-    .save("s3a://gold/ventas_kpis_diarios/")
+    .partitionBy("date") \
+    .save("s3a://gold/sales_daily_kpis/")
 
-print("Pipeline Medallion completado.")
+print("Medallion pipeline complete.")
 spark.stop()
 ```
 
-### Time Travel en Delta Lake
+### Delta Lake Time Travel
 
 ```python
 from delta.tables import DeltaTable
 
-# Ver historial de versiones
-dt = DeltaTable.forPath(spark, "s3a://silver/ventas/")
+# View version history
+dt = DeltaTable.forPath(spark, "s3a://silver/sales/")
 dt.history().select("version", "timestamp", "operation").show()
 
-# Leer versión específica
+# Read a specific version
 df_v0 = spark.read.format("delta") \
     .option("versionAsOf", 0) \
-    .load("s3a://silver/ventas/")
+    .load("s3a://silver/sales/")
 
-# Revertir a versión anterior
+# Restore to a previous version
 dt.restoreToVersion(0)
 ```
 
-### Leer archivos locales del datalake
+### Read local datalake files
 
 ```python
-# Los datasets también están montados directamente en /data/datasets
+# Datasets are also mounted directly at /data/datasets
 df = spark.read.parquet("/data/datasets/ml_dataset.parquet")
 ```
 
 ---
 
-## Monitoreo
+## Monitoring
 
 ```bash
-# UI Master (ver jobs activos, workers)
+# Master UI (see active jobs, workers)
 # https://spark-master.sexydad
 
-# UI Worker (ver tasks en ejecución)
+# Worker UI (see running tasks)
 # https://spark-worker.sexydad
 
-# History Server (ver jobs históricos)
+# History Server (see historical jobs)
 # https://spark-history.sexydad
 
-# Logs en tiempo real
+# Real-time logs
 docker service logs spark_spark_worker -f --tail 50
 ```
 
 ---
 
-## Ajuste de recursos del Worker
+## Adjusting Worker Resources
 
-Si necesitás más o menos recursos para el worker, editá `stacks/data/98-spark/stack.yml`:
+To allocate more or fewer resources to the worker, edit `stacks/data/98-spark/stack.yml`:
 
 ```yaml
 environment:
-  SPARK_WORKER_CORES: "10"   # Cores ofrecidos al cluster
-  SPARK_WORKER_MEMORY: 14g   # RAM ofrecida al cluster
+  SPARK_WORKER_CORES: "10"   # Cores offered to the cluster
+  SPARK_WORKER_MEMORY: 14g   # RAM offered to the cluster
 ```
 
-> El worker solo usa lo que un job le pide. Los recursos declarados son el máximo disponible, no lo que consume idle.
+> The worker only uses what a job requests. The declared resources are the maximum available, not what it consumes when idle.
 
 ---
 
-## Diagnóstico de problemas comunes
+## Common Troubleshooting
 
-### Worker no se conecta al master
+### Worker can't connect to the master
 
 ```bash
-# Verificar que ambos están en la misma red overlay (internal)
+# Verify both are on the same overlay network (internal)
 docker network inspect internal | grep -A5 spark
 
-# Verificar resolución DNS
+# Verify DNS resolution
 docker exec $(docker ps -q -f name=spark_spark_worker) \
   ping -c2 spark_master
 ```
 
-### Job falla con "No space left on device"
+### Job fails with "No space left on device"
 
 ```bash
-# Limpiar scratch de Spark en master2
+# Clean Spark scratch on master2
 ssh master2 "sudo rm -rf /srv/fastdata/spark-tmp/*"
 ```
 
-### History Server no muestra jobs
+### History Server shows no jobs
 
 ```bash
-# Verificar que el bucket spark-warehouse/history existe en MinIO
+# Verify that the spark-warehouse/history bucket exists in MinIO
 mc ls lab/spark-warehouse/
 
-# Verificar que los logs se escriben
+# Verify that logs are being written
 docker service logs spark_spark_history --tail 30
 ```
 

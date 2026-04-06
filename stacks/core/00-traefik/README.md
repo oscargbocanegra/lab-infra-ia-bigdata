@@ -25,7 +25,7 @@ Internet / LAN
       │
    ┌──┴────────────────────────────┐
    │  Middlewares                  │
-   │  - lan-whitelist (192.168.80.0/24) │
+   │  - lan-whitelist (<lan-cidr>) │
    │  - basicauth (per service)    │
    └──┬────────────────────────────┘
       │

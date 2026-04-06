@@ -64,7 +64,7 @@ Every component is production-grade: secrets management via Docker Swarm Secrets
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        LAN  192.168.80.0/24                         │
+│                        LAN  <lan-cidr>                          │
 │                                                                     │
 │  ┌──────────────────────────┐    ┌──────────────────────────────┐   │
 │  │        master1           │    │          master2             │   │
@@ -77,8 +77,8 @@ Every component is production-grade: secrets management via Docker Swarm Secrets
 │  │                          │    │  NVIDIA RTX 2080 Ti          │   │
 │  │  Swarm: MANAGER          │    │  11 GB VRAM · CUDA 12.2      │   │
 │  │  tier=control            │    │  Swarm: WORKER               │   │
-│  │  192.168.80.100          │    │  tier=compute · gpu=nvidia   │   │
-│  │                          │    │  192.168.80.200              │   │
+│  │  <master1-ip>            │    │  tier=compute · gpu=nvidia   │   │
+│  │                          │    │  <master2-ip>                │   │
 │  └──────────┬───────────────┘    └──────────────┬───────────────┘   │
 │             └──────────── Overlay Networks ─────┘                   │
 │                    (public + internal)                               │
@@ -107,8 +107,8 @@ LAN User (browser)
        ├──► spark-master.sexydad     → Spark Master UI     (master1)
        ├──► spark-history.sexydad    → Spark History       (master1)
        ├──► n8n.sexydad              → n8n Automation      (master2)
-       ├──► jupyter-ogiovanni.sexydad→ JupyterLab + GPU    (master2)
-       ├──► jupyter-odavid.sexydad   → JupyterLab + GPU    (master2)
+        ├──► jupyter-<admin-user>.sexydad→ JupyterLab + GPU    (master2)
+        ├──► jupyter-<second-user>.sexydad → JupyterLab + GPU    (master2)
         ├──► ollama.sexydad           → Ollama LLM API      (master2)
         ├──► chat.sexydad             → Open WebUI Chat     (master1)
         ├──► qdrant.sexydad           → Qdrant Web UI       (master1)
@@ -187,7 +187,7 @@ Data Sources (CSV, JSON, APIs, DB exports)
 |---------|---------|------|-----|--------|
 | **Traefik** — Reverse Proxy + TLS | v2.11 | master1 | `https://traefik.sexydad/dashboard/` | ✅ |
 | **Portainer CE** — Swarm UI | 2.39.1 | master1 | `https://portainer.sexydad` | ✅ |
-| **PostgreSQL** — Central DB | 16 | master2 | `192.168.80.200:5432` | ✅ |
+| **PostgreSQL** — Central DB | 16 | master2 | `<master2-ip>:5432` | ✅ |
 
 ### Automation
 
@@ -204,8 +204,8 @@ Data Sources (CSV, JSON, APIs, DB exports)
 
 | Service | Version | Node | URL | Status |
 |---------|---------|------|-----|--------|
-| **JupyterLab** (ogiovanni) | Python 3.11 + GPU | master2 | `https://jupyter-ogiovanni.sexydad` | ✅ |
-| **JupyterLab** (odavid) | Python 3.11 + GPU | master2 | `https://jupyter-odavid.sexydad` | ✅ |
+| **JupyterLab** (`<admin-user>`) | Python 3.11 + GPU | master2 | `https://jupyter-<admin-user>.sexydad` | ✅ |
+| **JupyterLab** (`<second-user>`) | Python 3.11 + GPU | master2 | `https://jupyter-<second-user>.sexydad` | ✅ |
 | **Ollama** — LLM inference | 0.19 + RTX 2080 Ti | master2 | `https://ollama.sexydad` | ✅ |
 | **Qdrant** — Vector DB | v1.13.4 | master1 | `https://qdrant.sexydad` | ✅ |
 | **RAG API** — FastAPI RAG orchestration | latest | master1 | `https://rag-api.sexydad` | ✅ |
@@ -278,7 +278,7 @@ A persistent sidebar chat powered by `jupyter-ai` connects to Ollama (`qwen2.5-c
 ## 🔒 Security Model
 
 ```
-Layer 1 — Perimeter:   LAN-only whitelist (192.168.80.0/24) via Traefik middleware
+Layer 1 — Perimeter:   LAN-only whitelist (<lan-cidr>) via Traefik middleware
 Layer 2 — Auth:        BasicAuth per service + native auth (Portainer, Airflow, MinIO, n8n)
 Layer 3 — Transport:   TLS self-signed on all 15+ HTTPS endpoints
 Layer 4 — Secrets:     Docker Swarm Secrets — zero passwords in repository
@@ -360,7 +360,7 @@ mkdir -p /srv/fastdata/{portainer,opensearch,airflow/{dags,logs,plugins,redis},s
 
 # 2. Create required directories on master2
 # (via SSH)
-mkdir -p /srv/fastdata/{postgres,n8n,jupyter/{ogiovanni,odavid}/work,spark-tmp,airflow/{dags,logs,plugins}}
+mkdir -p /srv/fastdata/{postgres,n8n,jupyter/{<admin-user>,<second-user>}/work,spark-tmp,airflow/{dags,logs,plugins}}
 mkdir -p /srv/datalake/{minio,models/ollama,datasets,artifacts}
 
 # 3. Create Docker Swarm Secrets
@@ -416,14 +416,14 @@ docker stack deploy -c stacks/ai-ml/05-open-webui/stack.yml  open-webui
 Add to `/etc/hosts` on each LAN client (or configure a local DNS wildcard):
 
 ```
-192.168.80.100  traefik.sexydad portainer.sexydad
-192.168.80.100  airflow.sexydad airflow-flower.sexydad
-192.168.80.100  opensearch.sexydad dashboards.sexydad
-192.168.80.100  spark-master.sexydad spark-worker.sexydad spark-history.sexydad
-192.168.80.100  ollama.sexydad jupyter-ogiovanni.sexydad jupyter-odavid.sexydad
-192.168.80.100  minio.sexydad minio-api.sexydad n8n.sexydad
-192.168.80.100  prometheus.sexydad grafana.sexydad
-192.168.80.100  chat.sexydad qdrant.sexydad rag-api.sexydad
+<master1-ip>  traefik.sexydad portainer.sexydad
+<master1-ip>  airflow.sexydad airflow-flower.sexydad
+<master1-ip>  opensearch.sexydad dashboards.sexydad
+<master1-ip>  spark-master.sexydad spark-worker.sexydad spark-history.sexydad
+<master1-ip>  ollama.sexydad jupyter-<admin-user>.sexydad jupyter-<second-user>.sexydad
+<master1-ip>  minio.sexydad minio-api.sexydad n8n.sexydad
+<master1-ip>  prometheus.sexydad grafana.sexydad
+<master1-ip>  chat.sexydad qdrant.sexydad rag-api.sexydad
 ```
 
 > All endpoints use self-signed TLS. Accept the browser security exception on first visit.

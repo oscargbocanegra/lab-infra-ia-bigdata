@@ -1,30 +1,30 @@
-# ADR-005: GPU vía Generic Resources en Docker Swarm
+# ADR-005: GPU via Generic Resources in Docker Swarm
 
-**Fecha**: 2026-01  
-**Estado**: Aceptado
-
----
-
-## Contexto
-
-Docker Swarm NO tiene soporte nativo para `--gpus all` (eso es solo Docker Engine, no Swarm mode). Para usar la GPU RTX 2080 Ti de master2 desde contenedores Swarm se evaluaron:
-
-1. **Generic Resources** — mecanismo de Swarm para recursos personalizados
-2. **Node constraints custom** — solo placement, sin reserva real
-3. **Sin gestión** — confiar en el runtime de NVIDIA directamente
+**Date**: 2026-01  
+**Status**: Accepted
 
 ---
 
-## Decisión
+## Context
 
-**Usar Generic Resources** (`nvidia.com/gpu=1`) registrado en master2 + `default-runtime: nvidia` en `daemon.json`.
+Docker Swarm does NOT have native support for `--gpus all` (that is Docker Engine only, not Swarm mode). To use the RTX 2080 Ti GPU on master2 from Swarm containers, the following options were evaluated:
+
+1. **Generic Resources** — Swarm mechanism for custom resources
+2. **Custom node constraints** — placement only, no real reservation
+3. **No management** — rely on the NVIDIA runtime directly
 
 ---
 
-## Implementación
+## Decision
+
+**Use Generic Resources** (`nvidia.com/gpu=1`) registered on master2 + `default-runtime: nvidia` in `daemon.json`.
+
+---
+
+## Implementation
 
 ```json
-// /etc/docker/daemon.json en master2
+// /etc/docker/daemon.json on master2
 {
   "default-runtime": "nvidia",
   "runtimes": {
@@ -38,7 +38,7 @@ Docker Swarm NO tiene soporte nativo para `--gpus all` (eso es solo Docker Engin
 ```
 
 ```yaml
-# En stack.yml de servicios con GPU:
+# In stack.yml for GPU-enabled services:
 deploy:
   placement:
     constraints:
@@ -53,28 +53,28 @@ deploy:
 
 ---
 
-## Motivos
+## Reasons
 
-1. **Placement correcto**: Sin Generic Resources, Swarm no sabe qué nodo tiene GPU y podría intentar correr Ollama o Jupyter en master1 (sin GPU). Con `node.labels.gpu=nvidia` + `generic_resources`, el scheduler de Swarm garantiza que el container va a master2.
+1. **Correct placement**: Without Generic Resources, Swarm does not know which node has a GPU and might try to run Ollama or Jupyter on master1 (no GPU). With `node.labels.gpu=nvidia` + `generic_resources`, the Swarm scheduler guarantees the container goes to master2.
 
-2. **Reserva real**: Generic Resources hace que Swarm "reserve" la GPU — si ya está usada por un servicio, otro servicio que la requiera quedará en `Pending` en lugar de arrancar sin GPU.
+2. **Real reservation**: Generic Resources causes Swarm to "reserve" the GPU — if it is already in use by one service, another service requiring it will remain in `Pending` instead of starting without a GPU.
 
-3. **`default-runtime: nvidia`**: Al configurar nvidia como runtime por defecto, todos los containers en master2 tienen acceso al runtime NVIDIA sin necesidad de `--runtime=nvidia` explícito (Swarm no soporta esa opción en stack.yml).
-
----
-
-## Limitaciones
-
-- Solo funciona si `nvidia-container-toolkit` está instalado en master2 ✅
-- El driver NVIDIA debe estar funcionando en el host ✅ (Driver 535.288.01)
-- Solo UNA GPU registrada — si se agrega otra GPU, actualizar el valor a `2`
-- `docker service inspect` muestra la reserva pero NO el uso real de VRAM (para eso: `nvidia-smi` en master2)
+3. **`default-runtime: nvidia`**: By configuring nvidia as the default runtime, all containers on master2 have access to the NVIDIA runtime without needing explicit `--runtime=nvidia` (Swarm does not support that option in `stack.yml`).
 
 ---
 
-## Consecuencias
+## Limitations
 
-- ✅ Ollama y Jupyter tienen GPU garantizada
-- ✅ Scheduler no permite conflictos de "doble asignación"
-- ✅ `torch.cuda.is_available()` retorna `True` en Jupyter kernels
-- ⚠️ Solo 1 GPU disponible — Ollama y Jupyter pueden competir por VRAM (11 GB total)
+- Only works if `nvidia-container-toolkit` is installed on master2 ✅
+- The NVIDIA driver must be running on the host ✅ (Driver 535.288.01)
+- Only ONE GPU registered — if another GPU is added, update the value to `2`
+- `docker service inspect` shows the reservation but NOT the actual VRAM usage (for that: `nvidia-smi` on master2)
+
+---
+
+## Consequences
+
+- ✅ Ollama and Jupyter have guaranteed GPU
+- ✅ Scheduler prevents double-assignment conflicts
+- ✅ `torch.cuda.is_available()` returns `True` in Jupyter kernels
+- ⚠️ Only 1 GPU available — Ollama and Jupyter may compete for VRAM (11 GB total)

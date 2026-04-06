@@ -1,73 +1,73 @@
-# ADR-003: Separación fastdata/datalake en master2
+# ADR-003: Separation of fastdata/datalake on master2
 
-**Fecha**: 2025-12  
-**Estado**: Aceptado
-
----
-
-## Contexto
-
-master2 tiene dos discos con características muy distintas:
-- **NVMe Samsung 970 EVO 1TB**: IOPS altísimos (~3500 MB/s read, ~2300 MB/s write), capacidad limitada vs HDD
-- **HDD Seagate 2TB**: IOPS bajos (rotativo), capacidad masiva, ideal para datos secuenciales/bulk
-
-La decisión clave: ¿qué va en cada uno?
+**Date**: 2025-12  
+**Status**: Accepted
 
 ---
 
-## Decisión
+## Context
 
-**Dos puntos de montaje con propósitos bien definidos**:
+master2 has two disks with very different characteristics:
+- **NVMe Samsung 970 EVO 1TB**: Very high IOPS (~3500 MB/s read, ~2300 MB/s write), limited capacity vs HDD
+- **HDD Seagate 2TB**: Low IOPS (rotational), massive capacity, ideal for sequential/bulk data
 
-- `/srv/fastdata` (NVMe, LVM 600 GB): datos "calientes" — I/O intensivo
-- `/srv/datalake` (HDD 2TB): datos masivos — bulk storage
+The key decision: what goes on each?
 
 ---
 
-## Criterio de clasificación
+## Decision
 
-| Dato | Mount | Motivo |
+**Two mount points with well-defined purposes**:
+
+- `/srv/fastdata` (NVMe, LVM 600 GB): "hot" data — I/O intensive
+- `/srv/datalake` (HDD 2TB): massive data — bulk storage
+
+---
+
+## Classification Criteria
+
+| Data | Mount | Reason |
 |------|-------|--------|
-| PostgreSQL data | `/srv/fastdata` | Transacciones: random I/O → NVMe imprescindible |
-| n8n state | `/srv/fastdata` | Metadata y credenciales: lectura frecuente |
-| Jupyter home + .venv | `/srv/fastdata` | `pip install` masivo → mucho I/O random |
-| OpenSearch index | `/srv/fastdata` | Queries: random I/O en índices invertidos |
-| Modelos .gguf | `/srv/datalake` | Archivos de 4–30 GB: lectura secuencial al cargar |
-| Datasets ML | `/srv/datalake` | Bulk read secuencial (pandas, spark): HDD ok |
+| PostgreSQL data | `/srv/fastdata` | Transactions: random I/O → NVMe essential |
+| n8n state | `/srv/fastdata` | Metadata and credentials: frequent reads |
+| Jupyter home + .venv | `/srv/fastdata` | Massive `pip install` → heavy random I/O |
+| OpenSearch index | `/srv/fastdata` | Queries: random I/O on inverted indexes |
+| .gguf models | `/srv/datalake` | 4–30 GB files: sequential read on load |
+| ML datasets | `/srv/datalake` | Sequential bulk read (pandas, spark): HDD ok |
 | Artifacts/outputs | `/srv/datalake` | Write once, read rarely |
 | Backups | `/srv/datalake` | Bulk write, cold storage |
 
 ---
 
-## Motivos técnicos
+## Technical Reasons
 
-**PostgreSQL en HDD** degradaría >10x el rendimiento de queries con B-Tree lookups (random I/O). Con NVMe, PostgreSQL puede sostener miles de IOPS; con HDD rotativo, cae a ~100–200 IOPS.
+**PostgreSQL on HDD** would degrade query performance by >10x with B-Tree lookups (random I/O). With NVMe, PostgreSQL can sustain thousands of IOPS; with rotational HDD, it drops to ~100–200 IOPS.
 
-**Modelos LLM en HDD** es aceptable porque: (1) Ollama carga el modelo en VRAM una vez, (2) la lectura es secuencial lineal (un archivo grande), (3) HDD puede hacer 120–150 MB/s en lectura secuencial — suficiente para cargar un modelo de 4 GB en ~30 segundos.
+**LLM models on HDD** is acceptable because: (1) Ollama loads the model into VRAM once, (2) the read is sequential and linear (one large file), (3) HDD can do 120–150 MB/s sequential read — sufficient to load a 4 GB model in ~30 seconds.
 
 ---
 
-## Implementación
+## Implementation
 
 ```bash
-# LVM sobre NVMe
+# LVM on NVMe
 pvcreate /dev/nvme0n1
 vgcreate vg0 /dev/nvme0n1
 lvcreate -L 600G -n fastdata vg0
 mkfs.ext4 /dev/vg0/fastdata
 mount /dev/vg0/fastdata /srv/fastdata
 
-# HDD directo
-mkfs.ext4 /dev/sda  # (o usar la partición existente)
+# HDD direct
+mkfs.ext4 /dev/sda  # (or use the existing partition)
 mount /dev/sda /srv/datalake
 ```
 
 ---
 
-## Consecuencias
+## Consequences
 
-- ✅ PostgreSQL, Jupyter y OpenSearch tienen NVMe: rendimiento óptimo
-- ✅ Datasets y modelos en HDD: capacidad masiva sin desperdiciar NVMe
-- ✅ Estructura clara para saber dónde va cada tipo de dato
-- ⚠️ 600 GB de NVMe comprometido para fastdata (quedan ~330 GB sin particionar para expansión)
-- ⚠️ Si los datos "calientes" crecen, expandir el LV: `lvextend -L +200G /dev/vg0/fastdata && resize2fs /dev/vg0/fastdata`
+- ✅ PostgreSQL, Jupyter and OpenSearch have NVMe: optimal performance
+- ✅ Datasets and models on HDD: massive capacity without wasting NVMe
+- ✅ Clear structure for knowing where each type of data goes
+- ⚠️ 600 GB of NVMe committed to fastdata (~330 GB unpartitioned for expansion)
+- ⚠️ If "hot" data grows, expand the LV: `lvextend -L +200G /dev/vg0/fastdata && resize2fs /dev/vg0/fastdata`

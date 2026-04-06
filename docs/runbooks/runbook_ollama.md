@@ -1,79 +1,79 @@
-# Runbook de Operación: Ollama (LLM Inference)
+# Runbook: Ollama (LLM Inference)
 
-## Datos de referencia
+## Reference Data
 
-| Parámetro | Valor |
+| Parameter | Value |
 |-----------|-------|
 | **Stack** | `ollama` |
-| **Servicio** | `ollama_ollama` |
-| **Nodo** | master2 (`tier=compute` + `gpu=nvidia`) |
+| **Service** | `ollama_ollama` |
+| **Node** | master2 (`tier=compute` + `gpu=nvidia`) |
 | **GPU** | RTX 2080 Ti — 11 GB VRAM |
-| **Persistencia** | `/srv/datalake/models/ollama` (HDD) |
-| **URL externa** | `https://ollama.sexydad` (BasicAuth requerida) |
-| **URL interna** | `http://ollama:11434` (sin auth, overlay internal) |
+| **Persistence** | `/srv/datalake/models/ollama` (HDD) |
+| **External URL** | `https://ollama.sexydad` (BasicAuth required) |
+| **Internal URL** | `http://ollama:11434` (no auth, overlay internal) |
 
 ---
 
-## 1. Operación diaria (Healthcheck)
+## 1. Daily Operations (Healthcheck)
 
-### 1.1 Verificar servicio
+### 1.1 Verify service
 
 ```bash
-# En master1
+# On master1
 docker service ls | grep ollama
 docker service ps ollama_ollama --no-trunc \
   --format 'table {{.ID}}\t{{.Node}}\t{{.DesiredState}}\t{{.CurrentState}}\t{{.Error}}'
 ```
 
-### 1.2 Verificar GPU activa
+### 1.2 Verify GPU is active
 
 ```bash
-# En master2
+# On master2
 nvidia-smi
-# Verificar que Ollama aparece en procesos cuando hay inferencia activa
+# Verify that Ollama appears in the process list during active inference
 ```
 
-### 1.3 Verificar modelos disponibles
+### 1.3 Verify available models
 
 ```bash
-# API interna (desde master2 o master1)
+# Internal API (from master2 or master1)
 curl http://localhost:11434/api/tags
-# Debe retornar JSON con lista de modelos descargados
+# Should return JSON with the list of downloaded models
 ```
 
 ---
 
-## 2. Gestión de modelos
+## 2. Model Management
 
-### Descargar un modelo
+### Download a model
 
 ```bash
-# Opción A: Acceso al contenedor (desde master2)
+# Option A: Access the container (from master2)
 CONTAINER=$(docker ps -q -f name=ollama_ollama)
 docker exec -it $CONTAINER ollama pull llama3
 docker exec -it $CONTAINER ollama pull mistral
 docker exec -it $CONTAINER ollama pull nomic-embed-text   # embeddings
 
-# Opción B: Via API (requiere BasicAuth para endpoint externo)
+# Option B: Via API (requires BasicAuth for external endpoint)
 curl -X POST https://ollama.sexydad/api/pull \
   -u admin:PASSWORD \
   -H "Content-Type: application/json" \
   -d '{"name": "llama3"}'
 ```
 
-### Listar modelos descargados
+### List downloaded models
 
 ```bash
 docker exec -it $(docker ps -q -f name=ollama_ollama) ollama list
 ```
 
-### Eliminar un modelo
+### Delete a model
 
 ```bash
 docker exec -it $(docker ps -q -f name=ollama_ollama) ollama rm llama3
 ```
 
-### Test de inferencia
+### Test inference
 
 ```bash
 curl -X POST http://localhost:11434/api/generate \
@@ -87,58 +87,58 @@ curl -X POST http://localhost:11434/api/generate \
 
 ---
 
-## 3. Diagnóstico (Incidente)
+## 3. Diagnostics (Incident)
 
-### Síntoma: Container no arranca
+### Symptom: Container won't start
 
 ```bash
 docker service logs ollama_ollama --tail 30
 
-# Error común: GPU no disponible
+# Common error: GPU not available
 # "CUDA error: no kernel image is available for execution on the device"
-# Fix: verificar que el runtime NVIDIA está activo en master2:
+# Fix: verify the NVIDIA runtime is active on master2:
 docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
 
-# Error: Generic resource no reservado
-# Verificar en stack.yml que generic_resources esté definido
+# Error: Generic resource not reserved
+# Check that generic_resources is defined in stack.yml
 ```
 
-### Síntoma: Inferencia muy lenta (usando CPU en lugar de GPU)
+### Symptom: Inference very slow (using CPU instead of GPU)
 
 ```bash
-# Ver logs — busca "GPU" en el arranque
+# Check logs — look for "GPU" at startup
 docker service logs ollama_ollama | grep -i "gpu\|cuda\|nvidia"
-# Si ves "No GPU found" → el runtime no está configurado
+# If you see "No GPU found" → runtime is not configured
 
-# Fix: verificar daemon.json en master2
+# Fix: check daemon.json on master2
 cat /etc/docker/daemon.json | grep -i runtime
-# Debe mostrar: "default-runtime": "nvidia"
+# Must show: "default-runtime": "nvidia"
 
-# Reiniciar Docker si es necesario
+# Restart Docker if needed
 sudo systemctl restart docker
 ```
 
-### Síntoma: OOM / modelo no carga (VRAM insuficiente)
+### Symptom: OOM / model won't load (insufficient VRAM)
 
 ```bash
-# En master2
-nvidia-smi   # Ver VRAM disponible
+# On master2
+nvidia-smi   # Check available VRAM
 
-# Si otro proceso ocupa VRAM (ej: Jupyter con modelo cargado):
-# 1. Reducir OLLAMA_MAX_LOADED_MODELS=1 en stack.yml
-# 2. Usar modelos más pequeños (llama3:8b en lugar de 70b)
-# 3. Usar cuantización menor (Q4 en lugar de Q8)
+# If another process is using VRAM (e.g. Jupyter with a loaded model):
+# 1. Set OLLAMA_MAX_LOADED_MODELS=1 in stack.yml
+# 2. Use smaller models (llama3:8b instead of 70b)
+# 3. Use lower quantization (Q4 instead of Q8)
 ```
 
 ---
 
-## 4. Uso desde Jupyter (red interna)
+## 4. Using from Jupyter (internal network)
 
 ```python
 import requests
 
 def query_ollama(prompt: str, model: str = "llama3") -> str:
-    """Inferencia via Ollama — acceso interno sin auth."""
+    """Inference via Ollama — internal access, no auth required."""
     response = requests.post(
         "http://ollama:11434/api/generate",
         json={"model": model, "prompt": prompt, "stream": False},
@@ -155,19 +155,19 @@ def embed(text: str, model: str = "nomic-embed-text") -> list:
     return response.json()["embedding"]
 
 # Test
-print(query_ollama("¿Cuál es la capital de Francia?"))
+print(query_ollama("What is the capital of France?"))
 ```
 
 ---
 
-## 5. Redespliegue
+## 5. Redeploy
 
 ```bash
-# En master1:
+# On master1:
 docker stack deploy -c stacks/ai-ml/02-ollama/stack.yml ollama
 
-# Los modelos sobreviven (están en /srv/datalake/models/ollama, bind mount)
-# Verificar:
+# Models survive (they are in /srv/datalake/models/ollama, bind mount)
+# Verify:
 docker service ps ollama_ollama
 docker exec -it $(docker ps -q -f name=ollama_ollama) ollama list
 ```

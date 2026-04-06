@@ -1,4 +1,4 @@
-# Ollama - LLM Inference Engine
+# Ollama — LLM Inference Engine
 
 ## Overview
 
@@ -8,20 +8,20 @@ Ollama provides GPU-accelerated LLM inference for models like Llama 3, Mistral, 
 **Endpoint:** `https://ollama.sexydad`  
 **Security:** BasicAuth + LAN Whitelist
 
-> **⚠️ Importante:** Para acceder desde tu máquina local (Postman, browser), debes:
-> 
-> 1. **Agregar en tu archivo hosts:**
+> **Note:** To access from your local machine (Postman, browser):
+>
+> 1. **Add to your hosts file:**
 >    - Linux/Mac: `/etc/hosts`
 >    - Windows: `C:\Windows\System32\drivers\etc\hosts`
 >    ```
->    192.168.80.100 ollama.sexydad
+>    <master1-ip>  ollama.sexydad
 >    ```
-> 
-> 2. **Desactivar verificación SSL** (certificado autofirmado):
+>
+> 2. **Disable SSL verification** (self-signed certificate):
 >    - **Postman:** Settings → General → SSL certificate verification (OFF)
->    - **cURL:** Usar flag `-k` o `--insecure`
+>    - **cURL:** Use flag `-k` or `--insecure`
 >    ```bash
->    curl -k -u ogiovanni:password https://ollama.sexydad/api/tags
+>    curl -k -u <admin-user>:<your-password> https://ollama.sexydad/api/tags
 >    ```
 
 ## Prerequisites
@@ -35,7 +35,7 @@ Ollama provides GPU-accelerated LLM inference for models like Llama 3, Mistral, 
 ### 1. Create model storage directory
 
 ```bash
-ssh master2
+ssh <admin-user>@<master2-ip>
 sudo mkdir -p /srv/datalake/models/ollama
 sudo chown root:docker /srv/datalake/models/ollama
 sudo chmod 2775 /srv/datalake/models/ollama
@@ -49,9 +49,9 @@ docker secret create ollama_basicauth secrets/ollama_basicauth
 
 ### 3. Add Traefik middleware (one-time setup)
 
-El middleware `ollama-auth` se define como label en el stack de Traefik (igual que jupyter-auth). Ya está configurado si desplegaste con el stack actualizado.
+The `ollama-auth` middleware is defined as a label in the Traefik stack (same as jupyter-auth). Already configured if you deployed with the updated stack.
 
-Verificar:
+Verify:
 ```bash
 docker service inspect traefik_traefik --format '{{json .Spec.Labels}}' | grep ollama-auth
 ```
@@ -70,20 +70,20 @@ docker service ps ollama_ollama
 docker service logs ollama_ollama -f
 ```
 
-## 🔐 Authentication
+## Authentication
 
 All API requests require **BasicAuth**:
 
-- **Username:** `ogiovanni` or `odavid`
-- **Password:** Same as Jupyter password
+- **Username:** `<admin-user>` or `<second-user>`
+- **Password:** `<your-password>`
 
 ---
 
-## 📚 API Reference
+## API Reference
 
 Base URL: `https://ollama.sexydad`
 
-### 1. Health Check - List Models
+### 1. Health Check — List Models
 
 ```http
 GET /api/tags
@@ -266,12 +266,12 @@ Content-Type: application/json
 
 ---
 
-## 🧪 Postman Configuration
+## Postman Configuration
 
 ### Setup
 1. Create new request
 2. Set Auth Type: **Basic Auth**
-   - Username: `ogiovanni`
+   - Username: `<admin-user>`
    - Password: `<your-password>`
 3. Base URL: `https://ollama.sexydad`
 
@@ -304,7 +304,7 @@ Body (JSON):
 
 ---
 
-## 🐍 Usage from Python
+## Usage from Python
 
 ### Basic Example
 
@@ -313,7 +313,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 BASE_URL = "https://ollama.sexydad"
-AUTH = HTTPBasicAuth("ogiovanni", "your-password")
+AUTH = HTTPBasicAuth("<admin-user>", "<your-password>")
 
 def list_models():
     response = requests.get(f"{BASE_URL}/api/tags", auth=AUTH)
@@ -389,7 +389,7 @@ from requests.auth import HTTPBasicAuth
 def generate_streaming(prompt, model="llama3.2:3b"):
     response = requests.post(
         "https://ollama.sexydad/api/generate",
-        auth=HTTPBasicAuth("ogiovanni", "your-password"),
+        auth=HTTPBasicAuth("<admin-user>", "<your-password>"),
         json={
             "model": model,
             "prompt": prompt,
@@ -397,7 +397,7 @@ def generate_streaming(prompt, model="llama3.2:3b"):
         },
         stream=True
     )
-    
+
     for line in response.iter_lines():
         if line:
             chunk = json.loads(line)
@@ -413,7 +413,7 @@ generate_streaming("Write a short poem about AI")
 
 ---
 
-## 🎯 Recommended Models for RTX 2080 Ti (11GB VRAM)
+## Recommended Models for RTX 2080 Ti (11GB VRAM)
 
 | Model | Size | VRAM | Speed | Use Case |
 |-------|------|------|-------|----------|
@@ -439,7 +439,7 @@ POST https://ollama.sexydad/api/pull
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Check if service is running
 ```bash
@@ -455,21 +455,21 @@ docker run --rm --network internal curlimages/curl:latest \
 
 ### Check GPU usage
 ```bash
-ssh master2
+ssh <admin-user>@<master2-ip>
 nvidia-smi
 watch -n 1 nvidia-smi
 ```
 
 ### View model storage
 ```bash
-ssh master2
+ssh <admin-user>@<master2-ip>
 ls -lh /srv/datalake/models/ollama/models/
 du -sh /srv/datalake/models/ollama/
 ```
 
 ---
 
-## 📊 Performance Tips
+## Performance Tips
 
 1. **Keep models loaded:** Set `OLLAMA_KEEP_ALIVE=5m` to avoid reload overhead
 2. **Use smaller models:** 3B models are 2-3x faster than 7B
@@ -479,7 +479,7 @@ du -sh /srv/datalake/models/ollama/
 
 ---
 
-## 🔗 Integration Examples
+## Integration Examples
 
 ### n8n Integration
 Use HTTP Request node with BasicAuth to call Ollama API for automation workflows.

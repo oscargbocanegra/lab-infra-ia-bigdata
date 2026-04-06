@@ -1,81 +1,81 @@
-# Checklist de Infra — lab-infra-ia-bigdata
+# Infrastructure Checklist — lab-infra-ia-bigdata
 
-Última actualización: 2026-03-30 — Fase 5: MinIO + Spark + Airflow implementados
+Last updated: 2026-03-30 — Phase 5: MinIO + Spark + Airflow implemented
 
-Este documento centraliza el **estado real** (OK / Pendiente) para levantar la infraestructura completa del laboratorio, con **orden recomendado**, **dependencias** y **verificaciones mínimas**.
-
----
-
-## Leyenda
-
-- ✅ **OK**: implementado, verificado y persistente.
-- ⏳ **PEND / EN CURSO**: falta implementar o en proceso de optimización.
-- [~] **PEND (no bloquea)**: pendiente, pero no impide continuar con el siguiente bloque.
-- **NEXT**: siguiente bloque de trabajo sugerido.
+This document centralizes the **real state** (OK / Pending) to bring up the complete lab infrastructure, with **recommended order**, **dependencies** and **minimum verification steps**.
 
 ---
 
-## Prerequisitos generales (antes de cualquier stack)
+## Legend
 
-Acceso y base del sistema:
-
-- ✅ Acceso SSH entre nodos (master1 ↔ master2) operativo
-- ✅ Docker Engine instalado y funcionando en ambos nodos
-- ✅ Usuarios operativos con permisos (ideal: pertenecer al grupo `docker`)
-- ✅ **GPU NVIDIA RTX 2080 Ti** registrada como Generic Resource en Swarm (master2)
-- ✅ **`default-runtime: nvidia`** en `/etc/docker/daemon.json` de master2 (requerido para Jupyter + Ollama GPU)
-
-Red / naming:
-
-- ✅ Hostnames internos con sufijo `<INTERNAL_DOMAIN>` definidos
-- ✅ Resolución desde LAN validada (incluye pruebas con `--resolve` desde master2)
-- ⏳ (Opcional) DNS interno formal para `*.<INTERNAL_DOMAIN>` (router/DNS local) [~]
-
-Hardening mínimo recomendado (no bloquea, pero conviene):
-
-- ⏳ Actualizaciones de seguridad aplicadas (apt/yum) [~]
-- ⏳ Sincronización horaria (NTP/chrony) verificada [~]
-- ⏳ Firewall revisado (puertos Swarm + 80/443 en master1) [~]
+- ✅ **OK**: implemented, verified and persistent.
+- ⏳ **PEND / IN PROGRESS**: not yet implemented or in optimization.
+- [~] **PEND (non-blocking)**: pending, but does not block the next block.
+- **NEXT**: next suggested work block.
 
 ---
 
-## Resumen ejecutivo (Estado de Despliegue)
+## General prerequisites (before any stack)
 
-| # | Stack | Estado | Versión/Detalle |
-|---|-------|--------|-----------------|
+Access and system base:
+
+- ✅ SSH access between nodes (master1 ↔ master2) operational
+- ✅ Docker Engine installed and running on both nodes
+- ✅ Operational users with permissions (ideally: members of `docker` group)
+- ✅ **GPU NVIDIA RTX 2080 Ti** registered as Generic Resource in Swarm (master2)
+- ✅ **`default-runtime: nvidia`** in `/etc/docker/daemon.json` on master2 (required for Jupyter + Ollama GPU)
+
+Network / naming:
+
+- ✅ Internal hostnames with `<INTERNAL_DOMAIN>` suffix defined
+- ✅ LAN resolution validated (includes tests with `--resolve` from master2)
+- ⏳ (Optional) Formal internal DNS for `*.<INTERNAL_DOMAIN>` (router/local DNS) [~]
+
+Minimum recommended hardening (non-blocking, but advisable):
+
+- ⏳ Security updates applied (apt/yum) [~]
+- ⏳ Time synchronization (NTP/chrony) verified [~]
+- ⏳ Firewall reviewed (Swarm ports + 80/443 on master1) [~]
+
+---
+
+## Executive summary (Deployment State)
+
+| # | Stack | State | Version/Detail |
+|---|-------|-------|----------------|
 | 1 | **Traefik** | ✅ | Reverse Proxy + TLS + BasicAuth |
-| 2 | **Portainer** | ✅ | v2.39.1 - Web UI para Swarm |
+| 2 | **Portainer** | ✅ | v2.39.1 - Web UI for Swarm |
 | 3 | **Postgres** | ✅ | v16 - Multi-DB: postgres, n8n, airflow |
 | 4 | **n8n** | ✅ | Automation Core + Postgres Backend |
-| 5 | **Jupyter Lab** | ✅ | Multi-usuario + GPU + Kernels IA/LLM/BigData |
-| 6 | **Ollama** | ✅ | v0.6.1 LLM API + GPU (RTX 2080 Ti) - OPERATIVO |
-| 7 | **OpenSearch** | ✅ | v2.19.4 - Search & Analytics + Dashboards UI - OPERATIVO |
-| 8 | **MinIO** | ⏳ | Stack listo — pendiente deploy + crear buckets |
-| 9 | **Spark** | ⏳ | Stack listo — pendiente deploy + crear bucket spark-warehouse/history |
-| 10 | **Airflow** | ⏳ | Stack listo — pendiente deploy + secrets + db init |
-| 11 | **Backups/Hardening** | ⏳ | Pendiente planificación |
+| 5 | **Jupyter Lab** | ✅ | Multi-user + GPU + AI/LLM/BigData Kernels |
+| 6 | **Ollama** | ✅ | v0.6.1 LLM API + GPU (RTX 2080 Ti) - OPERATIONAL |
+| 7 | **OpenSearch** | ✅ | v2.19.4 - Search & Analytics + Dashboards UI - OPERATIONAL |
+| 8 | **MinIO** | ⏳ | Stack ready — pending deploy + create buckets |
+| 9 | **Spark** | ⏳ | Stack ready — pending deploy + create spark-warehouse/history bucket |
+| 10 | **Airflow** | ⏳ | Stack ready — pending deploy + secrets + db init |
+| 11 | **Backups/Hardening** | ⏳ | Pending planning |
 
 ---
 
-## Mapa del repo (Donde vive cada stack)
+## Repo map (Where each stack lives)
 
-Stacks implementados y funcionales (operativos en cluster):
+Implemented and functional stacks (operational in cluster):
 
 - **Traefik**: [stacks/core/00-traefik/stack.yml](stacks/core/00-traefik/stack.yml)
 - **Portainer**: [stacks/core/01-portainer/stack.yml](stacks/core/01-portainer/stack.yml)
 - **Postgres**: [stacks/core/02-postgres/stack.yml](stacks/core/02-postgres/stack.yml)
 - **n8n**: [stacks/automation/02-n8n/stack.yml](stacks/automation/02-n8n/stack.yml)
 - **Jupyter**: [stacks/ai-ml/01-jupyter/stack.yml](stacks/ai-ml/01-jupyter/stack.yml)
-- **Ollama**: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml) ✅ OPERATIVO
-- **OpenSearch**: [stacks/data/11-opensearch/stack.yml](stacks/data/11-opensearch/stack.yml) ✅ OPERATIVO
+- **Ollama**: [stacks/ai-ml/02-ollama/stack.yml](stacks/ai-ml/02-ollama/stack.yml) ✅ OPERATIONAL
+- **OpenSearch**: [stacks/data/11-opensearch/stack.yml](stacks/data/11-opensearch/stack.yml) ✅ OPERATIONAL
 
-Stacks listos para deploy (código completo, pendiente ejecución):
+Stacks ready to deploy (code complete, pending execution):
 
 - **MinIO**: [stacks/data/12-minio/stack.yml](stacks/data/12-minio/stack.yml)
 - **Spark**: [stacks/data/98-spark/stack.yml](stacks/data/98-spark/stack.yml)
 - **Airflow**: [stacks/automation/03-airflow/stack.yml](stacks/automation/03-airflow/stack.yml)
 
-Runbooks disponibles:
+Available runbooks:
 
 - [docs/runbooks/runbook_traefik.md](docs/runbooks/runbook_traefik.md)
 - [docs/runbooks/runbook_postgres.md](docs/runbooks/runbook_postgres.md)
@@ -90,46 +90,46 @@ Runbooks disponibles:
 
 ---
 
-## Gestión de secrets y certificados (Swarm)
+## Secrets and certificate management (Swarm)
 
-Principios:
+Principles:
 
-- ✅ No versionar secretos en Git (cubierto por `.gitignore`)
-- ✅ Usar Docker Swarm secrets para valores sensibles
-- ✅ Nombres en `snake_case`, con prefijo por stack (ej: `postgres_*`, `n8n_*`, `airflow_*`)
+- ✅ Do not version secrets in Git (covered by `.gitignore`)
+- ✅ Use Docker Swarm secrets for sensitive values
+- ✅ Names in `snake_case`, with stack prefix (e.g.: `postgres_*`, `n8n_*`, `airflow_*`)
 
-### Inventario de secrets
+### Secrets inventory
 
-| Secret | Stack | Estado |
-|--------|-------|--------|
-| `traefik_basic_auth` | Traefik | ✅ Creado |
-| `traefik_tls_cert` | Traefik | ✅ Creado |
-| `traefik_tls_key` | Traefik | ✅ Creado |
-| `jupyter_basicauth_v2` | Traefik/Jupyter | ✅ Creado |
-| `ollama_basicauth` | Traefik/Ollama | ✅ Creado |
-| `opensearch_basicauth` | Traefik/OpenSearch | ✅ Creado |
-| `dashboards_basicauth` | Traefik/Dashboards | ✅ Creado |
-| `pg_super_pass` | Postgres | ✅ Creado |
-| `pg_n8n_pass` | Postgres, n8n | ✅ Creado |
-| `pg_airflow_pass` | Postgres, Airflow | ⏳ **Crear antes de deploy** |
-| `minio_access_key` | MinIO, Spark, Jupyter, Airflow | ⏳ **Crear antes de deploy** |
-| `minio_secret_key` | MinIO, Spark, Jupyter, Airflow | ⏳ **Crear antes de deploy** |
-| `airflow_fernet_key` | Airflow | ⏳ **Crear antes de deploy** |
-| `airflow_webserver_secret` | Airflow | ⏳ **Crear antes de deploy** |
+| Secret | Stack | State |
+|--------|-------|-------|
+| `traefik_basic_auth` | Traefik | ✅ Created |
+| `traefik_tls_cert` | Traefik | ✅ Created |
+| `traefik_tls_key` | Traefik | ✅ Created |
+| `jupyter_basicauth_v2` | Traefik/Jupyter | ✅ Created |
+| `ollama_basicauth` | Traefik/Ollama | ✅ Created |
+| `opensearch_basicauth` | Traefik/OpenSearch | ✅ Created |
+| `dashboards_basicauth` | Traefik/Dashboards | ✅ Created |
+| `pg_super_pass` | Postgres | ✅ Created |
+| `pg_n8n_pass` | Postgres, n8n | ✅ Created |
+| `pg_airflow_pass` | Postgres, Airflow | ⏳ **Create before deploy** |
+| `minio_access_key` | MinIO, Spark, Jupyter, Airflow | ⏳ **Create before deploy** |
+| `minio_secret_key` | MinIO, Spark, Jupyter, Airflow | ⏳ **Create before deploy** |
+| `airflow_fernet_key` | Airflow | ⏳ **Create before deploy** |
+| `airflow_webserver_secret` | Airflow | ⏳ **Create before deploy** |
 
-### Comandos para crear los secrets nuevos
+### Commands to create new secrets
 
 ```bash
-# En master1 (Swarm manager):
+# On master1 (Swarm manager):
 
 # pg_airflow_pass
 echo "$(openssl rand -base64 32)" | docker secret create pg_airflow_pass -
 
-# MinIO credentials (access key: mínimo 3 chars, secret key: mínimo 8 chars)
-echo "minioadmin" | docker secret create minio_access_key -
+# MinIO credentials (access key: min 3 chars, secret key: min 8 chars)
+echo "<minio-admin-user>" | docker secret create minio_access_key -
 echo "$(openssl rand -base64 32)" | docker secret create minio_secret_key -
 
-# Airflow Fernet key (DEBE ser una clave Fernet válida de 32 bytes base64url)
+# Airflow Fernet key (MUST be a valid Fernet key of 32 bytes base64url)
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" | docker secret create airflow_fernet_key -
 
 # Airflow webserver secret key (Flask)
@@ -138,114 +138,114 @@ echo "$(openssl rand -hex 32)" | docker secret create airflow_webserver_secret -
 
 ---
 
-## Inventario de endpoints (LAN)
+## Endpoint inventory (LAN)
 
-| Servicio | URL | Estado |
-|----------|-----|--------|
+| Service | URL | State |
+|---------|-----|-------|
 | **Traefik Dashboard** | `https://traefik.sexydad` | ✅ |
 | **Portainer** | `https://portainer.sexydad` | ✅ |
 | **n8n** | `https://n8n.sexydad` | ✅ |
-| **Jupyter (ogiovanni)** | `https://jupyter-ogiovanni.sexydad` | ✅ |
-| **Jupyter (odavid)** | `https://jupyter-odavid.sexydad` | ✅ |
-| **Ollama** | `https://ollama.sexydad` | ✅ OPERATIVO |
-| **OpenSearch API** | `https://opensearch.sexydad` | ✅ OPERATIVO |
-| **OpenSearch Dashboards** | `https://dashboards.sexydad` | ✅ OPERATIVO |
-| **MinIO Console** | `https://minio.sexydad` | ⏳ Pendiente deploy |
-| **MinIO S3 API** | `https://minio-api.sexydad` | ⏳ Pendiente deploy |
-| **Spark Master UI** | `https://spark-master.sexydad` | ⏳ Pendiente deploy |
-| **Spark History Server** | `https://spark-history.sexydad` | ⏳ Pendiente deploy |
-| **Airflow** | `https://airflow.sexydad` | ⏳ Pendiente deploy |
-| **Airflow Flower** | `https://airflow-flower.sexydad` | ⏳ Pendiente deploy |
+| **Jupyter (<admin-user>)** | `https://jupyter-<admin-user>.sexydad` | ✅ |
+| **Jupyter (<second-user>)** | `https://jupyter-<second-user>.sexydad` | ✅ |
+| **Ollama** | `https://ollama.sexydad` | ✅ OPERATIONAL |
+| **OpenSearch API** | `https://opensearch.sexydad` | ✅ OPERATIONAL |
+| **OpenSearch Dashboards** | `https://dashboards.sexydad` | ✅ OPERATIONAL |
+| **MinIO Console** | `https://minio.sexydad` | ⏳ Pending deploy |
+| **MinIO S3 API** | `https://minio-api.sexydad` | ⏳ Pending deploy |
+| **Spark Master UI** | `https://spark-master.sexydad` | ⏳ Pending deploy |
+| **Spark History Server** | `https://spark-history.sexydad` | ⏳ Pending deploy |
+| **Airflow** | `https://airflow.sexydad` | ⏳ Pending deploy |
+| **Airflow Flower** | `https://airflow-flower.sexydad` | ⏳ Pending deploy |
 
-### /etc/hosts a configurar en clientes LAN
+### /etc/hosts to configure on LAN clients
 
 ```
-192.168.80.100  traefik.sexydad
-192.168.80.100  portainer.sexydad
-192.168.80.100  n8n.sexydad
-192.168.80.100  opensearch.sexydad
-192.168.80.100  dashboards.sexydad
-192.168.80.100  ollama.sexydad
-192.168.80.100  jupyter-ogiovanni.sexydad
-192.168.80.100  jupyter-odavid.sexydad
-192.168.80.100  minio.sexydad
-192.168.80.100  minio-api.sexydad
-192.168.80.100  spark-master.sexydad
-192.168.80.100  spark-worker.sexydad
-192.168.80.100  spark-history.sexydad
-192.168.80.100  airflow.sexydad
-192.168.80.100  airflow-flower.sexydad
+<master1-ip>  traefik.sexydad
+<master1-ip>  portainer.sexydad
+<master1-ip>  n8n.sexydad
+<master1-ip>  opensearch.sexydad
+<master1-ip>  dashboards.sexydad
+<master1-ip>  ollama.sexydad
+<master1-ip>  jupyter-<admin-user>.sexydad
+<master1-ip>  jupyter-<second-user>.sexydad
+<master1-ip>  minio.sexydad
+<master1-ip>  minio-api.sexydad
+<master1-ip>  spark-master.sexydad
+<master1-ip>  spark-worker.sexydad
+<master1-ip>  spark-history.sexydad
+<master1-ip>  airflow.sexydad
+<master1-ip>  airflow-flower.sexydad
 ```
 
 ---
 
-## Fase 1 — Base del cluster (Swarm / red / labels)
+## Phase 1 — Cluster base (Swarm / network / labels)
 
 ### Docker + Swarm
-- ✅ Docker instalado en master1
-- ✅ Docker instalado en master2
-- ✅ Swarm inicializado en master1 (manager/leader)
-- ✅ master2 unido al Swarm como worker
+- ✅ Docker installed on master1
+- ✅ Docker installed on master2
+- ✅ Swarm initialized on master1 (manager/leader)
+- ✅ master2 joined Swarm as worker
 
-Verificaciones:
+Verifications:
 
-- ✅ `docker node ls` muestra master1 (Leader) + master2 (Ready)
-- ✅ `docker info` indica Swarm: active
+- ✅ `docker node ls` shows master1 (Leader) + master2 (Ready)
+- ✅ `docker info` indicates Swarm: active
 
 ### Networking (overlay)
-- ✅ Red overlay `public` creada (attachable)
-- ✅ Red overlay `internal` creada (attachable)
+- ✅ `public` overlay network created (attachable)
+- ✅ `internal` overlay network created (attachable)
 
-### Labels de nodos & Recursos
-- ✅ Labels en master1 aplicados y verificados (ej: `tier=control`, `node_role=manager`)
-- ✅ Labels en master2 aplicados y verificados (ej: `tier=compute`, `storage=primary`, `gpu=nvidia`)
-- ✅ **Generic Resource GPU**: Registrada en `master2` (`nvidia.com/gpu=1`) para permitir `reservations` en Swarm mode.
+### Node labels & Resources
+- ✅ Labels on master1 applied and verified (e.g.: `tier=control`, `node_role=manager`)
+- ✅ Labels on master2 applied and verified (e.g.: `tier=compute`, `storage=primary`, `gpu=nvidia`)
+- ✅ **Generic Resource GPU**: Registered on `master2` (`nvidia.com/gpu=1`) to allow `reservations` in Swarm mode.
 
-Verificaciones:
+Verifications:
 
-- ✅ `docker node inspect master2 --format '{{ json .Description.Resources.GenericResources }}'` muestra la GPU.
+- ✅ `docker node inspect master2 --format '{{ json .Description.Resources.GenericResources }}'` shows the GPU.
 
-**Resultado:** control-plane listo y red Swarm operativa con soporte GPU.
-
----
-
-## Fase 2 — Storage en master2 (HDD datalake)
-
-- ✅ Montaje `/srv/datalake` confirmado (HDD ~1.8T)
-- ✅ Persistencia en `/etc/fstab` confirmada (LABEL/UUID) y montando
-
-Verificaciones:
-
-- ✅ `df -h | grep /srv/datalake` muestra tamaño esperado
-- ✅ Reboot y remount validado
+**Result:** control-plane ready and Swarm network operational with GPU support.
 
 ---
 
-## Fase 3 — Volúmenes y estructura en master2 (NVMe fastdata + carpetas)
+## Phase 2 — Storage on master2 (HDD datalake)
 
-### LVM + montaje
-- ✅ LVM creado: LV `fastdata` = 600G
-- ✅ Formateado ext4 y montado en `/srv/fastdata`
-- ✅ Persistencia vía `/etc/fstab` (UUID)
-- ✅ Reboot real validado
+- ✅ `/srv/datalake` mount confirmed (HDD ~1.8T)
+- ✅ Persistence in `/etc/fstab` confirmed (LABEL/UUID) and mounting
 
-### Estructura de carpetas existente
+Verifications:
 
-NVMe (rápido):
+- ✅ `df -h | grep /srv/datalake` shows expected size
+- ✅ Reboot and remount validated
+
+---
+
+## Phase 3 — Volumes and structure on master2 (NVMe fastdata + directories)
+
+### LVM + mount
+- ✅ LVM created: LV `fastdata` = 600G
+- ✅ Formatted ext4 and mounted at `/srv/fastdata`
+- ✅ Persistence via `/etc/fstab` (UUID)
+- ✅ Real reboot validated
+
+### Existing directory structure
+
+NVMe (fast):
 - ✅ `/srv/fastdata/postgres`
 - ✅ `/srv/fastdata/n8n`
 - ✅ `/srv/fastdata/opensearch`
 - ✅ `/srv/fastdata/airflow`
-- ✅ `/srv/fastdata/jupyter/{ogiovanni,odavid}`
+- ✅ `/srv/fastdata/jupyter/{<admin-user>,<second-user>}`
 - ✅ `/srv/fastdata/jupyter/{user}/.venv`
 - ✅ `/srv/fastdata/jupyter/{user}/.local`
 
-Nuevas carpetas a crear (Fase 5 — antes de deploy):
-- ⏳ `/srv/fastdata/airflow/dags` — DAGs en master1 **y** master2
-- ⏳ `/srv/fastdata/airflow/logs` — en master1
-- ⏳ `/srv/fastdata/airflow/plugins` — en master1
-- ⏳ `/srv/fastdata/airflow/redis` — en master1
-- ⏳ `/srv/fastdata/spark-tmp` — en master2 (shuffle/spill Spark Worker)
+New directories to create (Phase 5 — before deploy):
+- ⏳ `/srv/fastdata/airflow/dags` — DAGs on master1 **and** master2
+- ⏳ `/srv/fastdata/airflow/logs` — on master1
+- ⏳ `/srv/fastdata/airflow/plugins` — on master1
+- ⏳ `/srv/fastdata/airflow/redis` — on master1
+- ⏳ `/srv/fastdata/spark-tmp` — on master2 (Spark Worker shuffle/spill)
 
 HDD (datalake):
 - ✅ `/srv/datalake/datasets`
@@ -253,19 +253,19 @@ HDD (datalake):
 - ✅ `/srv/datalake/notebooks`
 - ✅ `/srv/datalake/artifacts`
 - ✅ `/srv/datalake/backups`
-- ⏳ `/srv/datalake/minio` — en master2 (volumen principal de MinIO)
+- ⏳ `/srv/datalake/minio` — on master2 (MinIO main volume)
 
-### Permisos para nuevas carpetas
+### Permissions for new directories
 
 ```bash
-# En master1:
+# On master1:
 sudo mkdir -p /srv/fastdata/airflow/{dags,logs,plugins,redis}
 sudo chown root:docker /srv/fastdata/airflow/{dags,logs,plugins,redis}
 sudo chmod 2775 /srv/fastdata/airflow/{dags,logs,plugins,redis}
-# Airflow corre como UID 50000:
+# Airflow runs as UID 50000:
 sudo chown 50000:50000 /srv/fastdata/airflow/{dags,logs,plugins}
 
-# En master2:
+# On master2:
 sudo mkdir -p /srv/fastdata/airflow/{dags,logs,plugins}
 sudo chown 50000:50000 /srv/fastdata/airflow/{dags,logs,plugins}
 
@@ -278,231 +278,231 @@ sudo chown root:docker /srv/datalake/minio
 sudo chmod 2775 /srv/datalake/minio
 ```
 
-**Resultado:** persistencia alineada para desplegar stateful sin sorpresas.
+**Result:** persistence aligned to deploy stateful services without surprises.
 
 ---
 
-## Fase 4 — Infra como código (repo)
+## Phase 4 — Infrastructure as code (repo)
 
-- ✅ Repo creado: `lab-infra-ia-bigdata`
-- ✅ Estructura base aplicada (`docs/`, `envs/`, `scripts/`, `stacks/`, etc.)
-- ✅ `.gitignore` cubre `.env`, `secrets/`, keys, passwords, etc.
+- ✅ Repo created: `lab-infra-ia-bigdata`
+- ✅ Base structure applied (`docs/`, `envs/`, `scripts/`, `stacks/`, etc.)
+- ✅ `.gitignore` covers `.env`, `secrets/`, keys, passwords, etc.
 
 ---
 
-## Bloque — Postgres (master2) ✅
+## Block — Postgres (master2) ✅
 
-Objetivo: Postgres stateful en Swarm, persistiendo en `/srv/fastdata/postgres`, accesible por red `internal`.
+Objective: Stateful Postgres in Swarm, persisting to `/srv/fastdata/postgres`, accessible via `internal` network.
 
 Secrets:
 - ✅ `pg_super_pass`
 - ✅ `pg_n8n_pass`
-- ⏳ `pg_airflow_pass` — crear antes del redeploy
+- ⏳ `pg_airflow_pass` — create before redeploy
 
-**IMPORTANTE al redesplegar**: PostgreSQL init scripts solo corren en volumen vacío.
-Si el volumen ya tiene datos, hay que:
-1. Bajar todos los servicios que usen Postgres (n8n, airflow)
+**IMPORTANT on redeploy**: PostgreSQL init scripts only run on an empty volume.
+If the volume already has data, you must:
+1. Bring down all services using Postgres (n8n, airflow)
 2. `docker service rm postgres_postgres`
-3. Borrar el volumen: `sudo rm -rf /srv/fastdata/postgres`
-4. Redesplegar Postgres — los init scripts crearán n8n, airflow automáticamente.
+3. Delete the volume: `sudo rm -rf /srv/fastdata/postgres`
+4. Redeploy Postgres — init scripts will automatically create n8n and airflow.
 
-Criterios de "OK":
-- ✅ Servicio estable.
-- ⏳ DB `airflow` y rol `airflow` creados por initdb.
-- ✅ Persistencia verificada tras reinicio.
-
----
-
-## Bloque — n8n (master2) ✅
-
-Objetivo: n8n conectado a Postgres para automatización de flujos con acceso seguro vía Traefik.
-
-Criterios de "OK":
-- ✅ El servicio queda `running` y estable.
-- ✅ Conexión a Postgres validada.
-- ✅ URL responde: `https://n8n.sexydad`
+Done criteria:
+- ✅ Service stable.
+- ⏳ DB `airflow` and role `airflow` created by initdb.
+- ✅ Persistence verified after reboot.
 
 ---
 
-## Bloque — Jupyter Lab (master2) ✅
+## Block — n8n (master2) ✅
 
-Objetivo: Entorno Multi-usuario (ogiovanni, odavid) optimizado para IA/LLM/BigData con GPU.
+Objective: n8n connected to Postgres for workflow automation with secure access via Traefik.
+
+Done criteria:
+- ✅ Service stays `running` and stable.
+- ✅ Postgres connection validated.
+- ✅ URL responds: `https://n8n.sexydad`
+
+---
+
+## Block — Jupyter Lab (master2) ✅
+
+Objective: Multi-user environment (<admin-user>, <second-user>) optimized for AI/LLM/BigData with GPU.
 
 Checklist:
-- ✅ (Repo) Stack actualizado con kernels IA, LLM, BigData (PySpark + Delta + boto3)
-- ✅ Reservations ajustadas (2 CPUs / 4GB) para dejar headroom a Spark + Airflow
-- ✅ Secrets MinIO montados (`minio_access_key`, `minio_secret_key`)
-- ✅ entrypoint.sh exporta `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL`
-- ✅ GPU reservation habilitada
+- ✅ (Repo) Stack updated with AI, LLM, BigData kernels (PySpark + Delta + boto3)
+- ✅ Reservations adjusted (2 CPUs / 4GB) to leave headroom for Spark + Airflow
+- ✅ MinIO secrets mounted (`minio_access_key`, `minio_secret_key`)
+- ✅ entrypoint.sh exports `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL`
+- ✅ GPU reservation enabled
 
-Criterios de "OK":
-- ✅ Jupyter responde en: `https://jupyter-{user}.sexydad`
-- ✅ `torch.cuda.is_available()` es `True`
-- ✅ Kernel BigData puede conectarse a `spark://spark_master:7077`
-- ✅ `boto3.client('s3', endpoint_url='http://minio:9000')` funciona
-
----
-
-## Bloque — Ollama (master2) ✅ OPERATIVO
-
-Estado actual:
-- ✅ **OPERATIVO** - Servicio desplegado y corriendo en master2.
-- ✅ GPU detectada y disponible (11GB VRAM). Versión: 0.6.1
-- ✅ API REST respondiendo correctamente.
-- ⏳ Pendiente: Descargar modelos LLM (bajo demanda).
+Done criteria:
+- ✅ Jupyter responds at: `https://jupyter-{user}.sexydad`
+- ✅ `torch.cuda.is_available()` is `True`
+- ✅ BigData kernel can connect to `spark://spark_master:7077`
+- ✅ `boto3.client('s3', endpoint_url='http://minio:9000')` works
 
 ---
 
-## Bloque — OpenSearch (master1) ✅ OPERATIVO
+## Block — Ollama (master2) ✅ OPERATIONAL
 
-Estado actual:
-- ✅ **OPERATIVO** - Cluster status GREEN, versión 2.19.4
-- ✅ OpenSearch Dashboards UI operativa.
+Current state:
+- ✅ **OPERATIONAL** - Service deployed and running on master2.
+- ✅ GPU detected and available (11GB VRAM). Version: 0.6.1
+- ✅ REST API responding correctly.
+- ⏳ Pending: Download LLM models (on demand).
 
 ---
 
-## Bloque — MinIO (master2) ⏳ NEXT
+## Block — OpenSearch (master1) ✅ OPERATIONAL
 
-Prerequisitos:
-- ⏳ Secret `minio_access_key` creado en Swarm
-- ⏳ Secret `minio_secret_key` creado en Swarm
-- ⏳ Directorio `/srv/datalake/minio` creado en master2 con permisos correctos
+Current state:
+- ✅ **OPERATIONAL** - Cluster status GREEN, version 2.19.4
+- ✅ OpenSearch Dashboards UI operational.
+
+---
+
+## Block — MinIO (master2) ⏳ NEXT
+
+Prerequisites:
+- ⏳ Secret `minio_access_key` created in Swarm
+- ⏳ Secret `minio_secret_key` created in Swarm
+- ⏳ Directory `/srv/datalake/minio` created on master2 with correct permissions
 
 Checklist:
-- ✅ (Repo) Stack creado: [stacks/data/12-minio/stack.yml](stacks/data/12-minio/stack.yml)
+- ✅ (Repo) Stack created: [stacks/data/12-minio/stack.yml](stacks/data/12-minio/stack.yml)
 - ✅ (Repo) Runbook: [docs/runbooks/runbook_minio.md](docs/runbooks/runbook_minio.md)
 - ⏳ Deploy: `docker stack deploy -c stacks/data/12-minio/stack.yml minio`
-- ⏳ Crear buckets Medallion Architecture via MinIO Console o `mc`:
-  - `bronze`          → capa raw (CSV/JSON/Parquet, append-only)
-  - `silver`          → capa curated (Delta Lake, ACID)
-  - `gold`            → capa business (Delta Lake, KPIs/ML features)
-  - `lab-notebooks`   → exports de notebooks
-  - `airflow-logs`    → logs de tareas Airflow
-  - `spark-warehouse` (y dentro: `spark-warehouse/history/`)
+- ⏳ Create Medallion Architecture buckets via MinIO Console or `mc`:
+  - `bronze`          → raw layer (CSV/JSON/Parquet, append-only)
+  - `silver`          → curated layer (Delta Lake, ACID)
+  - `gold`            → business layer (Delta Lake, KPIs/ML features)
+  - `lab-notebooks`   → notebook exports
+  - `airflow-logs`    → Airflow task logs
+  - `spark-warehouse` (and inside: `spark-warehouse/history/`)
 
-Criterios de "OK":
-- ⏳ `https://minio.sexydad` responde con UI de MinIO
+Done criteria:
+- ⏳ `https://minio.sexydad` responds with MinIO UI
 - ⏳ `https://minio-api.sexydad/minio/health/live` → HTTP 200
-- ⏳ Bucket `spark-warehouse` existe (requerido por Spark History Server)
+- ⏳ Bucket `spark-warehouse` exists (required by Spark History Server)
 
 ---
 
-## Bloque — Spark (master1 + master2) ⏳
+## Block — Spark (master1 + master2) ⏳
 
-Prerequisitos:
-- ⏳ **MinIO operativo** y bucket `spark-warehouse/history` creado
-- ⏳ Directorio `/srv/fastdata/spark-tmp` creado en master2
-- ⏳ Secret `minio_access_key` y `minio_secret_key` existentes
+Prerequisites:
+- ⏳ **MinIO operational** and bucket `spark-warehouse/history` created
+- ⏳ Directory `/srv/fastdata/spark-tmp` created on master2
+- ⏳ Secrets `minio_access_key` and `minio_secret_key` existing
 
 Checklist:
-- ✅ (Repo) Stack creado: [stacks/data/98-spark/stack.yml](stacks/data/98-spark/stack.yml)
+- ✅ (Repo) Stack created: [stacks/data/98-spark/stack.yml](stacks/data/98-spark/stack.yml)
 - ✅ (Repo) Runbook: [docs/runbooks/runbook_spark.md](docs/runbooks/runbook_spark.md)
 - ⏳ Deploy: `docker stack deploy -c stacks/data/98-spark/stack.yml spark`
 
-Criterios de "OK":
-- ⏳ `https://spark-master.sexydad` muestra UI del Master con 1 worker alive
-- ⏳ Worker registrado con 10 CPUs / 14 GB
-- ⏳ PySpark desde Jupyter puede conectar: `spark://spark_master:7077`
+Done criteria:
+- ⏳ `https://spark-master.sexydad` shows Master UI with 1 alive worker
+- ⏳ Worker registered with 10 CPUs / 14 GB
+- ⏳ PySpark from Jupyter can connect: `spark://spark_master:7077`
 
 ---
 
-## Bloque — Airflow (master1 + master2) ⏳
+## Block — Airflow (master1 + master2) ⏳
 
-Prerequisitos:
-- ⏳ **Postgres redespliegue** (para que init script cree DB airflow)
-- ⏳ Secret `pg_airflow_pass` creado
-- ⏳ Secret `airflow_fernet_key` creado
-- ⏳ Secret `airflow_webserver_secret` creado
-- ⏳ Secrets `minio_access_key`, `minio_secret_key` existentes
-- ⏳ Directorios en master1 y master2 creados (ver Fase 3)
+Prerequisites:
+- ⏳ **Postgres redeploy** (so init script creates DB airflow)
+- ⏳ Secret `pg_airflow_pass` created
+- ⏳ Secret `airflow_fernet_key` created
+- ⏳ Secret `airflow_webserver_secret` created
+- ⏳ Secrets `minio_access_key`, `minio_secret_key` existing
+- ⏳ Directories on master1 and master2 created (see Phase 3)
 
 Checklist:
-- ✅ (Repo) Stack creado: [stacks/automation/03-airflow/stack.yml](stacks/automation/03-airflow/stack.yml)
-- ✅ (Repo) Init script DB: [stacks/core/02-postgres/initdb/02-init-airflow.sh](stacks/core/02-postgres/initdb/02-init-airflow.sh)
+- ✅ (Repo) Stack created: [stacks/automation/03-airflow/stack.yml](stacks/automation/03-airflow/stack.yml)
+- ✅ (Repo) DB init script: [stacks/core/02-postgres/initdb/02-init-airflow.sh](stacks/core/02-postgres/initdb/02-init-airflow.sh)
 - ✅ (Repo) Runbook: [docs/runbooks/runbook_airflow.md](docs/runbooks/runbook_airflow.md)
-- ⏳ Redesplegar Postgres (volumen limpio → init scripts corren)
+- ⏳ Redeploy Postgres (clean volume → init scripts run)
 - ⏳ Deploy Redis + Airflow:
   ```bash
   docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
   ```
-- ⏳ Inicializar DB Airflow (una sola vez):
+- ⏳ Initialize Airflow DB (once only):
   ```bash
   docker service scale airflow_airflow_init=1
-  # Verificar logs hasta ver "DB migrations done"
+  # Check logs until "DB migrations done" appears
   docker service scale airflow_airflow_init=0
   ```
-- ⏳ Crear usuario admin en Airflow UI
+- ⏳ Create admin user in Airflow UI
 
-Criterios de "OK":
-- ⏳ `https://airflow.sexydad` muestra UI de Airflow
-- ⏳ `https://airflow-flower.sexydad` muestra Flower con 1 worker online
-- ⏳ Scheduler y Worker en estado `running`
-- ⏳ DAG de prueba ejecuta con estado `success`
+Done criteria:
+- ⏳ `https://airflow.sexydad` shows Airflow UI
+- ⏳ `https://airflow-flower.sexydad` shows Flower with 1 worker online
+- ⏳ Scheduler and Worker in `running` state
+- ⏳ Test DAG executes with `success` status
 
-Nota sobre Remote Logging:
-- Remote logging a MinIO está **deshabilitado** por defecto.
-- Habilitarlo después (Fase 6): crear conexión `minio_s3` en UI, luego cambiar `REMOTE_LOGGING: "true"`.
+Note on Remote Logging:
+- Remote logging to MinIO is **disabled** by default.
+- Enable it later (Phase 6): create `minio_s3` connection in UI, then change `REMOTE_LOGGING: "true"`.
 
 ---
 
-## Backups, hardening y operaciones ⏳
+## Backups, hardening and operations ⏳
 
 ### Backups ⏳
 - ⏳ Backup master2 → master1 (rsync/restic).
-- ⏳ Política de retención.
-- ⏳ Prueba de restore (Crítico).
+- ⏳ Retention policy.
+- ⏳ Restore test (Critical).
 
-### Observabilidad / Hardening ⏳
+### Observability / Hardening ⏳
 - ⏳ Firewall hardening (master1).
-- ⏳ Logs/Métricas (opcional).
+- ⏳ Logs/Metrics (optional).
 
 ---
 
-## Notas / decisiones
+## Notes / decisions
 
-- ✅ El orden de prioridad es: **MinIO** → **Spark** → **Airflow** (Airflow depende de ambos)
-- ✅ La GPU se reserva para stacks en `master2`: Jupyter, Ollama (genérica), no Spark/Airflow.
-- ✅ Remote logging de Airflow deshabilitado para primer deploy — habilitar en Fase 6.
-- ✅ `dag_airflow_dags` se monta en master1 (webserver/scheduler) Y en master2 (worker).
-  - Opción A (actual): misma estructura de dirs; el usuario copia/sincroniza DAGs manualmente.
-  - Opción B (futura): NFS share o git-sync sidecar.
-- ✅ HDFS descartado: MinIO como objeto storage es suficiente para lab (512MB vs 3+ GB).
-- ✅ CeleryExecutor elegido sobre LocalExecutor: realismo productivo + worker distribuido en master2.
+- ✅ Priority order is: **MinIO** → **Spark** → **Airflow** (Airflow depends on both)
+- ✅ GPU is reserved for stacks on `master2`: Jupyter, Ollama (generic), not Spark/Airflow.
+- ✅ Airflow remote logging disabled for first deploy — enable in Phase 6.
+- ✅ `dag_airflow_dags` is mounted on master1 (webserver/scheduler) AND on master2 (worker).
+  - Option A (current): same directory structure; user copies/syncs DAGs manually.
+  - Option B (future): NFS share or git-sync sidecar.
+- ✅ HDFS discarded: MinIO as object storage is sufficient for lab (512MB vs 3+ GB).
+- ✅ CeleryExecutor chosen over LocalExecutor: production realism + distributed worker on master2.
 
 ---
 
-## Changelog Reciente
+## Recent Changelog
 
-### 2026-03-30: Fase 5 — MinIO + Spark + Airflow (stacks listos) ⏳ Pendiente deploy
-- ✅ `stacks/data/12-minio/stack.yml` — MinIO RELEASE.2024-11-07, storage en /srv/datalake/minio
-- ✅ `stacks/data/98-spark/stack.yml` — bitnami/spark:3.5.3, master en master1, worker en master2
+### 2026-03-30: Phase 5 — MinIO + Spark + Airflow (stacks ready) ⏳ Pending deploy
+- ✅ `stacks/data/12-minio/stack.yml` — MinIO RELEASE.2024-11-07, storage at /srv/datalake/minio
+- ✅ `stacks/data/98-spark/stack.yml` — bitnami/spark:3.5.3, master on master1, worker on master2
 - ✅ `stacks/automation/03-airflow/stack.yml` — apache/airflow:2.9.3, CeleryExecutor + Redis
-- ✅ `stacks/core/02-postgres/initdb/02-init-airflow.sh` — crea DB airflow + rol
-- ✅ `stacks/core/02-postgres/stack.yml` — POSTGRES_DB cambiado a 'postgres' (neutral), agrega pg_airflow_pass
-- ✅ `stacks/ai-ml/01-jupyter/stack.yml` — reservations optimizados, secrets MinIO, mounts datalake
-- ✅ `stacks/ai-ml/01-jupyter/init-kernels.sh` — kernel BigData (pyspark + delta-spark + boto3 + s3fs)
-- ✅ `stacks/ai-ml/01-jupyter/entrypoint.sh` — exporta AWS_ACCESS_KEY_ID/SECRET desde secrets
-- ✅ `stacks/ai-ml/02-ollama/stack.yml` — imagen pinned a 0.6.1
-- ✅ `docs/hosts/master2/etc/docker/daemon.json` — agregado default-runtime: nvidia + runtimes block
-- ✅ `docs/architecture/NODES.md` — servicios actualizados para Fase 5
-- ✅ `docs/architecture/NETWORKING.md` — dominios y puertos Fase 5
-- ✅ `docs/architecture/STORAGE.md` — paths nuevos: minio, spark-tmp, airflow subdirs
-- ✅ `docs/runbooks/runbook_minio.md` — nuevo
-- ✅ `docs/runbooks/runbook_spark.md` — nuevo
-- ✅ `docs/runbooks/runbook_airflow.md` — nuevo
+- ✅ `stacks/core/02-postgres/initdb/02-init-airflow.sh` — creates airflow DB + role
+- ✅ `stacks/core/02-postgres/stack.yml` — POSTGRES_DB changed to 'postgres' (neutral), adds pg_airflow_pass
+- ✅ `stacks/ai-ml/01-jupyter/stack.yml` — optimized reservations, MinIO secrets, datalake mounts
+- ✅ `stacks/ai-ml/01-jupyter/init-kernels.sh` — BigData kernel (pyspark + delta-spark + boto3 + s3fs)
+- ✅ `stacks/ai-ml/01-jupyter/entrypoint.sh` — exports AWS_ACCESS_KEY_ID/SECRET from secrets
+- ✅ `stacks/ai-ml/02-ollama/stack.yml` — image pinned to 0.6.1
+- ✅ `docs/hosts/master2/etc/docker/daemon.json` — added default-runtime: nvidia + runtimes block
+- ✅ `docs/architecture/NODES.md` — services updated for Phase 5
+- ✅ `docs/architecture/NETWORKING.md` — domains and ports Phase 5
+- ✅ `docs/architecture/STORAGE.md` — new paths: minio, spark-tmp, airflow subdirs
+- ✅ `docs/runbooks/runbook_minio.md` — new
+- ✅ `docs/runbooks/runbook_spark.md` — new
+- ✅ `docs/runbooks/runbook_airflow.md` — new
 
-### 2026-03-30: Portainer Upgrade + Docs restructuración ✅
-- ✅ Portainer CE + Agent actualizados: **2.21.0 → 2.39.1**
-- ✅ README raíz reescrito con arquitectura completa
-- ✅ 6 ADRs documentados en `docs/adrs/`
-- ✅ Runbooks para OpenSearch, Ollama, Jupyter, Portainer
+### 2026-03-30: Portainer Upgrade + Docs restructuring ✅
+- ✅ Portainer CE + Agent updated: **2.21.0 → 2.39.1**
+- ✅ Root README rewritten with complete architecture
+- ✅ 6 ADRs documented in `docs/adrs/`
+- ✅ Runbooks for OpenSearch, Ollama, Jupyter, Portainer
 
 ### 2026-02-04: OpenSearch Stack DEPLOYED ✅
-- ✅ Cluster status: **GREEN**, versión 2.19.4, UI Dashboards operativa
+- ✅ Cluster status: **GREEN**, version 2.19.4, Dashboards UI operational
 
 ### 2026-02-03: Ollama Stack DEPLOYED ✅
-- ✅ GPU RTX 2080 Ti detectada (11GB VRAM), API REST funcional
+- ✅ GPU RTX 2080 Ti detected (11GB VRAM), REST API functional
 
-### Estado anterior:
-- ✅ Jupyter multi-usuario operativo (ogiovanni, odavid) con GPU
-- ✅ n8n + Postgres + Portainer + Traefik operativos
+### Previous state:
+- ✅ Jupyter multi-user operational (<admin-user>, <second-user>) with GPU
+- ✅ n8n + Postgres + Portainer + Traefik operational

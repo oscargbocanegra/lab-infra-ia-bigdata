@@ -1,64 +1,64 @@
-# ADR-006: OpenSearch en master1 (no master2)
+# ADR-006: OpenSearch on master1 (not master2)
 
-**Fecha**: 2026-02-04  
-**Estado**: Aceptado (revisable)
-
----
-
-## Contexto
-
-El diseño original planteaba OpenSearch en master2 (NVMe, mejor I/O). Sin embargo, al momento del despliegue, master2 tenía los siguientes recursos comprometidos:
-
-```
-CPUs reservadas: ~14/16 (Jupyter x2: 8, Ollama: 6)
-RAM reservada:   ~28/32 GB (Jupyter x2: 16 GB, Ollama: 12 GB)
-```
-
-Agregar OpenSearch en master2 con sus requerimientos (2 GB RAM reservados, 6 GB límite, 1 GB JVM heap) arriesgaba OOM (Out of Memory) en el nodo.
+**Date**: 2026-02-04  
+**Status**: Accepted (revisable)
 
 ---
 
-## Decisión
+## Context
 
-**OpenSearch corre en master1** (`tier=control`) en lugar de master2.
+The original design placed OpenSearch on master2 (NVMe, better I/O). However, at deployment time, master2 had the following resources committed:
+
+```
+Reserved CPUs: ~14/16 (Jupyter x2: 8, Ollama: 6)
+Reserved RAM:  ~28/32 GB (Jupyter x2: 16 GB, Ollama: 12 GB)
+```
+
+Adding OpenSearch to master2 with its requirements (2 GB RAM reserved, 6 GB limit, 1 GB JVM heap) risked OOM (Out of Memory) on the node.
+
+---
+
+## Decision
+
+**OpenSearch runs on master1** (`tier=control`) instead of master2.
 
 ---
 
 ## Trade-offs
 
-| Factor | master2 (ideal original) | master1 (decisión actual) |
+| Factor | master2 (original ideal) | master1 (current decision) |
 |--------|--------------------------|---------------------------|
-| I/O disco | NVMe — excelente | HDD — suficiente para lab |
-| Recursos | Saturado (Jupyter + Ollama) | Abundante (~26 GB libre) |
-| Riesgo OOM | Alto | Bajo |
-| Performance índices | Mejor | Aceptable (lab) |
+| Disk I/O | NVMe — excellent | HDD — sufficient for lab |
+| Resources | Saturated (Jupyter + Ollama) | Abundant (~26 GB free) |
+| OOM risk | High | Low |
+| Index performance | Better | Acceptable (lab) |
 
 ---
 
-## Motivos
+## Reasons
 
-1. **Para lab/experimentación**: Los workloads de OpenSearch en este lab son búsquedas simples, algunos índices de logs y dashboards básicos. No hay cientos de shards ni millones de documentos en tiempo real. HDD es suficiente.
+1. **For lab/experimentation**: OpenSearch workloads in this lab are simple searches, some log indexes, and basic dashboards. There are no hundreds of shards or millions of real-time documents. HDD is sufficient.
 
-2. **Estabilidad > performance en lab**: OOM en master2 derribaría también Jupyter y Ollama (los servicios más valiosos del lab). No vale el riesgo.
+2. **Stability > performance in lab**: OOM on master2 would also bring down Jupyter and Ollama (the most valuable services in the lab). Not worth the risk.
 
-3. **master1 tiene CPU de sobra**: i7-6700T con ~25 GB RAM libre y ~5 CPUs disponibles — más que suficiente para OpenSearch + Dashboards con recursos reducidos (1 CPU reservado, 1 GB heap).
-
----
-
-## Plan de revisión
-
-Migrar OpenSearch a master2 si:
-- Se actualiza la RAM de master2 a >64 GB
-- Se reducen los recursos de Jupyter/Ollama
-- Se necesita performance de índices real (>1M docs/día)
-
-Migración: actualizar constraint en `stack.yml` de `tier=control` a `tier=compute` y crear `/srv/fastdata/opensearch` en master2.
+3. **master1 has plenty of CPU**: i7-6700T with ~25 GB free RAM and ~5 CPUs available — more than enough for OpenSearch + Dashboards with reduced resources (1 CPU reserved, 1 GB heap).
 
 ---
 
-## Consecuencias
+## Review Plan
 
-- ✅ Estabilidad de master2 garantizada
-- ✅ master1 con carga balanceada
-- ⚠️ I/O de OpenSearch sobre HDD (aceptado para lab)
-- ⚠️ Si master1 cae, tanto Traefik como OpenSearch caen (único punto de fallo para ambos)
+Migrate OpenSearch to master2 if:
+- master2 RAM is upgraded to >64 GB
+- Jupyter/Ollama resources are reduced
+- Real index performance is needed (>1M docs/day)
+
+Migration: update the constraint in `stack.yml` from `tier=control` to `tier=compute` and create `/srv/fastdata/opensearch` on master2.
+
+---
+
+## Consequences
+
+- ✅ master2 stability guaranteed
+- ✅ master1 with balanced load
+- ⚠️ OpenSearch I/O over HDD (accepted for lab)
+- ⚠️ If master1 goes down, both Traefik and OpenSearch go down (single point of failure for both)

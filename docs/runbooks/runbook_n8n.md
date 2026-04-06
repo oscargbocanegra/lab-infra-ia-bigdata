@@ -1,124 +1,124 @@
-# Runbook de Operación: n8n (Automation)
+# Runbook: n8n (Automation)
 
-## Datos de referencia
-- **Stack**: `automation` (servicio `n8n_n8n`)
+## Reference Data
+- **Stack**: `automation` (service `n8n_n8n`)
 - **URL**: `https://n8n.sexydad`
-- **Nodo ejecución**: `master2` (tier=compute)
-- **Persistencia**: `/srv/fastdata/n8n` (en master2) → `/home/node/.n8n`
-- **Dependencia**: Postgres (`postgres_postgres` en internal net)
+- **Execution node**: `master2` (tier=compute)
+- **Persistence**: `/srv/fastdata/n8n` (on master2) → `/home/node/.n8n`
+- **Dependency**: Postgres (`postgres_postgres` on the internal network)
 
 ---
 
-## 1. Operación diaria (Healthcheck)
-**Objetivo:** “¿Está vivo n8n?” en menos de 5 minutos.
+## 1. Daily Operations (Healthcheck)
+**Goal:** "Is n8n alive?" in under 5 minutes.
 
-### 1.1 Verificar tarea de Swarm
-Ejecutar en **master1** (manager):
+### 1.1 Verify Swarm task
+Run on **master1** (manager):
 ```bash
-# Vista rápida (replicas)
+# Quick view (replicas)
 docker service ls | egrep 'postgres_postgres|n8n_n8n|traefik_traefik|portainer_'
 
-# Ver tasks con formato útil (estado detallado)
+# Tasks with useful format (detailed state)
 docker service ps n8n_n8n --no-trunc \
   --format 'table {{.ID}}\t{{.Node}}\t{{.DesiredState}}\t{{.CurrentState}}\t{{.Error}}'
 ```
 
-### 1.2 Verificar endpoint (desde LAN)
+### 1.2 Verify endpoint (from LAN)
 ```bash
-# Debe responder 200/401 (si pide auth) o redirigir
+# Should respond with 200/401 (if auth required) or redirect
 curl -I https://n8n.sexydad
 ```
 
-### 1.3 Verificar Logs recientes (Señales de vida)
+### 1.3 Check recent logs (Signs of life)
 ```bash
-# Últimas 50 líneas para ver actividad reciente
+# Last 50 lines to see recent activity
 docker service logs --tail 50 n8n_n8n
 ```
-_Resultado esperado:_ "n8n ready on 0.0.0.0, port 5678" / "Editor is now accessible".
+_Expected result:_ "n8n ready on 0.0.0.0, port 5678" / "Editor is now accessible".
 
 ---
 
-## 2. Diagnóstico rápido (Incidente)
-**Síntoma:** No carga la UI / el servicio se está reiniciando.
+## 2. Quick Diagnostics (Incident)
+**Symptom:** UI won't load / service is restarting.
 
-### 2.1 Detectar bucles de reinicio
+### 2.1 Detect restart loops
 ```bash
-# Ver historial de tareas fallidas
+# View task history
 docker service ps n8n_n8n
 ```
-Si ves muchos `Shutdown` o `Failed` recientes, el contenedor está crasheando al inicio.
+If you see many recent `Shutdown` or `Failed` entries, the container is crashing at startup.
 
-### 2.2 Analizar logs del error
+### 2.2 Analyze error logs
 ```bash
-# Ver logs desde hace 10 minutos
+# Logs from the last 10 minutes
 docker service logs --since 10m n8n_n8n
 ```
-Busca errores críticos como:
-- "Connection refused" (no llega a Postgres).
-- "Permission denied" (problemas de FS o DB).
-- "Clean exit code: 0" (OOM killed, memoria insuficiente).
+Look for critical errors such as:
+- "Connection refused" (can't reach Postgres).
+- "Permission denied" (FS or DB issues).
+- "Clean exit code: 0" (OOM killed, insufficient memory).
 
 ---
 
-## 3. Recuperación (Fixes comunes)
-**Objetivo:** Volver a estado sano si aparece X error.
+## 3. Recovery (Common Fixes)
+**Goal:** Return to a healthy state when error X appears.
 
-### Caso A: Error "Permission denied for schema public" (Postgres)
-**Síntoma:** Logs muestran error de DB al intentar crear tablas/migraciones.
-**Causa:** El usuario `n8n` existe en Postgres pero no es dueño del esquema público.
+### Case A: Error "Permission denied for schema public" (Postgres)
+**Symptom:** Logs show a DB error when trying to create tables/migrations.
+**Cause:** The `n8n` user exists in Postgres but does not own the public schema.
 **Fix:**
-1. Conectarse a Postgres (desde manager):
+1. Connect to Postgres (from the manager):
    ```bash
-   # Obtener ID del contenedor Postgres
+   # Get the Postgres container ID
    PG_TASK=$(docker ps --filter name=postgres_postgres -q | head -n1)
    
-   # Ejecutar fix de permisos
+   # Run the permissions fix
    docker exec -it $PG_TASK psql -U postgres -d n8n -c "GRANT ALL ON SCHEMA public TO n8n;"
    ```
-2. Reiniciar n8n para reintentar migraciones:
+2. Restart n8n to retry migrations:
    ```bash
    docker service update --force n8n_n8n
    ```
 
-### Caso B: Error de permisos en sistema de archivos (`EACCES`)
-**Síntoma:** logs dicen `EACCES: permission denied, mkdir '/home/node/.n8n/...'`
-**Causa:** La carpeta `/srv/fastdata/n8n` en master2 tiene owner `root` pero el contenedor corre como usuario `node` (1000).
+### Case B: Filesystem permission error (`EACCES`)
+**Symptom:** Logs say `EACCES: permission denied, mkdir '/home/node/.n8n/...'`
+**Cause:** The `/srv/fastdata/n8n` folder on master2 is owned by `root`, but the container runs as user `node` (1000).
 **Fix:**
-1. SSH a master2.
-2. Ajustar permisos:
+1. SSH to master2.
+2. Adjust permissions:
    ```bash
    chown -R 1000:1000 /srv/fastdata/n8n
    ```
-3. Reiniciar servicio.
+3. Restart the service.
 
 ---
 
-## 4. Verificación de despliegue
-**Objetivo:** Confirmar que el código/infra está sincronizado.
+## 4. Deployment Verification
+**Goal:** Confirm that code/infra are in sync.
 
-### 4.1 Validar repo limpio
+### 4.1 Validate clean repo
 ```bash
-# En master1 (dentro de ~/lab-infra-ia-bigdata)
+# On master1 (inside ~/lab-infra-ia-bigdata)
 git status -sb
 ```
-_Resultado esperado:_ `## main...` (limpio o con cambios intencionales).
+_Expected result:_ `## main...` (clean or with intentional changes).
 
-### 4.2 Validar último commit aplicado
+### 4.2 Validate latest commit applied
 ```bash
 git log -1 --oneline
 ```
-_Ejemplo:_ `fa52b61 docs(runbook): add minimal n8n runbook`
+_Example:_ `fa52b61 docs(runbook): add minimal n8n runbook`
 
 ---
 
-## Anexo: Comandos útiles
+## Appendix: Useful Commands
 
-**Entrar al contenedor (debug shell):**
+**Enter the container (debug shell):**
 ```bash
-# Buscar en qué nodo corre
+# Find which node it's running on
 NODE=$(docker service ps n8n_n8n --filter "desired-state=running" --format "{{.Node}}")
 
-# Buscar ID del contenedor en ese nodo (SSH requerido si es master2)
+# Find the container ID on that node (SSH required if it's master2)
 ssh $NODE "docker ps --filter name=n8n_n8n -q"
 # docker exec -it <ID> /bin/sh
 ```

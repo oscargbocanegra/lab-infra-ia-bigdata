@@ -1,53 +1,53 @@
-# ADR-004: OpenSearch security plugin deshabilitado
+# ADR-004: OpenSearch Security Plugin Disabled
 
-**Fecha**: 2026-01  
-**Estado**: Aceptado (revisable si el lab se abre a internet)
-
----
-
-## Contexto
-
-OpenSearch incluye un plugin de seguridad que ofrece:
-- TLS entre nodos del clúster
-- Autenticación básica interna (users/roles en una DB propia)
-- RBAC a nivel de índice
-- Auditoría
-
-En un ambiente de 1 nodo (single-node), la mayoría de estas features son overhead sin valor real.
+**Date**: 2026-01  
+**Status**: Accepted (revisable if the lab is opened to the internet)
 
 ---
 
-## Decisión
+## Context
 
-**`DISABLE_SECURITY_PLUGIN=true`** en el stack de OpenSearch.
+OpenSearch includes a security plugin that provides:
+- TLS between cluster nodes
+- Internal basic authentication (users/roles in its own DB)
+- RBAC at the index level
+- Auditing
 
----
-
-## Motivos
-
-1. **Sin valor real en single-node**: TLS entre nodos es irrelevante con 1 nodo. RBAC de índices es overhead de configuración para un lab de aprendizaje.
-
-2. **Complejidad alta**: El plugin requiere generar certificados internos para la API de admin, configurar `opensearch.yml` con los paths de certs, generar el hash de passwords con una herramienta específica... Todo esto por encima de Traefik (que ya tiene TLS) y BasicAuth (que ya tiene auth).
-
-3. **Defensa en profundidad suficiente para lab**:
-   - Capa 1: LAN-only (no expuesto a internet)
-   - Capa 2: Traefik `lan-whitelist` (solo 192.168.80.0/24)
-   - Capa 3: BasicAuth en Traefik para el endpoint externo
-   - Capa 4: Red overlay `internal` para acceso service-to-service (sin autenticación de red pero sin exposición LAN)
-
-4. **Consistencia con la filosofía del lab**: Reducir fricción de setup para maximizar tiempo de aprendizaje.
+In a single-node environment, most of these features are overhead with no real value.
 
 ---
 
-## Riesgo aceptado
+## Decision
 
-- Si alguien en la LAN tiene acceso directo a master1:9200 (bypaseando Traefik), tiene acceso sin autenticación a OpenSearch.
-- Mitigación: acceso directo requiere estar en LAN + conocer el puerto + Traefik es el único endpoint publicado.
+**`DISABLE_SECURITY_PLUGIN=true`** in the OpenSearch stack.
 
 ---
 
-## Cuando revisar esta decisión
+## Reasons
 
-- Si el lab se expone a una red corporativa más amplia
-- Si se agregan índices con datos sensibles reales
-- Si se conecta OpenSearch a un pipeline de producción
+1. **No real value in single-node**: TLS between nodes is irrelevant with 1 node. Index RBAC is configuration overhead for a learning lab.
+
+2. **High complexity**: The plugin requires generating internal certificates for the admin API, configuring `opensearch.yml` with cert paths, generating password hashes with a specific tool... All of this on top of Traefik (which already has TLS) and BasicAuth (which already provides auth).
+
+3. **Sufficient defense in depth for lab**:
+   - Layer 1: LAN-only (not exposed to the internet)
+   - Layer 2: Traefik `lan-whitelist` (`<lan-cidr>` only)
+   - Layer 3: BasicAuth on Traefik for the external endpoint
+   - Layer 4: `internal` overlay network for service-to-service access (no network auth but no LAN exposure)
+
+4. **Consistent with lab philosophy**: Reduce setup friction to maximize learning time.
+
+---
+
+## Accepted Risk
+
+- If someone on the LAN has direct access to master1:9200 (bypassing Traefik), they have unauthenticated access to OpenSearch.
+- Mitigation: direct access requires being on the LAN + knowing the port + Traefik is the only published endpoint.
+
+---
+
+## When to Review This Decision
+
+- If the lab is exposed to a broader corporate network
+- If indexes with real sensitive data are added
+- If OpenSearch is connected to a production pipeline

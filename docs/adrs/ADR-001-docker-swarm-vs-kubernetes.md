@@ -1,47 +1,47 @@
-# ADR-001: Docker Swarm sobre Kubernetes
+# ADR-001: Docker Swarm over Kubernetes
 
-**Fecha**: 2025-12 (diseño inicial)  
-**Estado**: Aceptado  
-**Autores**: ogiovanni, odavid
-
----
-
-## Contexto
-
-El laboratorio tiene 2 nodos físicos con el objetivo de correr workloads de IA/Big Data. Se necesita un orquestador de containers para gestionar los servicios de forma declarativa y reproducible.
-
-Las opciones evaluadas fueron:
-1. **Docker Swarm** — orquestador nativo de Docker, simple
-2. **Kubernetes (K8s)** — estándar de la industria, complejo
-3. **K3s** — Kubernetes liviano para entornos edge/lab
+**Date**: 2025-12 (initial design)  
+**Status**: Accepted  
+**Authors**: `<admin-user>`, `<second-user>`
 
 ---
 
-## Decisión
+## Context
 
-**Se eligió Docker Swarm**.
+The lab has 2 physical nodes intended to run AI/Big Data workloads. A container orchestrator is needed to manage services declaratively and reproducibly.
 
----
-
-## Motivos
-
-1. **Complejidad operativa innecesaria**: K8s con 2 nodos requiere gestionar etcd, control-plane, CNI, CSI, Ingress Controller, CRDs... Swarm tiene todo esto integrado y funciona "out of the box".
-
-2. **Overhead de recursos**: K8s consume ~2–4 GB de RAM solo para su control-plane (kube-apiserver, etcd, scheduler, controller-manager). Con 32 GB por nodo eso es dinero "quemado" en infraestructura del orquestador, no en workloads.
-
-3. **Suficiente para el objetivo**: El lab es un ambiente de aprendizaje/experimentación, no producción con SLAs. Swarm provee: HA (cuando haya más nodos), service discovery, overlay networks, secrets, rolling updates — todo lo necesario.
-
-4. **Docker Compose compatibility**: Los `stack.yml` de Swarm son supersets de `docker-compose.yml`. La curva de aprendizaje es mínima.
-
-5. **GitOps simple**: `docker stack deploy -c stack.yml nombre` — no hay que aprender kubectl, Helm, kustomize, ni operators.
+The options evaluated were:
+1. **Docker Swarm** — Docker-native orchestrator, simple
+2. **Kubernetes (K8s)** — industry standard, complex
+3. **K3s** — lightweight Kubernetes for edge/lab environments
 
 ---
 
-## Consecuencias
+## Decision
 
-- ✅ Setup inicial en < 30 min (vs días para K8s)
-- ✅ Operación simple (1 comando para desplegar/actualizar)
-- ✅ Runbooks simples
-- ⚠️ Si el lab crece a >5 nodos, evaluar migración a K3s
-- ⚠️ Sin auto-scaling automático (no es necesario en lab)
-- ⚠️ Sin rolling updates zero-downtime nativos para stateful services (workaround: drain + update)
+**Docker Swarm was chosen.**
+
+---
+
+## Reasons
+
+1. **Unnecessary operational complexity**: K8s with 2 nodes requires managing etcd, control-plane, CNI, CSI, Ingress Controller, CRDs... Swarm has all of this integrated and works out of the box.
+
+2. **Resource overhead**: K8s consumes ~2–4 GB of RAM just for its control-plane (kube-apiserver, etcd, scheduler, controller-manager). With 32 GB per node that is wasted resources on orchestrator infrastructure rather than workloads.
+
+3. **Sufficient for the goal**: The lab is a learning/experimentation environment, not production with SLAs. Swarm provides: HA (when more nodes are added), service discovery, overlay networks, secrets, rolling updates — everything needed.
+
+4. **Docker Compose compatibility**: Swarm `stack.yml` files are supersets of `docker-compose.yml`. The learning curve is minimal.
+
+5. **Simple GitOps**: `docker stack deploy -c stack.yml name` — no need to learn kubectl, Helm, kustomize, or operators.
+
+---
+
+## Consequences
+
+- ✅ Initial setup in < 30 min (vs days for K8s)
+- ✅ Simple operation (1 command to deploy/update)
+- ✅ Simple runbooks
+- ⚠️ If the lab grows to >5 nodes, evaluate migration to K3s
+- ⚠️ No automatic auto-scaling (not needed in lab)
+- ⚠️ No native zero-downtime rolling updates for stateful services (workaround: drain + update)

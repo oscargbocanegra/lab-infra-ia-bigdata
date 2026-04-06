@@ -1,39 +1,39 @@
-# Arquitectura del Laboratorio — lab-infra-ia-bigdata
+# Lab Architecture — lab-infra-ia-bigdata
 
-> Última actualización: 2026-03-31 — Lab 100% operativo (20 servicios)
-
----
-
-## Índice
-
-1. [Visión general](#1-visión-general)
-2. [Diagrama físico del clúster](#2-diagrama-físico-del-clúster)
-3. [Diagrama lógico de servicios](#3-diagrama-lógico-de-servicios)
-4. [Flujo de tráfico LAN](#4-flujo-de-tráfico-lan)
-5. [Flujo de datos en pipelines AI/Data](#5-flujo-de-datos-en-pipelines-aidata)
-6. [Estrategia de placement](#6-estrategia-de-placement)
-7. [Redes Docker Swarm](#7-redes-docker-swarm)
-8. [Modelo de seguridad](#8-modelo-de-seguridad)
-9. [Decisiones arquitecturales clave](#9-decisiones-arquitecturales-clave)
+> Last updated: 2026-03-31 — Lab 100% operational (20 services)
 
 ---
 
-## 1. Visión general
+## Table of Contents
 
-El laboratorio es un clúster **Docker Swarm de 2 nodos** orientado a experimentación con **IA, Big Data y automatización**. El diseño sigue un principio de **separación de responsabilidades**:
-
-- **master1** (Control Plane): gateway, orquestación, servicios ligeros
-- **master2** (Compute + Data): workloads GPU, bases de datos, almacenamiento primario
-
-Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS self-signed, accesible solo desde LAN `192.168.80.0/24`.
+1. [Overview](#1-overview)
+2. [Physical cluster diagram](#2-physical-cluster-diagram)
+3. [Logical services diagram](#3-logical-services-diagram)
+4. [LAN traffic flow](#4-lan-traffic-flow)
+5. [Data flow in AI/Data pipelines](#5-data-flow-in-aidata-pipelines)
+6. [Placement strategy](#6-placement-strategy)
+7. [Docker Swarm networks](#7-docker-swarm-networks)
+8. [Security model](#8-security-model)
+9. [Key architectural decisions](#9-key-architectural-decisions)
 
 ---
 
-## 2. Diagrama físico del clúster
+## 1. Overview
+
+The lab is a **2-node Docker Swarm cluster** oriented toward experimentation with **AI, Big Data, and automation**. The design follows a **separation of concerns** principle:
+
+- **master1** (Control Plane): gateway, orchestration, lightweight services
+- **master2** (Compute + Data): GPU workloads, databases, primary storage
+
+All external traffic enters through **Traefik** (on master1) via HTTPS with self-signed TLS, accessible only from the LAN `<lan-cidr>`.
+
+---
+
+## 2. Physical cluster diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        LAN 192.168.80.0/24                          │
+│                        LAN <lan-cidr>                               │
 │                                                                     │
 │  ┌──────────────────────────┐    ┌──────────────────────────────┐   │
 │  │        master1           │    │          master2             │   │
@@ -45,7 +45,7 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 │  │                          │    │                              │   │
 │  │  💾 HDD 500 GB (ROTA)    │    │  💾 NVMe 1TB (970 EVO)       │   │
 │  │  └─ /srv/fastdata        │    │  └─ /srv/fastdata (LVM 600G) │   │
-│  │     (HDD local)          │    │     postgres/ opensearch/    │   │
+│  │     (local HDD)          │    │     postgres/ opensearch/    │   │
 │  │                          │    │     airflow/ jupyter/        │   │
 │  │  Swarm: MANAGER/LEADER   │    │  💾 HDD 2TB (ST2000LM015)   │   │
 │  │  Labels:                 │    │  └─ /srv/datalake            │   │
@@ -74,7 +74,7 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 
 ---
 
-## 3. Diagrama lógico de servicios
+## 3. Logical services diagram
 
 ```
 ╔══════════════════════════════════════╗  ╔═══════════════════════════════════════════╗
@@ -85,7 +85,7 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 ║  │  Traefik v2.11               │    ║  ║  │  PostgreSQL 16                   │    ║
 ║  │  :80 :443 (host mode)        │    ║  ║  │  /srv/fastdata/postgres (NVMe)   │    ║
 ║  │  Reverse Proxy + TLS + LAN   │    ║  ║  │  :5432 (host mode)               │    ║
-║  └──────────────────────────────┘    ║  ║  │  bases: postgres / n8n / airflow │    ║
+║  └──────────────────────────────┘    ║  ║  │  databases: postgres / n8n / airflow│  ║
 ║                                      ║  ║  └──────────────────────────────────┘    ║
 ║  ┌──────────────────────────────┐    ║  ║                                           ║
 ║  │  Portainer CE 2.39.1         │    ║  ║  ┌──────────────────────────────────┐    ║
@@ -95,14 +95,14 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 ║                                      ║  ║  └──────────────────────────────────┘    ║
 ║  ┌──────────────────────────────┐    ║  ║                                           ║
 ║  │  OpenSearch 2.19.4           │    ║  ║  ┌──────────────────────────────────┐    ║
-║  │  /srv/fastdata/opensearch    │    ║  ║  │  JupyterLab (ogiovanni)          │    ║
-║  │  :9200 (internal)            │    ║  ║  │  /srv/fastdata/jupyter/ogiovanni │    ║
+║  │  /srv/fastdata/opensearch    │    ║  ║  │  JupyterLab (<admin-user>)       │    ║
+║  │  :9200 (internal)            │    ║  ║  │  /srv/fastdata/jupyter/<admin-user>│   ║
 ║  └──────────────────────────────┘    ║  ║  │  GPU + 8CPU + 12GB — uid 1000    │    ║
 ║                                      ║  ║  └──────────────────────────────────┘    ║
 ║  ┌──────────────────────────────┐    ║  ║                                           ║
 ║  │  OpenSearch Dashboards       │    ║  ║  ┌──────────────────────────────────┐    ║
-║  │  2.19.4  :5601               │    ║  ║  │  JupyterLab (odavid)             │    ║
-║  └──────────────────────────────┘    ║  ║  │  /srv/fastdata/jupyter/odavid    │    ║
+║  │  2.19.4  :5601               │    ║  ║  │  JupyterLab (<second-user>)      │    ║
+║  └──────────────────────────────┘    ║  ║  │  /srv/fastdata/jupyter/<second-user>│  ║
 ║                                      ║  ║  │  GPU + 8CPU + 12GB — uid 1001    │    ║
 ║  ┌──────────────────────────────┐    ║  ║  └──────────────────────────────────┘    ║
 ║  │  Redis 7.2 (Celery broker)   │    ║  ║                                           ║
@@ -122,7 +122,7 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 ║                                      ║  ║  ┌──────────────────────────────────┐    ║
 ║  ┌──────────────────────────────┐    ║  ║  │  Spark Worker 3.5.3              │    ║
 ║  │  Airflow Flower              │    ║  ║  │  /srv/fastdata/spark-tmp (NVMe)  │    ║
-║  │  :5555 (internal)            │    ║  ║  │  10 CPUs / 14 GB oferta          │    ║
+║  │  :5555 (internal)            │    ║  ║  │  10 CPUs / 14 GB offered         │    ║
 ║  └──────────────────────────────┘    ║  ║  │  → spark-master:7077             │    ║
 ║                                      ║  ║  └──────────────────────────────────┘    ║
 ║  ┌──────────────────────────────┐    ║  ║                                           ║
@@ -134,34 +134,34 @@ Todo el tráfico externo ingresa por **Traefik** (en master1) vía HTTPS con TLS
 ║  ┌──────────────────────────────┐    ║  ║                                           ║
 ║  │  Spark History Server        │    ║  ║  ┌──────────────────────────────────┐    ║
 ║  │  /srv/fastdata/spark-history │    ║  ║  │  Portainer Agent                 │    ║
-║  │  :18080 (internal)           │    ║  ║  │  (global: ambos nodos)           │    ║
+║  │  :18080 (internal)           │    ║  ║  │  (global: both nodes)            │    ║
 ║  └──────────────────────────────┘    ║  ║  └──────────────────────────────────┘    ║
 ║                                      ║  ║                                           ║
 ║  ┌──────────────────────────────┐    ║  ╚═══════════════════════════════════════════╝
 ║  │  Portainer Agent             ║    ║
-║  │  (global: ambos nodos)       ║    ║
+║  │  (global: both nodes)        ║    ║
 ║  └──────────────────────────────┘    ║
 ╚══════════════════════════════════════╝
 ```
 
 ---
 
-## 4. Flujo de tráfico LAN
+## 4. LAN traffic flow
 
 ```
-Usuario (PC LAN)
+LAN User (PC)
        │
        │  HTTPS :443
        ▼
 ┌──────────────────┐
 │  Traefik v2.11   │  master1:443 (mode: host)
-│  192.168.80.100  │  HTTP→HTTPS redirect en :80
+│  <master1-ip>    │  HTTP→HTTPS redirect on :80
 └────────┬─────────┘
          │
-         │  Middleware chain por ruta:
-         │  1. lan-whitelist (192.168.80.0/24)
-         │  2. basicauth (según servicio)
-         │  3. TLS termination (cert self-signed)
+         │  Middleware chain per route:
+         │  1. lan-whitelist (<lan-cidr>)
+         │  2. basicauth (per service)
+         │  3. TLS termination (self-signed cert)
          │
          ├──[portainer.sexydad]──────────────► Portainer :9000 (master1)
          ├──[traefik.sexydad]────────────────► Traefik Dashboard :8080 (master1)
@@ -169,8 +169,8 @@ Usuario (PC LAN)
          ├──[opensearch.sexydad]─────────────► OpenSearch :9200 (master1)
          ├──[dashboards.sexydad]─────────────► OpenSearch Dashboards :5601 (master1)
          ├──[ollama.sexydad]─────────────────► Ollama :11434 (master2)
-         ├──[jupyter-ogiovanni.sexydad]───────► JupyterLab :8888 (master2)
-         ├──[jupyter-odavid.sexydad]──────────► JupyterLab :8888 (master2)
+         ├──[jupyter-<admin-user>.sexydad]───► JupyterLab :8888 (master2)
+         ├──[jupyter-<second-user>.sexydad]──► JupyterLab :8888 (master2)
          ├──[minio.sexydad]──────────────────► MinIO Console :9001 (master2)
          ├──[minio-api.sexydad]──────────────► MinIO S3 API :9000 (master2)
          ├──[spark-master.sexydad]───────────► Spark Master UI :8080 (master1)
@@ -180,206 +180,206 @@ Usuario (PC LAN)
          └──[airflow-flower.sexydad]──────────► Celery Flower :5555 (master1)
 
 
-Comunicación interna (service-to-service vía overlay "internal"):
+Internal communication (service-to-service via "internal" overlay):
   n8n              ──► postgres:5432
-  airflow_*        ──► postgres:5432  (metadata de DAGs)
-  airflow_*        ──► redis:6379     (broker Celery)
-  airflow_*        ──► minio:9000     (logs remotos — deshabilitado por defecto)
-  airflow_worker   ──► ollama:11434   (inference desde DAGs)
+  airflow_*        ──► postgres:5432  (DAG metadata)
+  airflow_*        ──► redis:6379     (Celery broker)
+  airflow_*        ──► minio:9000     (remote logs — disabled by default)
+  airflow_worker   ──► ollama:11434   (inference from DAGs)
   opensearch-dashboards ──► opensearch:9200
-  jupyter          ──► ollama:11434   (sin auth, red interna)
+  jupyter          ──► ollama:11434   (no auth, internal network)
   jupyter          ──► opensearch:9200
-  jupyter          ──► minio:9000     (S3 API para datasets)
+  jupyter          ──► minio:9000     (S3 API for datasets)
   jupyter          ──► spark-master:7077 (submit jobs)
   spark_worker     ──► spark-master:7077
-  spark_history    ──► /opt/spark/history (filesystem compartido)
+  spark_history    ──► /opt/spark/history (shared filesystem)
 ```
 
 ---
 
-## 5. Flujo de datos en pipelines AI/Data
+## 5. Data flow in AI/Data pipelines
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Flujo de datos — Medallion Architecture           │
+│                   Data flow — Medallion Architecture                 │
 └─────────────────────────────────────────────────────────────────────┘
 
-INGESTA (Bronze):
-  Airflow DAGs / n8n / scripts manuales
+INGESTION (Bronze):
+  Airflow DAGs / n8n / manual scripts
        │
        ▼
   s3a://bronze/  (MinIO — HDD 2TB, CSV/JSON/Parquet raw, append-only)
 
-PROCESAMIENTO (Silver):
+PROCESSING (Silver):
   Airflow → SparkSubmitOperator
        │
        ▼
   Spark Job (master1:7077 → worker master2)
-       │   lee  s3a://bronze/
-       │   escribe → s3a://silver/  (Delta Lake ACID: limpio, tipado, deduplicado)
+       │   reads  s3a://bronze/
+       │   writes → s3a://silver/  (Delta Lake ACID: clean, typed, deduplicated)
        └── event logs → /srv/fastdata/spark-history
 
-AGREGACIÓN (Gold):
+AGGREGATION (Gold):
   Airflow → SparkSubmitOperator
        │
        ▼
   Spark Job
-       │   lee  s3a://silver/
-       └── escribe → s3a://gold/  (Delta Lake: KPIs, features ML, reportes)
+       │   reads  s3a://silver/
+       └── writes → s3a://gold/  (Delta Lake: KPIs, ML features, reports)
 
-ANÁLISIS / ML:
+ANALYSIS / ML:
   JupyterLab (PySpark + Delta + boto3)
-       │   lee  s3a://bronze/ | silver/ | gold/
-       │   accede GPU ◄── RTX 2080 Ti (CUDA)
-       │   usa Ollama ◄── http://ollama:11434 (LLM inference)
-       │   indexa en OpenSearch ──► http://opensearch:9200
-       └── guarda resultados ──► /srv/datalake/artifacts
+       │   reads  s3a://bronze/ | silver/ | gold/
+       │   accesses GPU ◄── RTX 2080 Ti (CUDA)
+       │   uses Ollama ◄── http://ollama:11434 (LLM inference)
+       │   indexes in OpenSearch ──► http://opensearch:9200
+       └── saves results ──► /srv/datalake/artifacts
 
-VISUALIZACIÓN:
-  OpenSearch Dashboards ◄──── Índices + Aggregations
+VISUALIZATION:
+  OpenSearch Dashboards ◄──── Indices + Aggregations
   (https://dashboards.sexydad)
 
-AUTOMATIZACIÓN:
-  n8n (https://n8n.sexydad) ──► webhooks, integraciones externas, notificaciones
-  Airflow (https://airflow.sexydad) ──► orquesta TODO el pipeline
+AUTOMATION:
+  n8n (https://n8n.sexydad) ──► webhooks, external integrations, notifications
+  Airflow (https://airflow.sexydad) ──► orchestrates the ENTIRE pipeline
 
-MODELOS LLM:
-  Ollama ──► /srv/datalake/models/ollama (HDD 2TB, persistente)
-  Jupyter ──► acceso via http://ollama:11434/api/generate
-  Airflow ──► acceso via http://ollama:11434 desde worker
+LLM MODELS:
+  Ollama ──► /srv/datalake/models/ollama (HDD 2TB, persistent)
+  Jupyter ──► access via http://ollama:11434/api/generate
+  Airflow ──► access via http://ollama:11434 from worker
 ```
 
 ---
 
-## 6. Estrategia de placement
+## 6. Placement strategy
 
-Docker Swarm distribuye containers usando **labels de nodo + constraints en el stack**:
+Docker Swarm distributes containers using **node labels + constraints in the stack**:
 
 ```yaml
-# Ejemplo de constraint (en stack.yml de cada servicio):
+# Constraint example (in each service's stack.yml):
 deploy:
   placement:
     constraints:
       - node.labels.tier == control    # → master1
       - node.labels.tier == compute    # → master2
-      - node.labels.gpu == nvidia      # → master2 (solo GPU)
+      - node.labels.gpu == nvidia      # → master2 (GPU only)
 ```
 
-| Servicio | Nodo | Label usado | Motivo |
-|----------|------|-------------|--------|
-| Traefik | master1 | `tier=control` | Puertos :80/:443 en control plane |
-| Portainer | master1 | `tier=control` | UI de administración |
-| OpenSearch | master1 | `tier=control` | master2 saturado con GPU workloads |
-| OpenSearch Dashboards | master1 | `tier=control` | Frontend ligero |
-| Redis (Celery) | master1 | `tier=control` | Broker ligero, junto al scheduler |
-| Airflow Webserver | master1 | `tier=control` | UI + API REST |
-| Airflow Scheduler | master1 | `tier=control` | Planificador ligero |
-| Airflow Flower | master1 | `tier=control` | Monitor ligero |
-| Spark Master | master1 | `tier=control` | Coordinador ligero |
-| Spark History | master1 | `tier=control` | Lee logs del filesystem |
-| PostgreSQL | master2 | `hostname=master2` | NVMe para I/O intensivo |
-| n8n | master2 | `tier=compute` | Junto con Postgres (misma red) |
-| **JupyterLab** | master2 | `tier=compute` + `hostname=master2` | GPU + NVMe para notebooks + jupyter-ai (%%JARVIS) |
-| **Ollama** | master2 | `tier=compute` + `gpu=nvidia` | GPU obligatorio — v0.19.0 |
+| Service | Node | Label used | Reason |
+|---------|------|------------|--------|
+| Traefik | master1 | `tier=control` | Ports :80/:443 on control plane |
+| Portainer | master1 | `tier=control` | Admin UI |
+| OpenSearch | master1 | `tier=control` | master2 saturated with GPU workloads |
+| OpenSearch Dashboards | master1 | `tier=control` | Lightweight frontend |
+| Redis (Celery) | master1 | `tier=control` | Lightweight broker, alongside scheduler |
+| Airflow Webserver | master1 | `tier=control` | UI + REST API |
+| Airflow Scheduler | master1 | `tier=control` | Lightweight planner |
+| Airflow Flower | master1 | `tier=control` | Lightweight monitor |
+| Spark Master | master1 | `tier=control` | Lightweight coordinator |
+| Spark History | master1 | `tier=control` | Reads logs from filesystem |
+| PostgreSQL | master2 | `hostname=master2` | NVMe for I/O-intensive workloads |
+| n8n | master2 | `tier=compute` | Co-located with Postgres (same network) |
+| **JupyterLab** | master2 | `tier=compute` + `hostname=master2` | GPU + NVMe for notebooks |
+| **Ollama** | master2 | `tier=compute` + `gpu=nvidia` | GPU required |
 | MinIO | master2 | `tier=compute` + `hostname=master2` | HDD 2TB datalake |
-| Spark Worker | master2 | `tier=compute` + `hostname=master2` | NVMe para shuffle/spill |
-| Airflow Worker | master2 | `tier=compute` + `hostname=master2` | Acceso a GPU, NVMe, datalake HDD |
-| Portainer Agent | GLOBAL | — | Corre en TODOS los nodos |
+| Spark Worker | master2 | `tier=compute` + `hostname=master2` | NVMe for shuffle/spill |
+| Airflow Worker | master2 | `tier=compute` + `hostname=master2` | GPU, NVMe, HDD datalake access |
+| Portainer Agent | GLOBAL | — | Runs on ALL nodes |
 
 ---
 
-## 7. Redes Docker Swarm
+## 7. Docker Swarm networks
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Redes Overlay                             │
+│                    Overlay Networks                          │
 ├────────────┬───────────────────────────────────────────────┤
 │  public    │  attachable, overlay                           │
-│            │  Usado para: Traefik ↔ backends                │
-│            │  Servicios: traefik, portainer, n8n,           │
+│            │  Used for: Traefik ↔ backends                  │
+│            │  Services: traefik, portainer, n8n,            │
 │            │             jupyter, ollama,                   │
 │            │             opensearch, dashboards,            │
 │            │             minio, spark_*, airflow_webserver, │
 │            │             airflow_flower                     │
 ├────────────┼───────────────────────────────────────────────┤
 │  internal  │  attachable, overlay                           │
-│            │  Usado para: service-to-service                │
-│            │  Servicios: postgres, n8n, traefik,            │
+│            │  Used for: service-to-service                  │
+│            │  Services: postgres, n8n, traefik,             │
 │            │             jupyter, ollama,                   │
 │            │             opensearch, portainer-agent,       │
 │            │             minio, spark_*, redis,             │
-│            │             airflow_* (todos)                  │
+│            │             airflow_* (all)                    │
 └────────────┴───────────────────────────────────────────────┘
 ```
 
-**Regla de acceso**:
-- Un servicio en `public` puede ser alcanzado por Traefik
-- Un servicio en `internal` puede comunicarse con otros servicios sin exponer puertos
-- Los servicios que necesitan AMBOS (ser accedidos externamente Y hablar con otros servicios) se unen a las dos redes
+**Access rules**:
+- A service on `public` can be reached by Traefik
+- A service on `internal` can communicate with other services without exposing ports
+- Services that need BOTH (externally reachable AND talking to other services) join both networks
 
 ---
 
-## 8. Modelo de seguridad
+## 8. Security model
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Capas de seguridad                            │
+│                    Security layers                               │
 │                                                                  │
-│  1. Perimetral: LAN solo (192.168.80.0/24)                       │
+│  1. Perimeter: LAN only (<lan-cidr>)                             │
 │     └─ Traefik middleware: lan-whitelist / lan-allow             │
 │                                                                  │
-│  2. Autenticación: BasicAuth por servicio (donde aplica)         │
+│  2. Authentication: BasicAuth per service (where applicable)     │
 │     └─ Secrets: traefik_basic_auth, jupyter_basicauth_v2,        │
 │                 ollama_basicauth, opensearch_basicauth,           │
 │                 dashboards_basicauth                              │
-│     └─ Auth nativa: Portainer, Airflow, MinIO, n8n               │
+│     └─ Native auth: Portainer, Airflow, MinIO, n8n               │
 │                                                                  │
-│  3. Transporte: TLS self-signed en todos los endpoints           │
+│  3. Transport: Self-signed TLS on all endpoints                  │
 │     └─ Secrets: traefik_tls_cert, traefik_tls_key               │
 │                                                                  │
-│  4. Credenciales DB/App: Docker Swarm Secrets                    │
+│  4. DB/App credentials: Docker Swarm Secrets                     │
 │     └─ Secrets: pg_super_pass, pg_n8n_pass, pg_airflow_pass      │
 │                 minio_access_key, minio_secret_key               │
 │                 n8n_encryption_key, n8n_user_mgmt_jwt_secret     │
 │                 airflow_fernet_key, airflow_webserver_secret      │
 │                                                                  │
-│  5. Red interna: Overlay cifrado (no expuesto a LAN directa)     │
-│     └─ Servicios internos: NO tienen puertos publicados         │
+│  5. Internal network: Encrypted overlay (not exposed to LAN)     │
+│     └─ Internal services: have NO published ports               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Qué NO está implementado** (backlog):
-- [ ] Firewall (UFW/iptables) endurecido en ambos nodos
-- [ ] Rotación automática de secrets
-- [ ] Certificados de una CA interna real (en lugar de self-signed)
-- [ ] Autenticación OpenID/OAuth (para Jupyter/Airflow)
+**What is NOT yet implemented** (backlog):
+- [ ] Hardened firewall (UFW/iptables) on both nodes
+- [ ] Automatic secret rotation
+- [ ] Certificates from a real internal CA (instead of self-signed)
+- [ ] OpenID/OAuth authentication (for Jupyter/Airflow)
 
 ---
 
-## 9. Decisiones arquitecturales clave
+## 9. Key architectural decisions
 
-> Ver ADRs completos en [`docs/adrs/`](../adrs/)
+> See full ADRs in [`docs/adrs/`](../adrs/)
 
-### ADR-001: Docker Swarm sobre Kubernetes
-**Decisión**: Usar Docker Swarm para orquestación.  
-**Motivo**: 2 nodos no justifican la complejidad operativa de K8s. Swarm es suficiente para lab, más simple de mantener y con deployment declarativo por stacks.
+### ADR-001: Docker Swarm over Kubernetes
+**Decision**: Use Docker Swarm for orchestration.  
+**Reason**: 2 nodes don't justify K8s operational complexity. Swarm is sufficient for a lab, simpler to maintain, and supports declarative stack-based deployments.
 
-### ADR-002: master1 como gateway exclusivo
-**Decisión**: Traefik corre solo en master1 (mode: host en puertos :80/:443).  
-**Motivo**: Un solo punto de entrada simplifica certificados, whitelist y logging. master2 queda libre para workloads GPU/data.
+### ADR-002: master1 as exclusive gateway
+**Decision**: Traefik runs only on master1 (mode: host on ports :80/:443).  
+**Reason**: A single entry point simplifies certificates, whitelisting, and logging. master2 is free for GPU/data workloads.
 
-### ADR-003: Separación fastdata/datalake
-**Decisión**: Dos puntos de montaje diferenciados en master2.  
-**Motivo**: `/srv/fastdata` (NVMe) para I/O intensivo (DBs, metadata). `/srv/datalake` (HDD 2TB) para datos masivos (modelos, datasets, artifacts). Maximiza performance sin despilfarrar NVMe.
+### ADR-003: fastdata/datalake separation
+**Decision**: Two distinct mount points on master2.  
+**Reason**: `/srv/fastdata` (NVMe) for I/O-intensive workloads (DBs, metadata). `/srv/datalake` (HDD 2TB) for bulk data (models, datasets, artifacts). Maximizes performance without wasting NVMe capacity.
 
-### ADR-004: Security plugin OpenSearch deshabilitado
-**Decisión**: `DISABLE_SECURITY_PLUGIN=true` en OpenSearch.  
-**Motivo**: En laboratorio LAN-only con BasicAuth+Whitelist en Traefik es suficiente. El plugin de seguridad agrega complejidad de certificados internos que no aporta en este contexto.
+### ADR-004: OpenSearch security plugin disabled
+**Decision**: `DISABLE_SECURITY_PLUGIN=true` in OpenSearch.  
+**Reason**: In a LAN-only lab with BasicAuth+Whitelist in Traefik, this is sufficient. The security plugin adds internal certificate complexity that provides no benefit in this context.
 
-### ADR-005: GPU Generic Resources en Swarm
-**Decisión**: Registrar GPU como Generic Resource (`nvidia.com/gpu=1`) en lugar de usar el driver de runtime directamente.  
-**Motivo**: Swarm no tiene soporte nativo para `--gpus`. Generic Resources permite reservar y hacer placement correcto. El `default-runtime: nvidia` en `daemon.json` de master2 habilita el runtime.
+### ADR-005: GPU Generic Resources in Swarm
+**Decision**: Register GPU as Generic Resource (`nvidia.com/gpu=1`) instead of using the runtime driver directly.  
+**Reason**: Swarm has no native `--gpus` support. Generic Resources enable proper reservation and placement. `default-runtime: nvidia` in master2's `daemon.json` activates the runtime.
 
-### ADR-006: OpenSearch en master1 (no master2)
-**Decisión**: OpenSearch corre en master1 a pesar de tener HDD en lugar de NVMe.  
-**Motivo**: En el momento del despliegue, master2 tenía 14/16 CPUs y 28/31GB RAM comprometidos por Jupyter x2 + Ollama. OpenSearch es un servicio de soporte/observabilidad; HDD suficiente para workload de lab.
+### ADR-006: OpenSearch on master1 (not master2)
+**Decision**: OpenSearch runs on master1 despite having HDD instead of NVMe.  
+**Reason**: At deployment time, master2 had 14/16 CPUs and 28/31 GB RAM committed by Jupyter x2 + Ollama. OpenSearch is a support/observability service; HDD is sufficient for lab workloads.

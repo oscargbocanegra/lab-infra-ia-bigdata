@@ -171,9 +171,9 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 - [x] UFW on master1: `:22`, `:80`, `:443` open; Swarm ports from master2 only; DOCKER-USER chain
 - [x] UFW on master2: `:22` open; `:5432` + `:9000` + Swarm ports from master1 only; DOCKER-USER chain
 - [x] SSH hardening both nodes: `PasswordAuthentication no`, `AllowGroups sshusers`
-- [x] `sshusers` group created on both nodes; `ogiovanni` and `odavid` added
-- [x] odavid authorized_keys configured on both nodes
-- [x] PostgreSQL personal roles: `ogiovanni` and `odavid` created as SUPERUSER
+- [x] `sshusers` group created on both nodes; `<admin-user>` and `<second-user>` added
+- [x] `<second-user>` authorized_keys configured on both nodes
+- [x] PostgreSQL personal roles: `<admin-user>` and `<second-user>` created as SUPERUSER
 
 ### 7.3 TLS Cert Rotation ✅
 
@@ -200,7 +200,7 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 
 ```bash
 # dnsmasq:
-address=/sexydad/192.168.80.100
+address=/sexydad/<master1-ip>
 ```
 
 ---

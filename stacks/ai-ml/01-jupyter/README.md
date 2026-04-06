@@ -1,130 +1,130 @@
-# JupyterLab — IA / ML / BigData
+# JupyterLab — AI / ML / BigData
 
 ## Overview
 
-JupyterLab multi-usuario con GPU, 3 kernels especializados, autocompletado LSP y chat IA vía Ollama (LAN, sin cloud).
+Multi-user JupyterLab with GPU, 3 specialized kernels, LSP autocompletion, and AI chat via Ollama (LAN, no cloud required).
 
-**Hardware:** RTX 2080 Ti (11 GB VRAM) en master2  
-**Usuarios:** `ogiovanni` · `odavid`  
-**URLs:** `https://jupyter-ogiovanni.sexydad` · `https://jupyter-odavid.sexydad`
+**Hardware:** RTX 2080 Ti (11 GB VRAM) on master2  
+**Users:** `<admin-user>` · `<second-user>`  
+**URLs:** `https://jupyter-<admin-user>.sexydad` · `https://jupyter-<second-user>.sexydad`
 
 ---
 
-## Kernels disponibles
+## Available Kernels
 
-| Kernel | Display name | Contenido principal |
-|--------|-------------|---------------------|
+| Kernel | Display name | Main contents |
+|--------|-------------|---------------|
 | `llm` | Python (LLM - PyTorch + LangChain) | PyTorch CUDA, Transformers, LangChain, Ollama client |
 | `ia` | Python (IA - Scikit + TF + XGBoost) | Scikit-learn, TensorFlow, XGBoost, MLflow, Optuna |
 | `bigdata` | Python (BigData - PySpark + Delta + MinIO) | PySpark 3.5, Delta Lake, boto3, s3fs, Dask |
 
-Los venvs se persisten en `/srv/fastdata/jupyter/<user>/.venv` (NVMe) — **idempotente al reiniciar**.
+Virtual environments are persisted at `/srv/fastdata/jupyter/<user>/.venv` (NVMe) — **idempotent on restart**.
 
 ---
 
-## Extensiones de inteligencia de código
+## Code Intelligence Extensions
 
-### jupyter-lsp + jedi-language-server (intellisense clásico)
+### jupyter-lsp + jedi-language-server (classic intellisense)
 
-Autocompletado con tipos, docstrings y go-to-definition para cualquier kernel.  
-Se activa automáticamente al abrir un notebook — no requiere configuración adicional.
+Autocompletion with types, docstrings, and go-to-definition for any kernel.  
+Activates automatically when opening a notebook — no additional configuration required.
 
-### jupyter-ai con Ollama (chat IA + magic `%%ai`)
+### jupyter-ai with Ollama (AI chat + `%%ai` magic)
 
-Modelo por defecto: **`qwen2.5-coder:7b`** — especializado en código Python/SQL/Bash.  
-Endpoint interno: `http://ollama:11434` (red Swarm, sin latencia, sin cloud).
+Default model: **`qwen2.5-coder:7b`** — specialized in Python/SQL/Bash code.  
+Internal endpoint: `http://ollama:11434` (Swarm overlay network, no latency, no cloud).
 
-**Cómo usar el chat:**
-- Panel lateral → ícono ✦ (Jupyter AI) → escribís tu pregunta
-- El modelo responde con código listo para pegar en celdas
+**How to use the chat panel:**
+- Sidebar → ✦ icon (Jupyter AI) → type your question
+- The model responds with code ready to paste into cells
 
-**Cómo usar el magic `%%ai` en celdas:**
+**How to use the `%%ai` magic in cells:**
 ```python
 %%ai ollama:qwen2.5-coder:7b
-Escribí una función PySpark que lea un Delta Lake desde s3a://silver/ y filtre por fecha
+Write a PySpark function that reads a Delta Lake table from s3a://silver/ and filters by date
 ```
 
 ---
 
-## Pre-requisito: pull del modelo en Ollama
+## Pre-requisite: pull the model in Ollama
 
-Antes del primer deploy (o si el modelo no está descargado), hacer el pull desde master2:
+Before the first deploy (or if the model is not downloaded), pull from master2:
 
 ```bash
-# Opción 1 — desde el container de Ollama (recomendado)
+# Option 1 — from the Ollama container (recommended)
 docker exec $(docker ps -q -f name=ollama_ollama) ollama pull qwen2.5-coder:7b
 
-# Opción 2 — vía API desde cualquier nodo de la LAN
-curl -s http://192.168.80.200:11434/api/pull \
+# Option 2 — via API from any LAN node
+curl -s http://<master2-ip>:11434/api/pull \
   -d '{"name": "qwen2.5-coder:7b"}' | jq .
 
-# Verificar que el modelo está disponible
-curl -s http://192.168.80.200:11434/api/tags | jq '.models[].name'
+# Verify the model is available
+curl -s http://<master2-ip>:11434/api/tags | jq '.models[].name'
 ```
 
-> El modelo ocupa ~4.7 GB en disco (`/srv/datalake/models/ollama`) y ~5.5 GB de VRAM al inferir.  
-> Deja ~4.5 GB libres para un segundo modelo cargado simultáneamente.
+> The model takes ~4.7 GB on disk (`/srv/datalake/models/ollama`) and ~5.5 GB of VRAM during inference.  
+> Leaves ~4.5 GB free for a second model loaded simultaneously.
 
 ---
 
 ## Deploy
 
 ```bash
-# Desde master1 (Swarm manager)
+# From master1 (Swarm manager)
 docker stack deploy -c stacks/ai-ml/01-jupyter/stack.yml jupyter
 ```
 
-### Verificar
+### Verify
 
 ```bash
 docker service ls | grep jupyter
-docker service ps jupyter_jupyter_ogiovanni
-docker service ps jupyter_jupyter_odavid
-docker service logs jupyter_jupyter_ogiovanni -f
+docker service ps jupyter_jupyter_<admin-user>
+docker service ps jupyter_jupyter_<second-user>
+docker service logs jupyter_jupyter_<admin-user> -f
 ```
 
 ---
 
-## Estructura de volúmenes
+## Volume Structure
 
-| Path en el container | Fuente en host | Descripción |
-|----------------------|----------------|-------------|
-| `/home/jovyan/work` | `/srv/fastdata/jupyter/<user>` | Notebooks del usuario (NVMe) |
-| `/home/jovyan/.local` | `/srv/fastdata/jupyter/<user>/.local` | Kernels y extensiones persistentes |
-| `/home/jovyan/.venv` | `/srv/fastdata/jupyter/<user>/.venv` | Entornos virtuales (NVMe) |
-| `/home/jovyan/datasets` | `/srv/datalake/datasets` | Datasets compartidos (read-only) |
-| `/home/jovyan/shared-notebooks` | `/srv/datalake/notebooks` | Notebooks compartidos |
-| `/home/jovyan/artifacts` | `/srv/datalake/artifacts` | Artefactos ML compartidos |
+| Path in container | Host source | Description |
+|-------------------|-------------|-------------|
+| `/home/jovyan/work` | `/srv/fastdata/jupyter/<user>` | User notebooks (NVMe) |
+| `/home/jovyan/.local` | `/srv/fastdata/jupyter/<user>/.local` | Persistent kernels and extensions |
+| `/home/jovyan/.venv` | `/srv/fastdata/jupyter/<user>/.venv` | Virtual environments (NVMe) |
+| `/home/jovyan/datasets` | `/srv/datalake/datasets` | Shared datasets (read-only) |
+| `/home/jovyan/shared-notebooks` | `/srv/datalake/notebooks` | Shared notebooks |
+| `/home/jovyan/artifacts` | `/srv/datalake/artifacts` | Shared ML artifacts |
 
 ---
 
 ## Troubleshooting
 
-### Las extensiones LSP / jupyter-ai no aparecen
+### LSP / jupyter-ai extensions not showing
 
-El flag de idempotencia está en `/home/jovyan/.local/.server-extensions-installed`.  
-Para forzar reinstalación:
+The idempotency flag is at `/home/jovyan/.local/.server-extensions-installed`.  
+To force reinstallation:
 
 ```bash
-# Conectarse al container y borrar el flag
-docker exec -it $(docker ps -q -f name=jupyter_ogiovanni) bash
+# Connect to the container and delete the flag
+docker exec -it $(docker ps -q -f name=jupyter_<admin-user>) bash
 rm /home/jovyan/.local/.server-extensions-installed
 exit
 
-# Reiniciar el servicio
-docker service update --force jupyter_jupyter_ogiovanni
+# Restart the service
+docker service update --force jupyter_jupyter_<admin-user>
 ```
 
-### El modelo Ollama no responde desde el chat
+### Ollama model not responding from chat
 
 ```bash
-# Verificar conectividad interna Jupyter → Ollama
-docker exec -it $(docker ps -q -f name=jupyter_ogiovanni) \
+# Verify internal connectivity: Jupyter → Ollama
+docker exec -it $(docker ps -q -f name=jupyter_<admin-user>) \
   curl -s http://ollama:11434/api/tags | python3 -m json.tool
 ```
 
-### Revisar logs de init de kernels
+### Review kernel init logs
 
 ```bash
-docker service logs jupyter_jupyter_ogiovanni 2>&1 | grep -E "\[kernel|server-ext\]"
+docker service logs jupyter_jupyter_<admin-user> 2>&1 | grep -E "\[kernel|server-ext\]"
 ```

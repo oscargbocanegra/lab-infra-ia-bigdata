@@ -1,43 +1,42 @@
-# Runbook: Deploy Fase 5 — MinIO + Spark + Airflow
+# Runbook: Deploy Phase 5 — MinIO + Spark + Airflow
 
-> Versión: 1.0 — 2026-03-30
-> Ejecutar desde: **master1** (Swarm manager)
-> Tiempo estimado: ~30-45 minutos
+> Version: 1.0 — 2026-03-30  
+> Run from: **master1** (Swarm manager)  
+> Estimated time: ~30–45 minutes
 
-Este runbook cubre el deploy completo de los 3 stacks nuevos de la Fase 5, incluyendo
-el redespliegue de Postgres y Jupyter para soportar las nuevas dependencias.
+This runbook covers the full deployment of the 3 new Phase 5 stacks, including the redeployment of Postgres and Jupyter to support the new dependencies.
 
 ---
 
-## Prerequisitos
+## Prerequisites
 
-Antes de empezar, verificar que el cluster base está operativo:
+Before starting, verify the base cluster is operational:
 
 ```bash
-# Verificar estado del Swarm
+# Verify Swarm state
 docker node ls
-# Esperado: master1 (Leader/Ready) + master2 (Ready)
+# Expected: master1 (Leader/Ready) + master2 (Ready)
 
-# Verificar servicios activos
+# Verify active services
 docker service ls
-# Deben estar UP: traefik, portainer, postgres, n8n, jupyter, ollama, opensearch
+# Must be UP: traefik, portainer, postgres, n8n, jupyter, ollama, opensearch
 ```
 
 ---
 
-## Paso 0 — Aplicar daemon.json actualizado en master2
+## Step 0 — Apply updated daemon.json on master2
 
-El `daemon.json` de master2 fue actualizado para incluir el bloque de runtime NVIDIA.
-Si el archivo en el servidor no tiene `default-runtime: nvidia`, aplicar ahora:
+The `daemon.json` on master2 was updated to include the NVIDIA runtime block.
+If the file on the server does not have `default-runtime: nvidia`, apply it now:
 
 ```bash
-# Desde master1, copiar o editar en master2:
+# From master1, SSH to master2:
 ssh master2
 
-# Verificar el estado actual del daemon.json en el servidor:
+# Check the current daemon.json state on the server:
 cat /etc/docker/daemon.json
 
-# Si NO tiene "default-runtime": "nvidia", reemplazar con:
+# If it does NOT have "default-runtime": "nvidia", replace with:
 sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
 {
   "log-driver": "json-file",
@@ -60,161 +59,160 @@ sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
 }
 EOF
 
-# Recargar Docker (live-restore: true = sin downtime en contenedores existentes)
+# Reload Docker (live-restore: true = no downtime for existing containers)
 sudo systemctl reload docker || sudo systemctl restart docker
 
-# Verificar que nvidia-container-runtime está disponible:
+# Verify nvidia-container-runtime is available:
 docker info | grep -i runtime
-# Debe mostrar: Runtimes: nvidia runc
-# Y: Default Runtime: nvidia
+# Must show: Runtimes: nvidia runc
+# And: Default Runtime: nvidia
 
-exit  # Volver a master1
+exit  # Return to master1
 ```
 
 ---
 
-## Paso 1 — Crear secrets nuevos (desde master1)
+## Step 1 — Create new secrets (from master1)
 
 ```bash
-# Verificar qué secrets ya existen:
+# Check which secrets already exist:
 docker secret ls
 
-# Crear los 5 secrets nuevos (solo si NO existen ya):
+# Create the 5 new secrets (only if they do NOT already exist):
 
-# 1. Password Airflow en Postgres
+# 1. Airflow password in Postgres
 echo "$(openssl rand -base64 32)" | docker secret create pg_airflow_pass -
 
-# 2. MinIO access key (usuario root de MinIO — mínimo 3 caracteres)
-echo "minioadmin" | docker secret create minio_access_key -
+# 2. MinIO access key (MinIO root user — minimum 3 characters)
+echo "<minio-admin-user>" | docker secret create minio_access_key -
 
-# 3. MinIO secret key (password root de MinIO — mínimo 8 caracteres)
+# 3. MinIO secret key (MinIO root password — minimum 8 characters)
 echo "$(openssl rand -base64 32)" | docker secret create minio_secret_key -
 
-# 4. Airflow Fernet key (DEBE ser clave Fernet válida — generada con cryptography)
+# 4. Airflow Fernet key (MUST be a valid Fernet key — generated with cryptography)
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" | docker secret create airflow_fernet_key -
 
-# 5. Airflow webserver secret key (Flask secret — cualquier string aleatorio)
+# 5. Airflow webserver secret key (Flask secret — any random string)
 echo "$(openssl rand -hex 32)" | docker secret create airflow_webserver_secret -
 
-# Verificar que los 5 fueron creados:
+# Verify all 5 were created:
 docker secret ls | grep -E "pg_airflow_pass|minio_access_key|minio_secret_key|airflow_fernet_key|airflow_webserver_secret"
 ```
 
-**IMPORTANTE**: Guardar el valor de `minio_access_key` y `minio_secret_key` en un lugar seguro.
-Los necesitarás para acceder a la UI de MinIO.
+**IMPORTANT**: Save the values of `minio_access_key` and `minio_secret_key` somewhere safe.
+You will need them to access the MinIO UI.
 
 ---
 
-## Paso 2 — Crear directorios en master1
+## Step 2 — Create directories on master1
 
 ```bash
-# En master1:
+# On master1:
 sudo mkdir -p /srv/fastdata/airflow/{dags,logs,plugins,redis}
 
-# Airflow corre como UID 50000 (usuario "airflow" en el contenedor)
+# Airflow runs as UID 50000 (the "airflow" user inside the container)
 sudo chown -R 50000:50000 /srv/fastdata/airflow/dags
 sudo chown -R 50000:50000 /srv/fastdata/airflow/logs
 sudo chown -R 50000:50000 /srv/fastdata/airflow/plugins
-# Redis es root:
+# Redis runs as root:
 sudo chown root:docker /srv/fastdata/airflow/redis
 sudo chmod 2775 /srv/fastdata/airflow/redis
 
-# OpenSearch en master1 necesita vm.max_map_count (si no está ya):
+# OpenSearch on master1 needs vm.max_map_count (if not already set):
 grep vm.max_map_count /etc/sysctl.conf || echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```
 
 ---
 
-## Paso 3 — Crear directorios en master2
+## Step 3 — Create directories on master2
 
 ```bash
 ssh master2
 
-# Directorios Airflow worker (mismo path que master1 — mapeo consistente)
+# Airflow worker directories (same paths as master1 — consistent mapping)
 sudo mkdir -p /srv/fastdata/airflow/{dags,logs,plugins}
 sudo chown -R 50000:50000 /srv/fastdata/airflow/{dags,logs,plugins}
 sudo chmod 2775 /srv/fastdata/airflow/{dags,logs,plugins}
 
-# Spark scratch: shuffle/spill en NVMe
+# Spark scratch: shuffle/spill on NVMe
 sudo mkdir -p /srv/fastdata/spark-tmp
 sudo chown root:docker /srv/fastdata/spark-tmp
 sudo chmod 2775 /srv/fastdata/spark-tmp
 
-# MinIO: object storage en HDD 2TB
+# MinIO: object storage on 2TB HDD
 sudo mkdir -p /srv/datalake/minio
 sudo chown root:docker /srv/datalake/minio
 sudo chmod 2775 /srv/datalake/minio
 
-exit  # Volver a master1
+exit  # Return to master1
 ```
 
 ---
 
-## Paso 4 — Redesplegar Postgres (necesario para crear DB airflow)
+## Step 4 — Redeploy Postgres (needed to create airflow DB)
 
-> **Por qué**: Los init scripts de Postgres solo corren en volumen vacío.
-> Como se agregó `02-init-airflow.sh`, necesitamos un volumen fresco.
+> **Why**: Postgres init scripts only run on an empty volume.
+> Since `02-init-airflow.sh` was added, we need a fresh volume.
 
 ```bash
-# PRIMERO: bajar todos los servicios que dependen de Postgres
+# FIRST: bring down all services that depend on Postgres
 docker service rm n8n_n8n 2>/dev/null || true
 
-# Bajar Postgres
+# Bring down Postgres
 docker stack rm postgres 2>/dev/null || true
-# Esperar que los servicios terminen:
+# Wait for services to terminate:
 sleep 15
-docker service ls | grep postgres   # debe estar vacío
+docker service ls | grep postgres   # must be empty
 
-# Borrar el volumen de datos de Postgres (confirmado: no hay datos críticos)
+# Delete the Postgres data volume (confirmed: no critical data)
 ssh master2 "sudo rm -rf /srv/fastdata/postgres && sudo mkdir -p /srv/fastdata/postgres && sudo chown 999:999 /srv/fastdata/postgres && sudo chmod 700 /srv/fastdata/postgres"
 
-# Redesplegar Postgres (init scripts crearán n8n + airflow DBs)
-cd /path/to/lab-infra-ia-bigdata
+# Redeploy Postgres (init scripts will create n8n + airflow DBs)
 docker stack deploy -c stacks/core/02-postgres/stack.yml postgres
 
-# Esperar a que Postgres esté healthy (puede tardar 30-60s):
+# Wait for Postgres to be healthy (may take 30-60s):
 watch docker service ls | grep postgres
-# Esperado: postgres_postgres  1/1  Running
+# Expected: postgres_postgres  1/1  Running
 
-# Verificar que las DBs fueron creadas:
+# Verify the DBs were created:
 docker exec -it $(docker ps -q -f name=postgres_postgres) \
   psql -U postgres -c "\l"
-# Deben aparecer: postgres, n8n, airflow
+# Should show: postgres, n8n, airflow
 ```
 
 ---
 
-## Paso 5 — Redesplegar n8n (post-postgres)
+## Step 5 — Redeploy n8n (post-postgres)
 
 ```bash
 docker stack deploy -c stacks/automation/02-n8n/stack.yml n8n
 
-# Verificar:
+# Verify:
 watch docker service ls | grep n8n
-# Curl de prueba:
+# Test curl:
 curl -sk https://n8n.sexydad | grep -o "n8n" | head -1
 ```
 
 ---
 
-## Paso 6 — Deploy MinIO
+## Step 6 — Deploy MinIO
 
 ```bash
 docker stack deploy -c stacks/data/12-minio/stack.yml minio
 
-# Esperar a que MinIO esté running (~30s):
+# Wait for MinIO to be running (~30s):
 watch docker service ls | grep minio
 
-# Verificar health:
+# Verify health:
 curl -sk https://minio-api.sexydad/minio/health/live
-# Respuesta esperada: HTTP 200 (sin body)
+# Expected response: HTTP 200 (no body)
 ```
 
-### Crear buckets Medallion Architecture en MinIO
+### Create Medallion Architecture buckets in MinIO
 
 ```bash
-# Opción A: via mc (MinIO Client) desde dentro del contenedor
+# Via mc (MinIO Client) from inside the container
 docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
   mc alias set local http://localhost:9000 \$(cat /run/secrets/minio_access_key) \$(cat /run/secrets/minio_secret_key) &&
   mc mb local/bronze local/silver local/gold \
@@ -222,86 +220,86 @@ docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
   mc mb local/spark-warehouse/history
 "
 
-# Verificar los 6 buckets + subdirectorio:
+# Verify the 6 buckets + subdirectory:
 docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
   mc alias set local http://localhost:9000 \$(cat /run/secrets/minio_access_key) \$(cat /run/secrets/minio_secret_key) &&
   mc ls local
 "
-# Esperado: bronze/ silver/ gold/ lab-notebooks/ airflow-logs/ spark-warehouse/
+# Expected: bronze/ silver/ gold/ lab-notebooks/ airflow-logs/ spark-warehouse/
 ```
 
 ---
 
-## Paso 7 — Deploy Spark
+## Step 7 — Deploy Spark
 
 ```bash
 docker stack deploy -c stacks/data/98-spark/stack.yml spark
 
-# Esperar a que los 3 servicios (master, worker, history) estén running:
+# Wait for all 3 services (master, worker, history) to be running:
 watch docker service ls | grep spark
 
-# Verificar Spark Master UI:
+# Verify Spark Master UI:
 curl -sk https://spark-master.sexydad | grep -o "Spark Master" | head -1
 
-# Verificar que el worker registró en el master:
-# Ir a https://spark-master.sexydad → debe mostrar 1 Worker alive con 10 CPUs / 14 GB
+# Verify the worker registered with the master:
+# Go to https://spark-master.sexydad → should show 1 Worker alive with 10 CPUs / 14 GB
 ```
 
 ---
 
-## Paso 8 — Deploy Airflow
+## Step 8 — Deploy Airflow
 
 ```bash
-# Deploy del stack completo (redis + webserver + scheduler + worker + flower):
+# Deploy the full stack (redis + webserver + scheduler + worker + flower):
 docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
 
-# Esperar a que redis y los componentes arranquen (~60s):
+# Wait for redis and components to start (~60s):
 watch docker service ls | grep airflow
 
-# Inicializar la base de datos de Airflow (SOLO UNA VEZ):
-# Escalar airflow_init a 1 para que corra db migrate + create admin user
+# Initialize the Airflow database (ONLY ONCE):
+# Scale airflow_init to 1 so it runs db migrate + create admin user
 docker service scale airflow_airflow_init=1
 
-# Ver los logs del init:
+# Watch the init logs:
 docker service logs airflow_airflow_init -f
-# Esperar a ver: "DB migrations done" y "Admin user admin created"
+# Wait to see: "DB migrations done" and "Admin user admin created"
 
-# Escalar de vuelta a 0 (es un job de init, no un servicio permanente):
+# Scale back to 0 (this is an init job, not a permanent service):
 docker service scale airflow_airflow_init=0
 
-# Verificar UI:
+# Verify UI:
 curl -sk https://airflow.sexydad/health | python3 -m json.tool
-# Esperado: {"metadatabase": {"status": "healthy"}, "scheduler": {"status": "healthy"}}
+# Expected: {"metadatabase": {"status": "healthy"}, "scheduler": {"status": "healthy"}}
 
-# Verificar Flower:
+# Verify Flower:
 curl -sk https://airflow-flower.sexydad | grep -o "Flower" | head -1
 ```
 
 ---
 
-## Paso 9 — Actualizar Jupyter
+## Step 9 — Update Jupyter
 
 ```bash
-# Forzar update de Jupyter para recargar entrypoint.sh y secrets nuevos:
-docker service update --force jupyter_jupyter_ogiovanni
-docker service update --force jupyter_jupyter_odavid
+# Force update Jupyter to reload entrypoint.sh and new secrets:
+docker service update --force jupyter_jupyter_<admin-user>
+docker service update --force jupyter_jupyter_<second-user>
 
-# Esperar que los servicios se reinicien:
+# Wait for services to restart:
 watch docker service ls | grep jupyter
 ```
 
 ---
 
-## Paso 10 — Verificación final
+## Step 10 — Final Verification
 
-### Verificar todos los servicios
+### Verify all services
 
 ```bash
 docker service ls
-# Todos deben tener REPLICAS = X/X (ej: 1/1)
+# All must have REPLICAS = X/X (e.g. 1/1)
 ```
 
-### Test de integración Jupyter → MinIO (desde notebook)
+### Integration test: Jupyter → MinIO (from a notebook)
 
 ```python
 import boto3
@@ -309,14 +307,14 @@ import boto3
 s3 = boto3.client(
     's3',
     endpoint_url='http://minio:9000',
-    # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY ya están en el environment
+    # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are already in the environment
 )
 buckets = s3.list_buckets()['Buckets']
 print([b['Name'] for b in buckets])
-# Esperado: ['airflow-logs', 'bronze', 'gold', 'lab-notebooks', 'silver', 'spark-warehouse']
+# Expected: ['airflow-logs', 'bronze', 'gold', 'lab-notebooks', 'silver', 'spark-warehouse']
 ```
 
-### Test de integración Jupyter → Spark (desde notebook)
+### Integration test: Jupyter → Spark (from a notebook)
 
 ```python
 from pyspark.sql import SparkSession
@@ -326,124 +324,124 @@ spark = SparkSession.builder \
     .appName("test") \
     .getOrCreate()
 
-spark.range(100).count()  # Debe retornar 100
+spark.range(100).count()  # Should return 100
 ```
 
-### Test de integración Spark → MinIO (desde notebook)
+### Integration test: Spark → MinIO (from a notebook)
 
 ```python
 df = spark.read.parquet("s3a://bronze/")
-# Si hay datos en el bucket, debe leerlos. Si está vacío, no hay error tampoco.
+# If the bucket has data, it will read it. If empty, no error either.
 ```
 
 ---
 
-## Paso 11 — /etc/hosts en clientes LAN
+## Step 11 — /etc/hosts on LAN clients
 
-Agregar en `/etc/hosts` de cada máquina cliente (Windows/Mac/Linux):
+Add to `/etc/hosts` on each client machine (Windows/Mac/Linux):
 
 ```
-192.168.80.100  minio.sexydad
-192.168.80.100  minio-api.sexydad
-192.168.80.100  spark-master.sexydad
-192.168.80.100  spark-worker.sexydad
-192.168.80.100  spark-history.sexydad
-192.168.80.100  airflow.sexydad
-192.168.80.100  airflow-flower.sexydad
+<master1-ip>  minio.sexydad
+<master1-ip>  minio-api.sexydad
+<master1-ip>  spark-master.sexydad
+<master1-ip>  spark-worker.sexydad
+<master1-ip>  spark-history.sexydad
+<master1-ip>  airflow.sexydad
+<master1-ip>  airflow-flower.sexydad
 ```
 
 ---
 
-## Paso 12 (Fase 6 — post-estabilización) — Habilitar Remote Logging en Airflow
+## Step 12 (Phase 6 — post-stabilization) — Enable Remote Logging in Airflow
 
-Una vez que Airflow esté estable:
+Once Airflow is stable:
 
-1. Crear conexión `minio_s3` en Airflow UI:
+1. Create the `minio_s3` connection in the Airflow UI:
    - **Admin → Connections → +**
    - Conn Id: `minio_s3`
    - Conn Type: `Amazon S3`
    - Extra: `{"endpoint_url": "http://minio:9000"}`
-   - Las credenciales se toman de `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` en el env del worker.
+   - Credentials are taken from `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in the worker environment.
 
-2. Actualizar el stack:
+2. Update the stack:
    ```yaml
    AIRFLOW__LOGGING__REMOTE_LOGGING: "true"
    ```
 
-3. Aplicar:
+3. Apply:
    ```bash
    docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
    ```
 
 ---
 
-## Troubleshooting común
+## Common Troubleshooting
 
-### MinIO no arranca
+### MinIO won't start
 ```bash
 docker service logs minio_minio --tail 50
-# Chequear: permisos en /srv/datalake/minio, secrets disponibles
+# Check: permissions on /srv/datalake/minio, secrets available
 ```
 
-### Spark Worker no se registra en el Master
+### Spark Worker doesn't register with the Master
 ```bash
 docker service logs spark_spark_worker --tail 50
-# Chequear: resolución DNS de "spark_master" en red internal
-# Verificar: docker network inspect internal | grep spark
+# Check: DNS resolution of "spark_master" on the internal network
+# Verify: docker network inspect internal | grep spark
 ```
 
-### Airflow Worker no aparece en Flower
+### Airflow Worker doesn't appear in Flower
 ```bash
 docker service logs airflow_airflow_worker --tail 50
-# Chequear: Redis corriendo, red internal, URL del broker
+# Check: Redis running, internal network, broker URL
 docker service logs airflow_redis --tail 20
 ```
 
-### Init de Airflow falla en DB migrate
+### Airflow init fails on DB migrate
 ```bash
 docker service logs airflow_airflow_init --tail 100
-# Chequear: pg_airflow_pass correcto, DB "airflow" existe en Postgres
-# Verificar desde master2:
+# Check: pg_airflow_pass correct, DB "airflow" exists in Postgres
+# Verify from master2:
 docker exec -it $(docker ps -q -f name=postgres_postgres) \
   psql -U postgres -c "\l" | grep airflow
 ```
 
-### Jupyter no puede conectar a MinIO (boto3)
+### Jupyter cannot connect to MinIO (boto3)
 ```bash
-# Verificar que las vars de entorno están exportadas:
-docker exec -it $(docker ps -q -f name=jupyter_jupyter_ogiovanni) \
+# Verify that environment variables are exported:
+docker exec -it $(docker ps -q -f name=jupyter_jupyter_<admin-user>) \
   env | grep AWS
-# Esperado: AWS_ACCESS_KEY_ID=minioadmin, AWS_SECRET_ACCESS_KEY=..., AWS_ENDPOINT_URL=http://minio:9000
+# Expected: AWS_ACCESS_KEY_ID=<minio-admin-user>, AWS_SECRET_ACCESS_KEY=..., AWS_ENDPOINT_URL=http://minio:9000
 ```
 
 ---
 
-## Estado esperado al finalizar
+## Expected Final State
 
 ```
 $ docker service ls
 
-ID       NAME                        MODE   REPLICAS  IMAGE
-...      traefik_traefik             global    1/1     traefik:v3.x
-...      portainer_portainer          replicated 1/1  portainer/portainer-ce:2.39.1
-...      portainer_portainer-agent   global    2/2     portainer/agent:2.39.1
-...      postgres_postgres           replicated 1/1   postgres:16
-...      n8n_n8n                     replicated 1/1   n8nio/n8n:latest
-...      jupyter_jupyter_ogiovanni   replicated 1/1   jupyter/datascience-notebook:python-3.11
-...      jupyter_jupyter_odavid      replicated 1/1   jupyter/datascience-notebook:python-3.11
-...      ollama_ollama               replicated 1/1   ollama/ollama:0.6.1
-...      opensearch_opensearch       replicated 1/1   opensearchproject/opensearch:2.19.4
-...      opensearch_dashboards       replicated 1/1   opensearchproject/opensearch-dashboards:2.19.4
-...      minio_minio                 replicated 1/1   minio/minio:RELEASE.2024-11-07T00-52-20Z
-...      spark_spark_master          replicated 1/1   bitnami/spark:3.5.3
-...      spark_spark_worker          replicated 1/1   bitnami/spark:3.5.3
-...      spark_spark_history         replicated 1/1   bitnami/spark:3.5.3
-...      airflow_redis               replicated 1/1   redis:7.2-alpine
-...      airflow_airflow_webserver   replicated 1/1   apache/airflow:2.9.3
-...      airflow_airflow_scheduler   replicated 1/1   apache/airflow:2.9.3
-...      airflow_airflow_worker      replicated 1/1   apache/airflow:2.9.3
-...      airflow_airflow_flower      replicated 1/1   apache/airflow:2.9.3
-...      airflow_airflow_init        replicated 0/0   apache/airflow:2.9.3  ← 0 replicas (correcto)
+ID       NAME                          MODE        REPLICAS  IMAGE
+...      traefik_traefik               global       1/1      traefik:v3.x
+...      portainer_portainer           replicated   1/1      portainer/portainer-ce:2.39.1
+...      portainer_portainer-agent     global       2/2      portainer/agent:2.39.1
+...      postgres_postgres             replicated   1/1      postgres:16
+...      n8n_n8n                       replicated   1/1      n8nio/n8n:latest
+...      jupyter_jupyter_<admin-user>  replicated   1/1      jupyter/datascience-notebook:python-3.11
+...      jupyter_jupyter_<second-user> replicated   1/1      jupyter/datascience-notebook:python-3.11
+...      ollama_ollama                 replicated   1/1      ollama/ollama:0.6.1
+...      opensearch_opensearch         replicated   1/1      opensearchproject/opensearch:2.19.4
+...      opensearch_dashboards         replicated   1/1      opensearchproject/opensearch-dashboards:2.19.4
+...      minio_minio                   replicated   1/1      minio/minio:RELEASE.2024-11-07T00-52-20Z
+...      spark_spark_master            replicated   1/1      bitnami/spark:3.5.3
+...      spark_spark_worker            replicated   1/1      bitnami/spark:3.5.3
+...      spark_spark_history           replicated   1/1      bitnami/spark:3.5.3
+...      airflow_redis                 replicated   1/1      redis:7.2-alpine
+...      airflow_airflow_webserver     replicated   1/1      apache/airflow:2.9.3
+...      airflow_airflow_scheduler     replicated   1/1      apache/airflow:2.9.3
+...      airflow_airflow_worker        replicated   1/1      apache/airflow:2.9.3
+...      airflow_airflow_flower        replicated   1/1      apache/airflow:2.9.3
+...      airflow_airflow_init          replicated   0/0      apache/airflow:2.9.3  ← 0 replicas (correct)
 ```
 
-**Total: 20 servicios activos** (21 definidos, 1 inactivo por diseño: airflow_init)
+**Total: 20 active services** (21 defined, 1 intentionally inactive: airflow_init)

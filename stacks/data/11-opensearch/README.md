@@ -1,4 +1,4 @@
-# OpenSearch + Dashboards - Search and Analytics Engine
+# OpenSearch + Dashboards — Search and Analytics Engine
 
 ## Overview
 
@@ -6,20 +6,20 @@ OpenSearch is an open-source search and analytics engine (Elasticsearch fork) fo
 
 **Hardware:** HDD fastdata on master1 (control plane)  
 **API Endpoint:** `https://opensearch.sexydad`  
-**UI Endpoint:** `https://dashboards.sexydad` ⭐ **Interfaz Gráfica**  
+**UI Endpoint:** `https://dashboards.sexydad`  
 **Security:** BasicAuth + LAN Whitelist (Security plugin disabled for lab simplicity)
 
-> **⚠️ Importante:** Para acceder desde tu máquina local:
-> 
-> 1. **Agregar en tu archivo hosts:**
+> **Note:** To access from your local machine:
+>
+> 1. **Add to your hosts file:**
 >    ```
->    192.168.80.100 opensearch.sexydad dashboards.sexydad
+>    <master1-ip>  opensearch.sexydad dashboards.sexydad
 >    ```
-> 
-> 2. **Desactivar verificación SSL** (certificado autofirmado):
+>
+> 2. **Disable SSL verification** (self-signed certificate):
 >    - **Postman:** Settings → General → SSL certificate verification (OFF)
->    - **cURL:** Usar flag `-k`
->    - **Browser:** Aceptar certificado autofirmado al acceder a `https://dashboards.sexydad`
+>    - **cURL:** Use flag `-k`
+>    - **Browser:** Accept the self-signed certificate warning on first visit to `https://dashboards.sexydad`
 
 ## Prerequisites
 
@@ -34,19 +34,18 @@ OpenSearch is an open-source search and analytics engine (Elasticsearch fork) fo
 ### 1. Prepare data directory
 
 ```bash
-# En master1 (control plane)
-ssh master1
+# On master1 (control plane)
+ssh <admin-user>@<master1-ip>
 sudo mkdir -p /srv/fastdata/opensearch
 sudo chown -R 1000:1000 /srv/fastdata/opensearch
 sudo chmod 755 /srv/fastdata/opensearch
 ```
 
-> **Nota:** OpenSearch corre como UID 1000, por eso el chown específico.
+> OpenSearch runs as UID 1000, hence the specific chown.
 
 ### 2. Configure system settings (one-time on master1)
 
 ```bash
-ssh master1
 # Increase virtual memory (required by OpenSearch)
 sudo sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
@@ -55,14 +54,14 @@ echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ### 3. Create BasicAuth secrets
 
 ```bash
-# Reutilizar las mismas credenciales de Jupyter
+# Reuse the same credentials as Jupyter
 docker secret create opensearch_basicauth secrets/jupyter_basicauth
 docker secret create dashboards_basicauth secrets/jupyter_basicauth
 ```
 
 ### 4. Add Traefik middlewares
 
-Agregar labels en [stacks/core/00-traefik/stack.yml](../../core/00-traefik/stack.yml):
+Add labels in [stacks/core/00-traefik/stack.yml](../../core/00-traefik/stack.yml):
 
 ```yaml
 # OpenSearch API
@@ -72,7 +71,7 @@ Agregar labels en [stacks/core/00-traefik/stack.yml](../../core/00-traefik/stack
 - traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth
 ```
 
-Luego redesplegar Traefik:
+Then redeploy Traefik:
 
 ```bash
 docker stack deploy -c stacks/core/00-traefik/stack.yml traefik
@@ -101,65 +100,63 @@ docker service logs opensearch_dashboards -f
 
 ---
 
-## 🌐 OpenSearch Dashboards Web UI
+## OpenSearch Dashboards Web UI
 
 **URL:** `https://dashboards.sexydad`
 
 ### Features
 
-- 📊 **Discover:** Explora y busca tus datos en tiempo real
-- 📈 **Visualize:** Crea gráficos, tablas, mapas y visualizaciones
-- 📱 **Dashboards:** Combina múltiples visualizaciones en dashboards interactivos
-- 🔍 **Dev Tools:** Consola para ejecutar queries directamente
-- ⚙️ **Management:** Administra índices, index patterns y configuraciones
+- **Discover:** Explore and search your data in real time
+- **Visualize:** Create charts, tables, maps and visualizations
+- **Dashboards:** Combine multiple visualizations into interactive dashboards
+- **Dev Tools:** Console for running queries directly
+- **Management:** Manage indexes, index patterns, and configurations
 
 ### First Access
 
-1. Abre tu navegador en `https://dashboards.sexydad`
-2. Acepta el certificado autofirmado (aviso de seguridad)
-3. Ingresa credenciales BasicAuth:
-   - **Username:** `ogiovanni` o `odavid`
-   - **Password:** Mismo que Jupyter
-4. En el primer acceso, verás la pantalla de bienvenida de OpenSearch Dashboards
+1. Open your browser at `https://dashboards.sexydad`
+2. Accept the self-signed certificate warning
+3. Enter BasicAuth credentials (`<admin-user>` / `<your-password>`)
+4. On first access you will see the OpenSearch Dashboards welcome screen
 
 ### Quick Start Guide
 
 1. **Create Index Pattern:**
-   - Ve a Management → Stack Management → Index Patterns
-   - Crea un index pattern para tus datos (ej: `logs-*`)
+   - Go to Management → Stack Management → Index Patterns
+   - Create an index pattern for your data (e.g. `logs-*`)
 
 2. **Explore Data:**
-   - Ve a Discover
-   - Selecciona tu index pattern
-   - Filtra, busca y explora tus documentos
+   - Go to Discover
+   - Select your index pattern
+   - Filter, search, and explore your documents
 
 3. **Create Visualizations:**
-   - Ve a Visualize
-   - Crea gráficos de líneas, barras, pie charts, etc.
+   - Go to Visualize
+   - Create line charts, bar charts, pie charts, etc.
 
 4. **Build Dashboards:**
-   - Ve a Dashboards
-   - Combina tus visualizaciones en dashboards interactivos
+   - Go to Dashboards
+   - Combine your visualizations into interactive dashboards
 
 ---
 
-## 🔐 Authentication
+## Authentication
 
-Todas las peticiones requieren **BasicAuth**:
+All requests require **BasicAuth** (enforced by Traefik):
 
-- **Username:** `ogiovanni` o `odavid`
-- **Password:** Mismo que Jupyter
+- **Username:** `<admin-user>` or `<second-user>`
+- **Password:** `<your-password>`
 
 ---
 
-## 📚 API Reference
+## API Reference
 
 Base URL: `https://opensearch.sexydad`
 
 ### 1. Cluster Health
 
 ```bash
-curl -k -u ogiovanni:password https://opensearch.sexydad/_cluster/health
+curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cluster/health
 ```
 
 **Response:**
@@ -175,14 +172,14 @@ curl -k -u ogiovanni:password https://opensearch.sexydad/_cluster/health
 ### 2. Create Index
 
 ```bash
-curl -k -u ogiovanni:password -X PUT https://opensearch.sexydad/my-index \
+curl -k -u <admin-user>:<your-password> -X PUT https://opensearch.sexydad/my-index \
   -H "Content-Type: application/json"
 ```
 
 ### 3. Index Document
 
 ```bash
-curl -k -u ogiovanni:password -X POST https://opensearch.sexydad/my-index/_doc \
+curl -k -u <admin-user>:<your-password> -X POST https://opensearch.sexydad/my-index/_doc \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test Document",
@@ -194,7 +191,7 @@ curl -k -u ogiovanni:password -X POST https://opensearch.sexydad/my-index/_doc \
 ### 4. Search Documents
 
 ```bash
-curl -k -u ogiovanni:password -X GET https://opensearch.sexydad/my-index/_search \
+curl -k -u <admin-user>:<your-password> -X GET https://opensearch.sexydad/my-index/_search \
   -H "Content-Type: application/json" \
   -d '{
     "query": {
@@ -208,18 +205,18 @@ curl -k -u ogiovanni:password -X GET https://opensearch.sexydad/my-index/_search
 ### 5. List Indices
 
 ```bash
-curl -k -u ogiovanni:password https://opensearch.sexydad/_cat/indices?v
+curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cat/indices?v
 ```
 
 ### 6. Delete Index
 
 ```bash
-curl -k -u ogiovanni:password -X DELETE https://opensearch.sexydad/my-index
+curl -k -u <admin-user>:<your-password> -X DELETE https://opensearch.sexydad/my-index
 ```
 
 ---
 
-## 🐍 Usage from Python
+## Usage from Python
 
 ### Basic Connection
 
@@ -232,7 +229,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 client = OpenSearch(
     hosts=[{'host': 'opensearch.sexydad', 'port': 443}],
-    http_auth=('ogiovanni', 'your-password'),
+    http_auth=('<admin-user>', '<your-password>'),
     use_ssl=True,
     verify_certs=False,
     ssl_show_warn=False
@@ -306,12 +303,12 @@ helpers.bulk(client, docs)
 
 ---
 
-## 🧪 Postman Configuration
+## Postman Configuration
 
 ### Setup
 1. Create new request
 2. Set Auth Type: **Basic Auth**
-   - Username: `ogiovanni`
+   - Username: `<admin-user>`
    - Password: `<your-password>`
 3. Base URL: `https://opensearch.sexydad`
 4. Disable SSL verification
@@ -344,7 +341,7 @@ Body:
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### OpenSearch (Engine)
 - **CPUs:** 1.0 reserved, 3.0 limit
@@ -368,13 +365,13 @@ Body:
 
 ---
 
-## 🔗 Integration Examples
+## Integration Examples
 
 ### With Python (pandas)
 
 ```python
 import pandas as pd
-from opensearchpy import OpenSearch
+from opensearchpy import OpenSearch, helpers
 
 client = OpenSearch([{'host': 'opensearch', 'port': 9200}], use_ssl=False)
 
@@ -406,38 +403,38 @@ from opensearchpy import OpenSearch
 
 def index_to_opensearch(**context):
     client = OpenSearch([{'host': 'opensearch', 'port': 9200}], use_ssl=False)
-    
+
     doc = {
         'dag_id': context['dag'].dag_id,
         'execution_date': str(context['execution_date']),
         'status': 'success'
     }
-    
+
     client.index(index='airflow-logs', body=doc)
 ```
 
 ---
 
-## 📊 Monitoring
+## Monitoring
 
 ### Check cluster status
 ```bash
-curl -k -u ogiovanni:password https://opensearch.sexydad/_cluster/health?pretty
+curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cluster/health?pretty
 ```
 
 ### View node stats
 ```bash
-curl -k -u ogiovanni:password https://opensearch.sexydad/_nodes/stats?pretty
+curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_nodes/stats?pretty
 ```
 
 ### Check indices
 ```bash
-curl -k -u ogiovanni:password https://opensearch.sexydad/_cat/indices?v
+curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cat/indices?v
 ```
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Dashboards not loading
 
@@ -449,7 +446,7 @@ docker service logs opensearch_dashboards -f
 # Common issue: Waiting for OpenSearch
 # Solution: Ensure OpenSearch is running first
 docker service ps opensearch_opensearch
-curl -k -u ogiovanni:password https://opensearch.sexydad/_cluster/health
+curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cluster/health
 ```
 
 ### Service not starting
@@ -460,10 +457,10 @@ docker service logs opensearch_opensearch -f
 
 # Common issues:
 # 1. vm.max_map_count too low
-ssh master1 "sysctl vm.max_map_count"
+ssh <master1-ip> "sysctl vm.max_map_count"
 
 # 2. Permissions on data directory
-ssh master1 "ls -la /srv/fastdata/opensearch"
+ssh <master1-ip> "ls -la /srv/fastdata/opensearch"
 
 # 3. Memory issues
 docker service ps opensearch_opensearch --no-trunc
@@ -471,27 +468,26 @@ docker service ps opensearch_opensearch --no-trunc
 
 ### Memory errors
 
-Si ves errores de memoria, ajusta JVM heap en stack.yml:
+If you see memory errors, reduce JVM heap in stack.yml:
 ```yaml
-- "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"  # Reducir a 1GB
+- "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"  # Reduce to 1GB
 ```
 
 ### Reset data
 
 ```bash
-ssh master1
 sudo rm -rf /srv/fastdata/opensearch/*
 docker service update --force opensearch_opensearch
 ```
 
 ---
 
-## 📝 Notes
+## Notes
 
-- **Single-node:** Configurado como nodo único (discovery.type=single-node)
-- **Security Plugin:** Deshabilitado para simplificar lab interno
-- **Dashboards:** Incluye interfaz gráfica completa (similar a Kibana)
-- **Deployment:** Corriendo en master1 (control plane) por disponibilidad de recursos
-- **HDD Storage:** Suficiente para ambiente de lab/aprendizaje
-- **Production:** Para producción, habilitar security plugin, configurar cluster multi-nodo y usar NVMe
-- **Backups:** Considerar snapshots regulares si datos son críticos
+- **Single-node:** Configured as single-node (`discovery.type=single-node`)
+- **Security Plugin:** Disabled to simplify the internal lab
+- **Dashboards:** Includes full graphical interface (similar to Kibana)
+- **Deployment:** Running on master1 (control plane) due to resource availability
+- **HDD Storage:** Sufficient for lab/learning environment
+- **Production:** For production, enable the security plugin, configure a multi-node cluster, and use NVMe
+- **Backups:** Consider regular snapshots if data is critical

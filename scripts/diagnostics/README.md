@@ -65,7 +65,7 @@ After=docker.service
 [Service]
 Type=oneshot
 ExecStart=/path/to/lab-infra-ia-bigdata/scripts/diagnostics/analyze-reboot.sh
-User=ogiovanni
+User=<admin-user>
 
 [Install]
 WantedBy=multi-user.target

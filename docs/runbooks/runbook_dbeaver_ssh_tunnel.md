@@ -1,9 +1,8 @@
 # Runbook: DBeaver — PostgreSQL via SSH Tunnel
 
-> **Target audience:** `ogiovanni`, `odavid`  
 > **Last updated:** 2026-04-05
 
-Connect to PostgreSQL running on **master2** (192.168.80.200:5432) from any LAN machine using DBeaver, via an SSH tunnel through **master1** (192.168.80.100).
+Connect to PostgreSQL running on **master2** (`<master2-ip>:5432`) from any LAN machine using DBeaver, via an SSH tunnel through **master1** (`<master1-ip>`).
 
 ---
 
@@ -14,11 +13,11 @@ Your machine (DBeaver)
        │
        │  SSH :22
        ▼
-   master1  (192.168.80.100)    ← SSH jump host (public-facing)
+   master1  (<master1-ip>)    ← SSH jump host (LAN-facing)
        │
        │  TCP tunnel → :5432
        ▼
-   master2  (192.168.80.200)    ← PostgreSQL runs here
+   master2  (<master2-ip>)    ← PostgreSQL runs here
 ```
 
 PostgreSQL port 5432 is **not exposed to the LAN** — it only accepts connections from master1 via UFW. The SSH tunnel forwards a local port on your machine through master1 directly to PostgreSQL on master2.
@@ -28,8 +27,8 @@ PostgreSQL port 5432 is **not exposed to the LAN** — it only accepts connectio
 ## Prerequisites
 
 - **DBeaver** installed on your machine (any version)
-- Your **SSH private key** for `ogiovanni` or `odavid` on master1
-- Your machine is on the **192.168.80.0/24** LAN
+- Your **SSH private key** for your user on master1
+- Your machine is on the **`<lan-cidr>`** LAN
 
 ---
 
@@ -45,12 +44,12 @@ PostgreSQL port 5432 is **not exposed to the LAN** — it only accepts connectio
 
 | Field | Value |
 |-------|-------|
-| Host | `192.168.80.200` |
+| Host | `<master2-ip>` |
 | Port | `5432` |
 | Database | `postgres` |
 | Authentication | Database Native |
-| Username | `ogiovanni` or `odavid` |
-| Password | `jupyter2024` |
+| Username | `<your-username>` |
+| Password | `<your-password>` |
 
 > **Do not click Finish yet** — you need to configure the SSH tunnel first.
 
@@ -65,9 +64,9 @@ Enable SSH tunnel:
 | Field | Value |
 |-------|-------|
 | ☑ Use SSH Tunnel | **checked** |
-| Host/IP | `192.168.80.100` |
+| Host/IP | `<master1-ip>` |
 | Port | `22` |
-| User Name | `ogiovanni` or `odavid` |
+| User Name | `<your-username>` |
 | Authentication Method | **Public Key** |
 | Private Key | path to your `id_ed25519` private key file |
 
@@ -97,17 +96,17 @@ The connection appears in the left panel. Expand it to browse databases, schemas
 
 - Verify your SSH private key path is correct
 - Your public key must be in `~/.ssh/authorized_keys` on master1 for your user
-- Test manually from a terminal: `ssh ogiovanni@192.168.80.100`
+- Test manually from a terminal: `ssh <your-username>@<master1-ip>`
 
 ### `Connection refused` on DB test (tunnel OK)
 
-- Verify UFW on master2 allows 5432 from master1 (already configured in Phase 7)
-- Verify PostgreSQL is running: `ssh ogiovanni@192.168.80.100 'ssh ogiovanni@192.168.80.200 sudo -n docker ps | grep postgres'`
+- Verify UFW on master2 allows 5432 from master1 (configured in Phase 7)
+- Verify PostgreSQL is running: `ssh <your-username>@<master1-ip> 'ssh <your-username>@<master2-ip> sudo -n docker ps | grep postgres'`
 
 ### `FATAL: password authentication failed`
 
-- Use password `jupyter2024` for both `ogiovanni` and `odavid`
 - Verify the role exists: connect as `postgres` superuser and run `\du`
+- Your password is stored in the corresponding Docker Swarm Secret on the cluster
 
 ### `Host key verification failed`
 
@@ -148,12 +147,8 @@ SELECT version();
 
 ## Personal roles (Phase 7)
 
-Both `ogiovanni` and `odavid` have been provisioned as **SUPERUSER** with full access:
-
-```sql
--- Created via scripts/hardening/pg-admin-roles.sql
-CREATE ROLE ogiovanni WITH LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD 'jupyter2024';
-CREATE ROLE odavid    WITH LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD 'jupyter2024';
-```
+Admin users are provisioned as **SUPERUSER** with full access.
+Roles are created via `scripts/hardening/pg-admin-roles.sql` on the cluster.
 
 > These roles can connect to any database, create new databases, and manage other roles.
+> Credentials are stored as Docker Swarm Secrets — never in this repository.

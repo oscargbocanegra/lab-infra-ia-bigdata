@@ -1,26 +1,26 @@
-# Nodos del Clúster
+# Cluster Nodes
 
-> Actualizado: 2026-03-30 — Fase 5: MinIO, Spark, Airflow
+> Updated: 2026-03-30 — Phase 5: MinIO, Spark, Airflow
 
 ---
 
 ## master1 — Control Plane
 
-| Atributo | Detalle |
-|----------|---------|
+| Attribute | Detail |
+|-----------|--------|
 | **Hostname** | `master1` |
-| **Rol Swarm** | Manager / Leader |
+| **Swarm role** | Manager / Leader |
 | **CPU** | Intel Core i7-6700T @ 2.80 GHz |
 | **Cores / Threads** | 4C / 8T |
-| **RAM Total** | 32 GB |
-| **RAM libre (típico)** | ~25 GB disponible |
+| **Total RAM** | 32 GB |
+| **Available RAM (typical)** | ~25 GB |
 | **Swap** | 2 GB |
-| **Disco** | WDC WD5000LPLX-0 — 500 GB HDD (ROTA=1) |
-| **GPU** | Ninguna |
-| **OS** | Ubuntu (familia Debian) |
-| **IP LAN** | `<IP_MASTER1>` (fija, red 192.168.80.0/24) |
+| **Disk** | WDC WD5000LPLX-0 — 500 GB HDD (ROTA=1) |
+| **GPU** | None |
+| **OS** | Ubuntu (Debian family) |
+| **LAN IP** | `<IP_MASTER1>` (static, <lan-cidr> network) |
 
-### Labels Swarm (master1)
+### Swarm Labels (master1)
 
 ```bash
 docker node update --label-add tier=control master1
@@ -29,10 +29,10 @@ docker node update --label-add storage=backup master1
 docker node update --label-add net=lan master1
 ```
 
-### Servicios que corren en master1
+### Services running on master1
 
-| Servicio | Stack | Constraint |
-|----------|-------|------------|
+| Service | Stack | Constraint |
+|---------|-------|------------|
 | Traefik | core/00-traefik | `tier=control` |
 | Portainer | core/01-portainer | `tier=control` |
 | Portainer Agent | core/01-portainer | global |
@@ -45,47 +45,47 @@ docker node update --label-add net=lan master1
 | Airflow Flower | automation/03-airflow | `tier=control` |
 | Redis (Airflow broker) | automation/03-airflow | `tier=control` |
 
-### Mounts en master1
+### Mounts on master1
 
 ```
-/srv/fastdata/        → HDD local (no LVM) — Portainer data, OpenSearch data
+/srv/fastdata/        → local HDD (no LVM) — Portainer data, OpenSearch data
 /srv/fastdata/portainer
 /srv/fastdata/opensearch
-/srv/fastdata/airflow/dags     → DAGs compartidos (accedido por webserver + scheduler)
-/srv/fastdata/airflow/logs     → Logs locales de tareas (antes de remote logging)
-/srv/fastdata/airflow/plugins  → Plugins de Airflow
-/srv/fastdata/airflow/redis    → Persistencia Redis (broker Celery)
-/srv/backups/master2  → (planeado) backups recibidos desde master2 por rsync
+/srv/fastdata/airflow/dags     → shared DAGs (accessed by webserver + scheduler)
+/srv/fastdata/airflow/logs     → local task logs (before remote logging)
+/srv/fastdata/airflow/plugins  → Airflow plugins
+/srv/fastdata/airflow/redis    → Redis persistence (Celery broker)
+/srv/backups/master2  → (planned) backups received from master2 via rsync
 ```
 
-### Configuración del sistema relevante
+### Relevant system configuration
 
-- **systemd override**: `RequiresMountsFor=/srv/fastdata` antes de iniciar Docker
-- **Docker daemon.json**: log driver `json-file`, runtime default estándar
+- **systemd override**: `RequiresMountsFor=/srv/fastdata` before starting Docker
+- **Docker daemon.json**: log driver `json-file`, standard default runtime
 
 ---
 
 ## master2 — Compute + Data + GPU
 
-| Atributo | Detalle |
-|----------|---------|
+| Attribute | Detail |
+|-----------|--------|
 | **Hostname** | `master2` |
-| **Rol Swarm** | Worker |
+| **Swarm role** | Worker |
 | **CPU** | Intel Core i9-9900K @ 3.60 GHz |
 | **Cores / Threads** | 8C / 16T |
-| **RAM Total** | 32 GB |
-| **RAM libre (típico)** | ~4–8 GB disponible (Jupyter + Ollama activos) |
+| **Total RAM** | 32 GB |
+| **Available RAM (typical)** | ~4–8 GB (Jupyter + Ollama active) |
 | **Swap** | 8 GB |
-| **Disco 1** | Samsung SSD 970 EVO — 931.5 GB NVMe (ROTA=0) |
-| **Disco 2** | Seagate ST2000LM015 — 1.8 TB HDD (ROTA=1) |
+| **Disk 1** | Samsung SSD 970 EVO — 931.5 GB NVMe (ROTA=0) |
+| **Disk 2** | Seagate ST2000LM015 — 1.8 TB HDD (ROTA=1) |
 | **GPU** | NVIDIA GeForce RTX 2080 Ti |
 | **VRAM** | 11 GB |
-| **Driver NVIDIA** | 535.288.01 |
+| **NVIDIA Driver** | 535.288.01 |
 | **CUDA Version** | 12.2 |
-| **OS** | Ubuntu (familia Debian) |
-| **IP LAN** | `<IP_MASTER2>` (fija, red 192.168.80.0/24) |
+| **OS** | Ubuntu (Debian family) |
+| **LAN IP** | `<IP_MASTER2>` (static, <lan-cidr> network) |
 
-### Labels Swarm (master2)
+### Swarm Labels (master2)
 
 ```bash
 docker node update --label-add tier=compute master2
@@ -95,10 +95,10 @@ docker node update --label-add gpu=nvidia master2
 docker node update --label-add net=lan master2
 ```
 
-### GPU: Generic Resource registrado
+### GPU: Registered Generic Resource
 
 ```bash
-# En /etc/docker/daemon.json de master2:
+# In /etc/docker/daemon.json on master2:
 {
   "default-runtime": "nvidia",
   "runtimes": {
@@ -110,78 +110,78 @@ docker node update --label-add net=lan master2
   "node-generic-resources": ["nvidia.com/gpu=1"]
 }
 
-# Verificar:
+# Verify:
 docker node inspect master2 --format '{{ json .Description.Resources.GenericResources }}'
-# Debe mostrar: [{"DiscreteResourceSpec":{"Kind":"nvidia.com/gpu","Value":1}}]
+# Should show: [{"DiscreteResourceSpec":{"Kind":"nvidia.com/gpu","Value":1}}]
 ```
 
-### Servicios que corren en master2
+### Services running on master2
 
-| Servicio | Stack | Constraint | Storage |
-|----------|-------|------------|---------|
+| Service | Stack | Constraint | Storage |
+|---------|-------|------------|---------|
 | PostgreSQL 16 | core/02-postgres | `hostname=master2` | `/srv/fastdata/postgres` (NVMe) |
 | n8n | automation/02-n8n | `tier=compute` | `/srv/fastdata/n8n` (NVMe) |
-| JupyterLab (ogiovanni) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/ogiovanni` (NVMe) |
-| JupyterLab (odavid) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/odavid` (NVMe) |
+| JupyterLab (<admin-user>) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/<admin-user>` (NVMe) |
+| JupyterLab (<second-user>) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/<second-user>` (NVMe) |
 | Ollama | ai-ml/02-ollama | `tier=compute` + `gpu=nvidia` | `/srv/datalake/models/ollama` (HDD) |
 | MinIO | data/12-minio | `tier=compute` + hostname | `/srv/datalake/minio` (HDD) |
 | Spark Worker | data/98-spark | `tier=compute` + hostname | `/srv/fastdata/spark-tmp` (NVMe) |
-| Airflow Worker (Celery) | automation/03-airflow | `tier=compute` + hostname | `/srv/fastdata/airflow/dags` (compartido) |
+| Airflow Worker (Celery) | automation/03-airflow | `tier=compute` + hostname | `/srv/fastdata/airflow/dags` (shared) |
 | Portainer Agent | core/01-portainer | global | — |
 
-### Mounts en master2
+### Mounts on master2
 
 ```
-/srv/fastdata/        → LVM sobre NVMe (600 GB, ext4)
+/srv/fastdata/        → LVM on NVMe (600 GB, ext4)
 │   ├── postgres/     → PostgreSQL data
 │   ├── n8n/          → n8n config/data
-│   ├── airflow/      → DAGs, logs, plugins (compartidos con master1 via volumen/sync)
+│   ├── airflow/      → DAGs, logs, plugins (shared with master1 via volume/sync)
 │   │   ├── dags/
 │   │   ├── logs/
 │   │   └── plugins/
-│   ├── spark-tmp/    → Scratch Spark: shuffle, spill (NVMe para máxima velocidad)
+│   ├── spark-tmp/    → Spark scratch: shuffle, spill (NVMe for maximum speed)
 │   └── jupyter/
-│       ├── ogiovanni/
-│       │   ├── .venv/   → virtualenv IA/LLM/BigData kernels (persistente)
-│       │   └── .local/  → kernelspecs (persistente)
-│       └── odavid/
+│       ├── <admin-user>/
+│       │   ├── .venv/   → virtualenv AI/LLM/BigData kernels (persistent)
+│       │   └── .local/  → kernelspecs (persistent)
+│       └── <second-user>/
 │           ├── .venv/
 │           └── .local/
 
-/srv/datalake/        → HDD 2TB (montado por fstab, UUID)
-    ├── minio/        → MinIO object storage (buckets de datos)
-    ├── datasets/     → datos crudos (CSV, Parquet, JSON)
+/srv/datalake/        → HDD 2TB (mounted via fstab, UUID)
+    ├── minio/        → MinIO object storage (data buckets)
+    ├── datasets/     → raw datasets (CSV, Parquet, JSON)
     ├── models/
-    │   └── ollama/   → modelos .gguf de Ollama
-    ├── notebooks/    → notebooks exportados / compartidos
-    ├── artifacts/    → resultados de entrenamientos, experimentos
-    └── backups/      → backups fríos locales
+    │   └── ollama/   → Ollama .gguf models
+    ├── notebooks/    → exported / shared notebooks
+    ├── artifacts/    → training results, experiments
+    └── backups/      → local cold storage backups
 ```
 
-### Configuración crítica del sistema (master2)
+### Critical system configuration (master2)
 
 ```ini
 # /etc/systemd/system/docker.service.d/override.conf
-# Docker NO inicia hasta que los discos están montados
+# Docker does NOT start until disks are mounted
 [Unit]
 After=network-online.target srv-fastdata.mount srv-datalake.mount
 Wants=network-online.target
 RequiresMountsFor=/srv/fastdata /srv/datalake
 ```
 
-> **Sin este override**: Docker arranca antes de que `/srv/fastdata` esté disponible → Postgres/n8n fallan al intentar abrir volúmenes → bucle de reinicios.
+> **Without this override**: Docker starts before `/srv/fastdata` is available → Postgres/n8n fail when trying to open volumes → restart loop.
 
 ---
 
-## Comparativa de recursos
+## Resource comparison
 
 ```
-Recurso         master1 (Control)    master2 (Compute)
+Resource        master1 (Control)    master2 (Compute)
 ─────────────── ──────────────────   ──────────────────────
-CPU             i7-6700T 4C/8T       i9-9900K 8C/16T       ← 2x más cores
+CPU             i7-6700T 4C/8T       i9-9900K 8C/16T       ← 2x more cores
 RAM             32 GB                32 GB
-Disco rápido    HDD 500 GB           NVMe 1TB              ← 10-20x más IOPS
-Disco masivo    —                    HDD 2TB               ← 4x capacidad
-GPU             —                    RTX 2080 Ti 11GB VRAM ← único con GPU
-Rol             Control/Gateway      Compute/Data/AI
+Fast disk       HDD 500 GB           NVMe 1TB              ← 10-20x more IOPS
+Mass storage    —                    HDD 2TB               ← 4x capacity
+GPU             —                    RTX 2080 Ti 11GB VRAM ← only GPU node
+Role            Control/Gateway      Compute/Data/AI
 ```

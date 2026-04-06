@@ -1,43 +1,43 @@
-# ADR-002: master1 como único gateway LAN
+# ADR-002: master1 as the Sole LAN Gateway
 
-**Fecha**: 2025-12  
-**Estado**: Aceptado
-
----
-
-## Contexto
-
-Con 2 nodos necesitamos decidir dónde corre el reverse proxy (Traefik) que expone los servicios a la LAN. Opciones:
-
-1. Traefik en master1 únicamente
-2. Traefik en master2 únicamente
-3. Traefik en ambos nodos (HA con keepalived/VIP)
+**Date**: 2025-12  
+**Status**: Accepted
 
 ---
 
-## Decisión
+## Context
 
-**Traefik corre solo en master1** con `mode: host` en los puertos :80 y :443.
+With 2 nodes, we need to decide where the reverse proxy (Traefik) runs to expose services to the LAN. Options:
 
----
-
-## Motivos
-
-1. **Simplicidad de certificados**: Un solo punto de entrada → un solo par cert/key que gestionar. No hay que sincronizar certs entre nodos.
-
-2. **master2 libre para workloads**: master2 tiene la GPU, el NVMe y la RAM comprometida con Jupyter + Ollama. Agregarle la carga de gateway quitaría recursos a los workloads reales.
-
-3. **LAN-only no necesita HA**: No hay SLA de producción. Si master1 cae, el lab queda en mantenimiento. Aceptable para un entorno de lab.
-
-4. **`mode: host` en master1**: Garantiza que :443 esté disponible directamente en la IP de master1 (`192.168.80.100`), sin el routing mesh de Swarm que puede interferir con certificados TLS.
-
-5. **Un solo hostname para todo el /etc/hosts**: Todos los `*.sexydad` apuntan a `192.168.80.100`. Simple.
+1. Traefik on master1 only
+2. Traefik on master2 only
+3. Traefik on both nodes (HA with keepalived/VIP)
 
 ---
 
-## Consecuencias
+## Decision
 
-- ✅ Setup simple, un certificado, un punto de entrada
-- ✅ master2 sin overhead de proxy
-- ⚠️ Si master1 cae, todos los servicios son inaccesibles desde la LAN (aceptado para lab)
-- ⚠️ Si en el futuro se necesita HA, agregar keepalived + VIP entre nodos
+**Traefik runs only on master1** with `mode: host` on ports :80 and :443.
+
+---
+
+## Reasons
+
+1. **Certificate simplicity**: A single entry point → a single cert/key pair to manage. No need to synchronize certs between nodes.
+
+2. **master2 free for workloads**: master2 has the GPU, the NVMe, and RAM committed to Jupyter + Ollama. Adding gateway load would take resources away from the real workloads.
+
+3. **LAN-only does not need HA**: There is no production SLA. If master1 goes down, the lab goes into maintenance. Acceptable for a lab environment.
+
+4. **`mode: host` on master1**: Guarantees that :443 is available directly on the master1 IP (`<master1-ip>`), without Swarm's routing mesh that can interfere with TLS certificates.
+
+5. **A single hostname for all `/etc/hosts`**: All `*.sexydad` entries point to `<master1-ip>`. Simple.
+
+---
+
+## Consequences
+
+- ✅ Simple setup, one certificate, one entry point
+- ✅ master2 without proxy overhead
+- ⚠️ If master1 goes down, all services are inaccessible from the LAN (accepted for lab)
+- ⚠️ If HA is needed in the future, add keepalived + VIP between nodes

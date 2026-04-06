@@ -110,7 +110,7 @@ All configuration is via environment variables. Key variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `OLLAMA_BASE_URL` | `http://192.168.80.200:11434` | Ollama endpoint |
+| `OLLAMA_BASE_URL` | `http://<master2-ip>:11434` | Ollama endpoint |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
 | `LLM_MODEL` | `qwen2.5:7b` | LLM for answer generation |
 | `QDRANT_URL` | `http://qdrant:6333` | Qdrant REST endpoint |

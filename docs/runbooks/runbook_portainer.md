@@ -1,89 +1,89 @@
-# Runbook de Operación: Portainer CE
+# Runbook: Portainer CE
 
-## Datos de referencia
+## Reference Data
 
-| Parámetro | Valor |
+| Parameter | Value |
 |-----------|-------|
 | **Stack** | `portainer` |
-| **Servicios** | `portainer_portainer` (server) + `portainer_agent` (global) |
-| **Versión** | 2.39.1 |
-| **Nodo server** | master1 (`tier=control`) |
-| **Nodo agent** | global (master1 + master2) |
-| **Persistencia** | `/srv/fastdata/portainer:/data` |
+| **Services** | `portainer_portainer` (server) + `portainer_agent` (global) |
+| **Version** | 2.39.1 |
+| **Server node** | master1 (`tier=control`) |
+| **Agent nodes** | global (master1 + master2) |
+| **Persistence** | `/srv/fastdata/portainer:/data` |
 | **URL** | `https://portainer.sexydad` |
-| **Auth** | Solo LAN whitelist via Traefik (auth propia de Portainer) |
+| **Auth** | LAN-only whitelist via Traefik (Portainer's own auth) |
 
 ---
 
-## 1. Operación diaria
+## 1. Daily Operations
 
-### 1.1 Verificar servicios
+### 1.1 Verify services
 
 ```bash
-# En master1
+# On master1
 docker service ls | grep portainer
 docker service ps portainer_portainer
 docker service ps portainer_agent
 ```
 
-### 1.2 Verificar conectividad con agentes
+### 1.2 Verify agent connectivity
 
-En la UI de Portainer:
-- `Environments` → debe mostrar el endpoint del Swarm
-- Ambos nodos deben aparecer como `active` en `Cluster visualizer`
+In the Portainer UI:
+- `Environments` → should show the Swarm endpoint
+- Both nodes should appear as `active` in `Cluster visualizer`
 
 ---
 
-## 2. Actualizar Portainer
+## 2. Update Portainer
 
-Al cambiar la versión en `stack.yml` (ej: 2.21.0 → 2.39.1):
+When changing the version in `stack.yml` (e.g. 2.21.0 → 2.39.1):
 
 ```bash
-# En master1, desde el repositorio:
+# On master1, from the repository:
 docker stack deploy -c stacks/core/01-portainer/stack.yml portainer
 
-# Los datos persisten en /srv/fastdata/portainer (bind mount)
-# La UI mantiene configuración, usuarios, endpoints
+# Data persists in /srv/fastdata/portainer (bind mount)
+# UI retains configuration, users, endpoints
 ```
 
-> **Nota importante**: Portainer CE no tiene `--force` de upgrade automático.
-> Redesplegar con la nueva imagen es suficiente (Swarm hace rolling update).
+> **Important note**: Portainer CE does not auto-upgrade with `--force`.
+> Redeploying with the new image is sufficient (Swarm performs a rolling update).
 
 ---
 
-## 3. Diagnóstico (Incidente)
+## 3. Diagnostics (Incident)
 
-### Síntoma: UI inaccesible / 502
+### Symptom: UI inaccessible / 502
 
 ```bash
 docker service logs portainer_portainer --tail 20
 
-# Error común: agente no disponible
+# Common error: agent not available
 # "No active endpoints found"
-# Fix: verificar que portainer_agent está corriendo en todos los nodos
+# Fix: verify portainer_agent is running on all nodes
 docker service ps portainer_agent
 ```
 
-### Síntoma: "Swarm cluster not found"
+### Symptom: "Swarm cluster not found"
 
 ```bash
-# Verificar que el agent está corriendo en el mismo nodo que el server
-# El server se conecta via: tcp://tasks.agent:9001
+# Verify the agent is running on the same node as the server
+# The server connects via: tcp://tasks.agent:9001
 
-# Ver si tasks.agent resuelve correctamente
+# Check if tasks.agent resolves correctly
 docker exec -it $(docker ps -q -f name=portainer_portainer) \
   ping -c 2 tasks.agent
 ```
 
-### Síntoma: Datos perdidos tras reinicio
+### Symptom: Data lost after reboot
 
 ```bash
-# Verificar bind mount
+# Verify bind mount
 ls -la /srv/fastdata/portainer/
-# Debe contener: portainer.db, certs/, etc.
+# Should contain: portainer.db, certs/, etc.
 
-# Si el directorio está vacío → Portainer reinicia desde cero (primer setup)
-# Crear el directorio si no existe:
+# If the directory is empty → Portainer restarts from scratch (first-time setup)
+# Create the directory if it doesn't exist:
 sudo mkdir -p /srv/fastdata/portainer
 sudo chown root:docker /srv/fastdata/portainer
 sudo chmod 2775 /srv/fastdata/portainer
@@ -91,24 +91,24 @@ sudo chmod 2775 /srv/fastdata/portainer
 
 ---
 
-## 4. Primeras configuraciones post-upgrade
+## 4. Post-Upgrade Initial Configuration
 
-Tras un upgrade mayor de Portainer:
+After a major Portainer upgrade:
 
-1. Iniciar sesión con credenciales existentes
-2. Verificar en `Settings → Upgrade` que no hay migraciones pendientes
-3. Revisar `Environments` → endpoint Swarm debe aparecer como `Up`
-4. Revisar stacks gestionados — deben seguir visibles
+1. Log in with existing credentials
+2. Check `Settings → Upgrade` for any pending migrations
+3. Review `Environments` → the Swarm endpoint should appear as `Up`
+4. Review managed stacks — they should still be visible
 
 ---
 
-## 5. Redespliegue completo
+## 5. Full Redeploy
 
 ```bash
-# En master1:
-docker stack rm portainer   # ⚠️ Los datos persisten (bind mount), pero hay downtime
+# On master1:
+docker stack rm portainer   # ⚠️ Data persists (bind mount), but there is downtime
 
-# Esperar 10 segundos y redesplegar:
+# Wait 10 seconds and redeploy:
 sleep 10
 docker stack deploy -c stacks/core/01-portainer/stack.yml portainer
 ```

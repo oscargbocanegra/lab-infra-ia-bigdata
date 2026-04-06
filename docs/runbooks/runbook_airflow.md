@@ -1,131 +1,131 @@
-# Runbook: Apache Airflow 2.9 — Orquestación de pipelines
+# Runbook: Apache Airflow 2.9 — Pipeline Orchestration
 
-> Stack: `airflow` | Executor: CeleryExecutor | Última revisión: 2026-03-30
+> Stack: `airflow` | Executor: CeleryExecutor | Last updated: 2026-03-30
 
 ---
 
-## Descripción
+## Description
 
-Apache Airflow orquesta los pipelines de datos del lab: ingesta, procesamiento Spark, entrenamiento de modelos y publicación de resultados. Usa CeleryExecutor con Redis como broker para distribuir tareas entre nodos.
+Apache Airflow orchestrates the lab's data pipelines: ingestion, Spark processing, model training, and publishing results. It uses CeleryExecutor with Redis as the broker to distribute tasks across nodes.
 
 ```
-Componente          Nodo      Rol
+Component           Node      Role
 ─────────────────── ──────── ────────────────────────────────────
-airflow_webserver   master1   UI + API REST
-airflow_scheduler   master1   Planifica y dispara DAGs
-airflow_worker      master2   Ejecuta tareas (acceso GPU/datalake)
-airflow_flower      master1   Monitor de Celery workers
+airflow_webserver   master1   UI + REST API
+airflow_scheduler   master1   Schedules and triggers DAGs
+airflow_worker      master2   Executes tasks (GPU/datalake access)
+airflow_flower      master1   Celery worker monitor
 redis               master1   Message broker (Celery queue)
-PostgreSQL          master2   Metadata de DAGs y ejecuciones
+PostgreSQL          master2   DAG and execution metadata
 ```
 
 ---
 
-## Secrets requeridos (crear antes de deploy)
+## Required Secrets (create before deploying)
 
 ```bash
-# En master1 (Swarm manager):
+# On master1 (Swarm manager):
 
-# Password del usuario 'airflow' en Postgres
+# Password for the 'airflow' user in Postgres
 openssl rand -base64 20 | docker secret create pg_airflow_pass -
 
-# Fernet key para cifrar conexiones y variables sensibles en Airflow
-# DEBE ser una clave Fernet válida (base64url de 32 bytes)
+# Fernet key to encrypt connections and sensitive variables in Airflow
+# MUST be a valid Fernet key (base64url of 32 bytes)
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" \
   | docker secret create airflow_fernet_key -
 
-# Secret key del webserver Flask
+# Webserver Flask secret key
 openssl rand -base64 30 | docker secret create airflow_webserver_secret -
 
-# MinIO (si no los creaste ya)
-# echo "minioadmin" | docker secret create minio_access_key -
+# MinIO (if not already created — see runbook_minio.md)
+# echo "<minio-admin-user>" | docker secret create minio_access_key -
 # openssl rand -base64 24 | docker secret create minio_secret_key -
 ```
 
 ---
 
-## Preparación de directorios
+## Directory Preparation
 
 ```bash
-# En master1:
+# On master1:
 sudo mkdir -p /srv/fastdata/airflow/{dags,logs,plugins,redis}
-sudo chown -R 50000:0 /srv/fastdata/airflow   # UID 50000 = usuario airflow
+sudo chown -R 50000:0 /srv/fastdata/airflow   # UID 50000 = airflow user
 
-# En master2 (para el worker — mismos paths):
+# On master2 (for the worker — same paths):
 ssh master2 "sudo mkdir -p /srv/fastdata/airflow/{dags,logs,plugins}"
 ssh master2 "sudo chown -R 50000:0 /srv/fastdata/airflow"
 ```
 
-> **Nota sobre sincronización de DAGs**: Los DAGs se montan desde `/srv/fastdata/airflow/dags` en ambos nodos. Para mantener consistencia, desarrollá los DAGs en master1 y sincronizá a master2 con rsync o git pull. Un DAG de Airflow que clone el repo es una solución elegante para labs.
+> **Note on DAG synchronization**: DAGs are mounted from `/srv/fastdata/airflow/dags` on both nodes. To keep them consistent, develop DAGs on master1 and sync to master2 with rsync or git pull. A DAG that clones the repo is an elegant solution for labs.
 
 ---
 
-## Deploy (orden obligatorio)
+## Deploy (required order)
 
 ```bash
-# 1. Postgres debe estar corriendo con la DB airflow ya creada
-#    (el init script 02-init-airflow.sh se ejecuta automáticamente
-#     al crear el volumen por primera vez)
+# 1. Postgres must be running with the airflow DB already created
+#    (the init script 02-init-airflow.sh runs automatically
+#     when the volume is created for the first time)
 
-# 2. MinIO debe estar corriendo (para logs remotos)
+# 2. MinIO must be running (for remote logs)
 
-# 3. Desplegar stack base
+# 3. Deploy the base stack
 docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
 
-# 4. Esperar a que Redis y los servicios suban (~30 seg)
+# 4. Wait for Redis and services to come up (~30 sec)
 docker stack ps airflow
 
-# 5. Inicializar la base de datos (SOLO LA PRIMERA VEZ)
+# 5. Initialize the database (FIRST TIME ONLY)
 docker service scale airflow_airflow_init=1
-# Esperar que complete (ver logs)
+# Wait for it to complete (watch logs)
 docker service logs airflow_airflow_init -f
-# Volver a 0 replicas tras completar
+# Scale back to 0 replicas after completion
 docker service scale airflow_airflow_init=0
 
-# 6. Verificar todos los servicios
+# 6. Verify all services
 docker stack ps airflow --no-trunc
 ```
 
 ---
 
-## Primer login
+## First Login
 
 ```
 URL:      https://airflow.sexydad
-Usuario:  admin
-Password: contenido de airflow_webserver_secret
+Username: admin
+Password: value of airflow_webserver_secret
 ```
 
-> Cambiá el password del admin desde la UI inmediatamente: Admin → Security → Users.
+> Change the admin password from the UI immediately: Admin → Security → Users.
 
 ---
 
-## Agregar la conexión MinIO en Airflow
+## Add the MinIO Connection in Airflow
 
-Desde la UI: Admin → Connections → Add connection
+From the UI: Admin → Connections → Add connection
 
 ```
 Conn Id:    minio_s3
 Conn Type:  Amazon S3
 Extra:      {
               "endpoint_url": "http://minio:9000",
-              "aws_access_key_id": "TU_ACCESS_KEY",
-              "aws_secret_access_key": "TU_SECRET_KEY"
+              "aws_access_key_id": "YOUR_ACCESS_KEY",
+              "aws_secret_access_key": "YOUR_SECRET_KEY"
             }
 ```
 
-O via CLI:
+Or via CLI:
 
 ```bash
 docker exec -it $(docker ps -q -f name=airflow_airflow_webserver) \
   airflow connections add minio_s3 \
     --conn-type s3 \
-    --conn-extra '{"endpoint_url":"http://minio:9000","aws_access_key_id":"TU_KEY","aws_secret_access_key":"TU_SECRET"}'
+    --conn-extra '{"endpoint_url":"http://minio:9000","aws_access_key_id":"YOUR_KEY","aws_secret_access_key":"YOUR_SECRET"}'
 ```
 
 ---
 
-## Agregar la conexión Spark
+## Add the Spark Connection
 
 ```
 Conn Id:    spark_default
@@ -136,9 +136,9 @@ Port:       7077
 
 ---
 
-## Tu primer DAG de ejemplo
+## Example DAG
 
-Crear el archivo `/srv/fastdata/airflow/dags/lab_pipeline_ejemplo.py`:
+Create the file `/srv/fastdata/airflow/dags/lab_example_pipeline.py`:
 
 ```python
 from datetime import datetime, timedelta
@@ -154,33 +154,33 @@ default_args = {
 }
 
 with DAG(
-    dag_id="lab_pipeline_ejemplo",
+    dag_id="lab_example_pipeline",
     default_args=default_args,
-    description="Pipeline de ejemplo: ingesta → proceso → almacenamiento",
-    schedule_interval="0 6 * * *",   # diario a las 6am Bogotá
+    description="Example pipeline: ingest → process → store",
+    schedule_interval="0 6 * * *",   # daily at 6am
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    tags=["lab", "ejemplo"],
+    tags=["lab", "example"],
 ) as dag:
 
     t1 = BashOperator(
-        task_id="verificar_datos",
-        bash_command="ls /data/datasets/ && echo 'Datos disponibles'",
+        task_id="check_data",
+        bash_command="ls /data/datasets/ && echo 'Data available'",
     )
 
-    def procesar_datos():
+    def process_data():
         import pandas as pd
-        print("Procesando datos con pandas...")
-        # Tu lógica aquí
+        print("Processing data with pandas...")
+        # Your logic here
 
     t2 = PythonOperator(
-        task_id="procesar_datos",
-        python_callable=procesar_datos,
+        task_id="process_data",
+        python_callable=process_data,
     )
 
     t3 = BashOperator(
-        task_id="notificar_completado",
-        bash_command="echo 'Pipeline completado: $(date)'",
+        task_id="notify_complete",
+        bash_command="echo 'Pipeline complete: $(date)'",
     )
 
     t1 >> t2 >> t3
@@ -188,14 +188,14 @@ with DAG(
 
 ---
 
-## DAG con SparkSubmitOperator
+## DAG with SparkSubmitOperator
 
 ```python
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 spark_job = SparkSubmitOperator(
-    task_id="spark_procesamiento",
-    application="/opt/airflow/plugins/jobs/mi_job.py",
+    task_id="spark_processing",
+    application="/opt/airflow/plugins/jobs/my_job.py",
     conn_id="spark_default",
     executor_memory="4g",
     executor_cores=4,
@@ -209,53 +209,53 @@ spark_job = SparkSubmitOperator(
 
 ---
 
-## Monitoreo
+## Monitoring
 
 ```bash
-# Estado de todos los componentes
+# Status of all components
 docker stack ps airflow
 
-# Ver workers activos en Flower
+# View active workers in Flower
 # https://airflow-flower.sexydad
 
-# Logs del scheduler (ver qué DAGs planificó)
+# Scheduler logs (see which DAGs were scheduled)
 docker service logs airflow_airflow_scheduler -f --tail 50
 
-# Logs del worker (ver ejecución de tareas)
+# Worker logs (see task execution)
 docker service logs airflow_airflow_worker -f --tail 50
 
-# Verificar que Celery está funcionando
+# Verify that Celery is working
 docker exec -it $(docker ps -q -f name=airflow_airflow_worker) \
   celery --app airflow.providers.celery.executors.celery_executor.app inspect active
 ```
 
 ---
 
-## Diagnóstico de problemas comunes
+## Common Troubleshooting
 
-### Worker no aparece en Flower
+### Worker doesn't appear in Flower
 
 ```bash
-# Verificar conectividad con Redis
+# Verify connectivity with Redis
 docker exec -it $(docker ps -q -f name=airflow_airflow_worker) \
   python3 -c "import redis; r=redis.Redis('redis'); print(r.ping())"
 ```
 
-### Scheduler no dispara DAGs
+### Scheduler doesn't trigger DAGs
 
 ```bash
-# Verificar estado del scheduler
+# Check scheduler state
 docker service logs airflow_airflow_scheduler 2>&1 | grep -i error
 
-# Reiniciar scheduler
+# Restart scheduler
 docker service update --force airflow_airflow_scheduler
 ```
 
-### Error de Fernet key
+### Fernet key error
 
 ```bash
-# La Fernet key debe ser la misma en webserver, scheduler y worker
-# Si la cambiás, tenés que redeploy de los 3 componentes
+# The Fernet key must be the same in webserver, scheduler, and worker
+# If you change it, you must redeploy all 3 components
 docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
 ```
 
@@ -264,19 +264,19 @@ docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
 ## Redeploy
 
 ```bash
-# Redeploy completo (rolling update automático)
+# Full redeploy (automatic rolling update)
 docker stack deploy -c stacks/automation/03-airflow/stack.yml airflow
 ```
 
 ---
 
-## Estructura de archivos
+## File Structure
 
 ```
 /srv/fastdata/airflow/
-├── dags/          → DAGs Python (sincronizar a master1 y master2)
-├── logs/          → Logs locales (backup en MinIO s3://airflow-logs/)
-├── plugins/       → Plugins y operadores custom
-│   └── jobs/      → Scripts Spark a submitear
-└── redis/         → Persistencia Redis (queue state)
+├── dags/          → Python DAGs (sync to master1 and master2)
+├── logs/          → Local logs (backup in MinIO s3://airflow-logs/)
+├── plugins/       → Custom plugins and operators
+│   └── jobs/      → Spark scripts to submit
+└── redis/         → Redis persistence (queue state)
 ```

@@ -1,14 +1,14 @@
 # ADRs — Architecture Decision Records
 
-Este directorio registra las decisiones arquitecturales tomadas durante el diseño e implementación del laboratorio.
+This directory records the architectural decisions made during the design and implementation of the lab.
 
-## Índice
+## Index
 
-| ADR | Título | Estado |
-|-----|--------|--------|
-| [ADR-001](ADR-001-docker-swarm-vs-kubernetes.md) | Docker Swarm sobre Kubernetes | Aceptado |
-| [ADR-002](ADR-002-master1-unico-gateway.md) | master1 como único gateway LAN | Aceptado |
-| [ADR-003](ADR-003-separacion-fastdata-datalake.md) | Separación fastdata/datalake en master2 | Aceptado |
-| [ADR-004](ADR-004-opensearch-security-plugin-disabled.md) | OpenSearch security plugin deshabilitado | Aceptado |
-| [ADR-005](ADR-005-gpu-generic-resources-swarm.md) | GPU via Generic Resources en Swarm | Aceptado |
-| [ADR-006](ADR-006-opensearch-en-master1.md) | OpenSearch en master1 (no master2) | Aceptado |
+| ADR | Title | Status |
+|-----|-------|--------|
+| [ADR-001](ADR-001-docker-swarm-vs-kubernetes.md) | Docker Swarm over Kubernetes | Accepted |
+| [ADR-002](ADR-002-master1-unico-gateway.md) | master1 as the Sole LAN Gateway | Accepted |
+| [ADR-003](ADR-003-separacion-fastdata-datalake.md) | Separation of fastdata/datalake on master2 | Accepted |
+| [ADR-004](ADR-004-opensearch-security-plugin-disabled.md) | OpenSearch Security Plugin Disabled | Accepted |
+| [ADR-005](ADR-005-gpu-generic-resources-swarm.md) | GPU via Generic Resources in Docker Swarm | Accepted |
+| [ADR-006](ADR-006-opensearch-en-master1.md) | OpenSearch on master1 (not master2) | Accepted |

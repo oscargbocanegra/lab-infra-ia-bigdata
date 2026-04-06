@@ -54,7 +54,7 @@ mkdir -p /srv/fastdata/portainer
 
 ## First Login
 
-On first access, Portainer will prompt to create an admin user. Set credentials to `ogiovanni / jupyter2024` for consistency with the rest of the lab.
+On first access, Portainer will prompt to create an admin user. Set credentials to `<admin-user> / <your-password>` for consistency with the rest of the lab.
 
 ## Logs → OpenSearch
 

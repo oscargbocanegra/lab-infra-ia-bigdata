@@ -1,49 +1,49 @@
-# Arquitectura Medallón — Lab Big Data + IA
+# Medallion Architecture — Big Data + AI Lab
 
-> Actualizado: 2026-03-30
-> Patrón: Medallion Architecture (Bronze → Silver → Gold)
-> Storage: MinIO (S3-compatible) + Delta Lake (formato transaccional)
+> Updated: 2026-03-30
+> Pattern: Medallion Architecture (Bronze → Silver → Gold)
+> Storage: MinIO (S3-compatible) + Delta Lake (transactional format)
 
 ---
 
-## ¿Qué es la arquitectura medallón?
+## What is Medallion Architecture?
 
-Es un patrón de diseño de datos que organiza la información en **capas progresivas de calidad**. Cada capa refina la anterior, separando claramente la ingesta cruda del dato listo para consumir.
+It is a data design pattern that organizes information in **progressive quality layers**. Each layer refines the previous one, clearly separating raw ingestion from data ready to consume.
 
 ```
-Fuentes de datos
+Data sources
   │ CSV, JSON, APIs, logs, DB exports...
   ▼
 ┌──────────────────────────────────────────────────────────┐
 │  BRONZE  — Raw Zone                                      │
-│  "Los datos tal como llegaron, sin tocar"                │
+│  "Data exactly as it arrived, untouched"                 │
 │  s3a://bronze/                                           │
-│  Formato: cualquiera (CSV, JSON, Parquet raw)            │
-│  Política: append-only, nunca modificar, retención larga │
+│  Format: any (CSV, JSON, raw Parquet)                    │
+│  Policy: append-only, never modify, long retention       │
 └────────────────────────┬─────────────────────────────────┘
-                         │ Spark job: limpieza + validación
+                         │ Spark job: clean + validate
                          ▼
 ┌──────────────────────────────────────────────────────────┐
 │  SILVER  — Curated Zone                                  │
-│  "Limpio, tipado, deduplicado, enriquecido"              │
+│  "Clean, typed, deduplicated, enriched"                  │
 │  s3a://silver/                                           │
-│  Formato: Delta Lake (Parquet + ACID + time travel)      │
-│  Política: overwrite/merge según SCD                     │
+│  Format: Delta Lake (Parquet + ACID + time travel)       │
+│  Policy: overwrite/merge according to SCD                │
 └────────────────────────┬─────────────────────────────────┘
-                         │ Spark job: agregaciones + reglas negocio
+                         │ Spark job: aggregations + business rules
                          ▼
 ┌──────────────────────────────────────────────────────────┐
 │  GOLD  — Business Zone                                   │
-│  "Listo para consumir: KPIs, features ML, reportes"      │
+│  "Ready to consume: KPIs, ML features, reports"          │
 │  s3a://gold/                                             │
-│  Formato: Delta Lake (particionado por fecha/dominio)    │
-│  Política: sobreescritura periódica (daily/hourly batch) │
+│  Format: Delta Lake (partitioned by date/domain)         │
+│  Policy: periodic overwrite (daily/hourly batch)         │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Cómo encaja en el stack del lab
+## How it fits into the lab stack
 
 ```
                     ┌─────────────────────────────────────────────────────┐
@@ -57,112 +57,112 @@ Fuentes de datos
                             │             │              │
         ┌───────────────────▼─────────────▼──────────────▼──────────────────┐
         │                       Apache Spark (PySpark)                       │
-        │  bronze → silver: limpieza, tipado, dedup, enriquecimiento         │
-        │  silver → gold:   agregaciones, features ML, KPIs                  │
+        │  bronze → silver: clean, type, dedup, enrich                       │
+        │  silver → gold:   aggregate, ML features, KPIs                     │
         └──────────────────────────────┬─────────────────────────────────────┘
-                                       │ orquesta
+                                       │ orchestrates
         ┌──────────────────────────────▼─────────────────────────────────────┐
         │                    Apache Airflow (DAGs)                            │
-        │  DAG: pipeline_bronze_ingest   → cada hora                         │
-        │  DAG: pipeline_silver_refine   → cada hora (depende bronze)        │
-        │  DAG: pipeline_gold_aggregate  → cada día (depende silver)         │
+        │  DAG: pipeline_bronze_ingest   → every hour                        │
+        │  DAG: pipeline_silver_refine   → every hour (depends bronze)       │
+        │  DAG: pipeline_gold_aggregate  → every day (depends silver)        │
         └──────────────────────────────┬─────────────────────────────────────┘
                                        │
         ┌──────────────────────────────▼─────────────────────────────────────┐
-        │               JupyterLab (exploración y experimentación)           │
-        │  Accede a cualquier capa: s3a://bronze/, s3a://silver/, s3a://gold/ │
-        │  Entrena modelos desde gold/, escribe resultados a gold/features/   │
+        │               JupyterLab (exploration and experimentation)         │
+        │  Accesses any layer: s3a://bronze/, s3a://silver/, s3a://gold/     │
+        │  Trains models from gold/, writes results to gold/features/        │
         └────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Buckets MinIO y su propósito
+## MinIO buckets and their purpose
 
-| Bucket | Capa | Formato | Quién escribe | Quién lee |
-|--------|------|---------|---------------|-----------|
-| `bronze` | Raw | CSV / JSON / Parquet raw | Airflow ingest DAGs, n8n, notebooks | Spark (→silver) |
-| `silver` | Curated | **Delta Lake** | Spark (desde bronze) | Spark (→gold), Jupyter |
-| `gold` | Business | **Delta Lake** | Spark (desde silver) | Jupyter, n8n, Airflow |
-| `airflow-logs` | Infra | texto | Airflow worker | Airflow UI |
+| Bucket | Layer | Format | Written by | Read by |
+|--------|-------|--------|------------|---------|
+| `bronze` | Raw | CSV / JSON / raw Parquet | Airflow ingest DAGs, n8n, notebooks | Spark (→silver) |
+| `silver` | Curated | **Delta Lake** | Spark (from bronze) | Spark (→gold), Jupyter |
+| `gold` | Business | **Delta Lake** | Spark (from silver) | Jupyter, n8n, Airflow |
+| `airflow-logs` | Infra | plain text | Airflow worker | Airflow UI |
 | `spark-warehouse` | Infra | Delta catalog + history | Spark | Spark History Server |
 | `lab-notebooks` | Dev | .ipynb, HTML | Jupyter | Jupyter |
 
 ---
 
-## Estructura de prefijos dentro de cada bucket
+## Prefix structure inside each bucket
 
 ```
 bronze/
-├── ventas/
+├── sales/
 │   ├── year=2026/month=03/day=30/
 │   │   └── raw_20260330_143500.csv
 │   └── ...
-├── usuarios/
+├── users/
 │   └── ...
-└── eventos/
+└── events/
     └── ...
 
 silver/
-├── ventas/              ← Delta table (ACID, time travel)
+├── sales/              ← Delta table (ACID, time travel)
 │   ├── _delta_log/
 │   └── part-000*.parquet
-├── usuarios/
-└── eventos/
+├── users/
+└── events/
 
 gold/
-├── kpis_diarios/        ← Delta table
-├── features_modelo/     ← Delta table (para training ML)
-├── reportes_mensuales/
+├── daily_kpis/         ← Delta table
+├── model_features/     ← Delta table (for ML training)
+├── monthly_reports/
 └── ...
 
 spark-warehouse/
-├── history/             ← Event logs del History Server
-└── delta_catalog/       ← Spark SQL catalog (si se usa)
+├── history/            ← History Server event logs
+└── delta_catalog/      ← Spark SQL catalog (if used)
 ```
 
 ---
 
-## Delta Lake — Por qué lo usamos en Silver y Gold
+## Delta Lake — Why we use it on Silver and Gold
 
-Delta Lake agrega sobre Parquet las siguientes capacidades críticas:
+Delta Lake adds the following critical capabilities on top of Parquet:
 
-| Feature | Qué significa en práctica |
+| Feature | What it means in practice |
 |---------|--------------------------|
-| **ACID transactions** | Si un job falla a mitad, la tabla NO queda corrupta |
-| **Time travel** | `VERSION AS OF 5` — leer cómo era la tabla hace N versiones |
-| **Schema evolution** | Agregar columnas sin romper readers existentes |
-| **Upserts (MERGE)** | `MERGE INTO silver.ventas WHEN MATCHED THEN UPDATE...` |
-| **Compaction (OPTIMIZE)** | Fusiona muchos archivos pequeños en pocos grandes |
-| **Vacuum** | Borra archivos viejos que ya no son necesarios |
+| **ACID transactions** | If a job fails halfway, the table does NOT become corrupted |
+| **Time travel** | `VERSION AS OF 5` — read how the table looked N versions ago |
+| **Schema evolution** | Add columns without breaking existing readers |
+| **Upserts (MERGE)** | `MERGE INTO silver.sales WHEN MATCHED THEN UPDATE...` |
+| **Compaction (OPTIMIZE)** | Merges many small files into fewer large ones |
+| **Vacuum** | Deletes old files that are no longer needed |
 
-En Bronze NO usamos Delta porque queremos preservar el dato crudo exactamente como llegó.
+In Bronze we do NOT use Delta because we want to preserve raw data exactly as it arrived.
 
 ---
 
-## Patrones de escritura por capa
+## Write patterns per layer
 
 ### Bronze — append only
 
 ```python
-# Ingest desde fuente externa → escribir en bronze tal cual
+# Ingest from external source → write to bronze as-is
 df_raw.write \
     .mode("append") \
     .partitionBy("year", "month", "day") \
-    .parquet("s3a://bronze/ventas/")
+    .parquet("s3a://bronze/sales/")
 ```
 
-### Silver — upsert con Delta (SCD Type 1)
+### Silver — upsert with Delta (SCD Type 1)
 
 ```python
 from delta.tables import DeltaTable
 
-# Si la tabla no existe, crearla
-if not DeltaTable.isDeltaTable(spark, "s3a://silver/ventas/"):
-    df_clean.write.format("delta").save("s3a://silver/ventas/")
+# If table does not exist, create it
+if not DeltaTable.isDeltaTable(spark, "s3a://silver/sales/"):
+    df_clean.write.format("delta").save("s3a://silver/sales/")
 else:
-    # Merge: actualizar registros existentes, insertar nuevos
-    silver_table = DeltaTable.forPath(spark, "s3a://silver/ventas/")
+    # Merge: update existing records, insert new ones
+    silver_table = DeltaTable.forPath(spark, "s3a://silver/sales/")
     silver_table.alias("target").merge(
         df_clean.alias("source"),
         "target.id = source.id"
@@ -171,21 +171,21 @@ else:
      .execute()
 ```
 
-### Gold — overwrite periódico
+### Gold — periodic overwrite
 
 ```python
-# Los KPIs se recalculan completos cada día
+# KPIs are fully recalculated every day
 df_kpis.write \
     .format("delta") \
     .mode("overwrite") \
     .option("overwriteSchema", "true") \
-    .partitionBy("fecha") \
-    .save("s3a://gold/kpis_diarios/")
+    .partitionBy("date") \
+    .save("s3a://gold/daily_kpis/")
 ```
 
 ---
 
-## DAG de Airflow — estructura típica de pipeline medallón
+## Airflow DAG — typical medallion pipeline structure
 
 ```python
 # dags/pipeline_medallion.py
@@ -227,72 +227,72 @@ pipeline_medallion()
 
 ---
 
-## Exploración desde Jupyter (kernel BigData)
+## Exploration from Jupyter (BigData kernel)
 
 ```python
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder \
-    .appName("Exploración") \
+    .appName("Exploration") \
     .master("spark://spark_master:7077") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
 
-# Ver qué hay en bronze
-spark.read.parquet("s3a://bronze/ventas/").show(5)
+# See what's in bronze
+spark.read.parquet("s3a://bronze/sales/").show(5)
 
-# Ver Silver con time travel
+# See Silver with time travel
 spark.read.format("delta") \
     .option("versionAsOf", 0) \
-    .load("s3a://silver/ventas/") \
+    .load("s3a://silver/sales/") \
     .show(5)
 
-# Ver Gold — los KPIs del día
+# See Gold — today's KPIs
 spark.read.format("delta") \
-    .load("s3a://gold/kpis_diarios/") \
-    .filter("fecha = '2026-03-30'") \
+    .load("s3a://gold/daily_kpis/") \
+    .filter("date = '2026-03-30'") \
     .show()
 
-# Ver historial de cambios de una tabla Silver
+# See change history of a Silver table
 from delta.tables import DeltaTable
-DeltaTable.forPath(spark, "s3a://silver/ventas/").history().show()
+DeltaTable.forPath(spark, "s3a://silver/sales/").history().show()
 ```
 
 ---
 
-## Consideraciones operativas
+## Operational considerations
 
-### Compaction periódica (OPTIMIZE)
+### Periodic compaction (OPTIMIZE)
 
-Delta Lake genera muchos archivos pequeños con escrituras frecuentes.
-Programar en Airflow (semanal) o ejecutar manualmente:
+Delta Lake generates many small files with frequent writes.
+Schedule in Airflow (weekly) or run manually:
 
 ```python
-# Compactar Silver ventas
-DeltaTable.forPath(spark, "s3a://silver/ventas/").optimize().executeCompaction()
+# Compact Silver sales
+DeltaTable.forPath(spark, "s3a://silver/sales/").optimize().executeCompaction()
 
-# Con Z-ordering (mejora queries por columnas específicas)
-DeltaTable.forPath(spark, "s3a://silver/ventas/") \
+# With Z-ordering (improves queries on specific columns)
+DeltaTable.forPath(spark, "s3a://silver/sales/") \
     .optimize() \
-    .executeZOrderBy("fecha", "categoria")
+    .executeZOrderBy("date", "category")
 ```
 
-### Vacuum (limpiar archivos viejos)
+### Vacuum (clean up old files)
 
 ```python
-# Por defecto retiene 7 días de historial
-DeltaTable.forPath(spark, "s3a://silver/ventas/").vacuum()
+# Default retains 7 days of history
+DeltaTable.forPath(spark, "s3a://silver/sales/").vacuum()
 
-# Retención custom (ej: 3 días)
-DeltaTable.forPath(spark, "s3a://silver/ventas/").vacuum(72)
+# Custom retention (e.g.: 3 days)
+DeltaTable.forPath(spark, "s3a://silver/sales/").vacuum(72)
 ```
 
-### Monitoreo de espacio
+### Space monitoring
 
 ```bash
-# Ver tamaño de cada capa en MinIO
+# Check size of each layer in MinIO
 docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
   mc alias set local http://localhost:9000 \$(cat /run/secrets/minio_access_key) \$(cat /run/secrets/minio_secret_key) &&
   mc du local/bronze local/silver local/gold

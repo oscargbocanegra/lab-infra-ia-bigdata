@@ -10,7 +10,7 @@ Central relational database for all lab services, with the pgvector extension fo
 | Node | master2 (`node.hostname == master2`) |
 | Port | `5432` (mode: host — master2 LAN only) |
 | Storage | `/srv/fastdata/postgres` (NVMe bind mount) |
-| Access | `192.168.80.200:5432` from any cluster node |
+| Access | `<master2-ip>:5432` from any cluster node |
 
 > **Image note**: `pgvector/pgvector:pg16` is a **drop-in replacement** for `postgres:16`. It adds the `pgvector` extension and is 100% binary compatible with existing data.
 
@@ -93,7 +93,7 @@ Since `/srv/fastdata/postgres` already contains data, init scripts only run on e
 
 ```bash
 # From any node with Postgres client or from a container in the overlay network
-PGPASSWORD=your-super-pass psql -h 192.168.80.200 -U postgres -c "
+PGPASSWORD=your-super-pass psql -h <master2-ip> -U postgres -c "
   CREATE DATABASE openwebui OWNER postgres;
 "
 ```
@@ -105,10 +105,10 @@ PGPASSWORD=your-super-pass psql -h 192.168.80.200 -U postgres -c "
 docker service ls --filter name=postgres
 
 # List databases (from master1 if psql is available)
-PGPASSWORD=pass psql -h 192.168.80.200 -U postgres -l
+PGPASSWORD=pass psql -h <master2-ip> -U postgres -l
 
 # Verify pgvector in rag database
-PGPASSWORD=pass psql -h 192.168.80.200 -U postgres -d rag \
+PGPASSWORD=pass psql -h <master2-ip> -U postgres -d rag \
   -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
 ```
 
@@ -120,16 +120,16 @@ Data is stored at `/srv/fastdata/postgres` on master2's NVMe drive. This path is
 
 ```
 # n8n
-postgresql://n8n:pass@192.168.80.200:5432/n8n
+postgresql://n8n:pass@<master2-ip>:5432/n8n
 
 # airflow
-postgresql://airflow:pass@192.168.80.200:5432/airflow
+postgresql://airflow:pass@<master2-ip>:5432/airflow
 
 # RAG API
-postgresql://rag:pass@192.168.80.200:5432/rag
+postgresql://rag:pass@<master2-ip>:5432/rag
 
 # Open WebUI
-postgresql://postgres:pass@192.168.80.200:5432/openwebui
+postgresql://postgres:pass@<master2-ip>:5432/openwebui
 ```
 
 ## Logs
