@@ -12,3 +12,4 @@ This directory records the architectural decisions made during the design and im
 | [ADR-004](ADR-004-opensearch-security-plugin-disabled.md) | OpenSearch Security Plugin Disabled | Accepted |
 | [ADR-005](ADR-005-gpu-generic-resources-swarm.md) | GPU via Generic Resources in Docker Swarm | Accepted |
 | [ADR-006](ADR-006-opensearch-en-master1.md) | OpenSearch on master1 (not master2) | Accepted |
+| [ADR-007](ADR-007-data-governance-openmetadata.md) | Data Governance: OpenMetadata + Great Expectations | Accepted |

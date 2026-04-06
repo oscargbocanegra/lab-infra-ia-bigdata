@@ -1,10 +1,10 @@
 # Lab Infrastructure — Roadmap
 
-> Last updated: 2026-04-05
+> Last updated: 2026-04-06
 
 ---
 
-## Current Status: Phase 7 complete ✅
+## Current Status: Phase 9A in progress ⏳
 
 ```
 Phase 1: Cluster base (Swarm + networks + labels + GPU)           ✅
@@ -17,7 +17,8 @@ Phase 6.1: Centralized logs (Fluent Bit → OpenSearch)             ✅
 Phase 6.2: Metrics (Prometheus + Grafana + exporters)             ✅
 Phase 7:   Hardening + Backups                                    ✅
 Phase 8:   Vector DB + RAG + Chat UI                              ✅
-Phase 9:   Agents & Evals                                         ⏳
+Phase 9A:  Data Governance (OpenMetadata + Great Expectations)    ⏳
+Phase 9B:  Agents & Evals (LangGraph + RAGAS + Benchmarks)        ⏳
 ```
 
 ---
@@ -182,10 +183,33 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 
 ---
 
-## Phase 9: Agents & Evals ⏳
+## Phase 9A: Data Governance ⏳
+
+### 9A.1 OpenMetadata 1.4 — Data Catalog
+
+**Stack:** `stacks/data/13-openmetadata/stack.yml`  
+**ADR:** `docs/adrs/ADR-007-data-governance-openmetadata.md`  
+**Architecture:** `docs/architecture/GOVERNANCE.md`
+
+- [x] ADR written and approved
+- [x] `stack.yml` created (MySQL 8 + OpenMetadata Server + OpenSearch integration)
+- [x] `scripts/governance/setup-governance.sh` — secrets + dirs + MinIO buckets + GE base config
+- [ ] Stack deployed on master1
+- [ ] Connectors configured: Postgres, MinIO, Airflow
+
+### 9A.2 Great Expectations — Data Quality
+
+- [x] `governance_bronze_validate` DAG — validates raw file ingestion
+- [x] `governance_silver_validate` DAG — validates silver → gold promotion
+- [ ] DAGs deployed and verified in Airflow UI
+- [ ] OpenMetadata ↔ GE result publishing via OM Python SDK
+
+---
+
+## Phase 9B: Agents & Evals ⏳
 
 - [ ] LangGraph agents integrated with Ollama + Qdrant
-- [ ] Batch evaluation pipelines for RAG quality
+- [ ] Batch evaluation pipelines for RAG quality (RAGAS metrics)
 - [ ] Model benchmarks (MMLU, coding benchmarks on local models)
 - [ ] Agent observability via OpenSearch + Grafana dashboards
 
@@ -227,6 +251,7 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-06 | Phase 9A: Data governance foundations — OpenMetadata stack, GE DAGs, ADR-007, GOVERNANCE.md |
 | 2026-04-05 | Phase 7: SSH hardening (both nodes), UFW + DOCKER-USER chains, PostgreSQL personal roles, restic backup to MinIO, cert rotation cron |
 | 2026-04-03 | Phase 6.2: Prometheus + Grafana + node_exporter + cAdvisor + NVIDIA GPU exporter deployed |
 | 2026-04-03 | Traefik: added `--metrics.prometheus` on port 8082, `prometheus_basicauth` secret |

@@ -1,0 +1,174 @@
+version: "3.9"
+
+# ============================================================
+# Stack: OpenMetadata 1.4 — Data Catalog + Lineage + Quality
+# ============================================================
+# Node:     master1 (tier=control) — ~1.5GB RAM, acceptable
+# URL:      https://openmetadata.sexydad
+#
+# Architecture:
+#   openmetadata-server  → main API + UI (Java)
+#   openmetadata-mysql   → internal metadata store (MySQL 8)
+#   openmetadata-es      → search index (OpenSearch 2.x compatible)
+#
+# Connected services (configured post-deploy via UI or ingestion):
+#   - Postgres   → databases: n8n, airflow, rag, openwebui
+#   - MinIO      → buckets: bronze, silver, gold, governance
+#   - Airflow    → DAGs + OpenLineage events
+#   - OpenSearch → indices: docker-logs-*
+#
+# Secrets required:
+#   om_admin_password       → OpenMetadata admin UI password
+#   om_mysql_root_password  → MySQL root password
+#   om_mysql_user_password  → MySQL 'openmetadata' user password
+#
+# First deploy:
+#   1. Run: bash scripts/governance/setup-governance.sh
+#   2. Deploy: docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata
+#   3. Open: https://openmetadata.sexydad
+#   4. Login: admin / <om_admin_password>
+#   5. Configure connectors (see README.md)
+# ============================================================
+
+networks:
+  public:
+    external: true
+  internal:
+    external: true
+
+secrets:
+  om_admin_password:
+    external: true
+  om_mysql_root_password:
+    external: true
+  om_mysql_user_password:
+    external: true
+
+services:
+
+  # ── MySQL — OpenMetadata metadata backend ──────────────────
+  openmetadata-mysql:
+    image: mysql:8.0
+    hostname: openmetadata-mysql
+
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/om_mysql_root_password
+      MYSQL_DATABASE: openmetadata_db
+      MYSQL_USER: openmetadata
+      MYSQL_PASSWORD_FILE: /run/secrets/om_mysql_user_password
+
+    secrets:
+      - om_mysql_root_password
+      - om_mysql_user_password
+
+    volumes:
+      - /srv/fastdata/openmetadata/mysql:/var/lib/mysql
+
+    networks:
+      - internal
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 60s
+
+  # ── OpenMetadata Server ─────────────────────────────────────
+  openmetadata-server:
+    image: openmetadata/server:1.4.7
+    hostname: openmetadata-server
+    depends_on:
+      - openmetadata-mysql
+
+    environment:
+      # Database connection
+      DB_DRIVER_CLASS: com.mysql.cj.jdbc.Driver
+      DB_SCHEME: mysql
+      DB_USE_SSL: "false"
+      DB_HOST: openmetadata-mysql
+      DB_PORT: "3306"
+      OM_DATABASE: openmetadata_db
+      DB_USER: openmetadata
+      DB_USER_PASSWORD_FILE: /run/secrets/om_mysql_user_password
+
+      # Server config
+      SERVER_HOST_API_URL: https://openmetadata.sexydad/api
+      OPENMETADATA_SERVER_URL: https://openmetadata.sexydad
+
+      # Search — reuse existing OpenSearch instance
+      SEARCH_TYPE: opensearch
+      SEARCH_HOST: http://opensearch:9200
+      SEARCH_PORT: "9200"
+      SEARCH_SCHEME: http
+
+      # Auth — basic (no SSO for lab)
+      AUTHENTICATION_PROVIDER: basic
+      AUTHENTICATION_PUBLIC_KEYS: '["https://openmetadata.sexydad/api/v1/system/config/jwks"]'
+      AUTHENTICATION_AUTHORITY: https://openmetadata.sexydad
+      AUTHENTICATION_CLIENT_ID: open-metadata
+      AUTHENTICATION_CALLBACK_URL: https://openmetadata.sexydad/callback
+
+      # Admin bootstrap
+      AUTHORIZER_ADMIN_PRINCIPALS: '["admin"]'
+      AUTHORIZER_PRINCIPAL_DOMAIN: lab.local
+
+      # Pipeline service (Airflow)
+      PIPELINE_SERVICE_CLIENT_ENDPOINT: http://airflow_airflow_webserver:8080
+      PIPELINE_SERVICE_CLIENT_CLASS_NAME: "org.openmetadata.service.clients.pipeline.airflow.AirflowRESTClient"
+
+      TZ: America/Bogota
+
+    secrets:
+      - om_admin_password
+      - om_mysql_user_password
+
+    volumes:
+      - /srv/fastdata/openmetadata/server:/opt/openmetadata/conf
+
+    networks:
+      - internal
+      - public
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+      restart_policy:
+        condition: any
+        delay: 30s
+        max_attempts: 5
+        window: 120s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.openmetadata.rule=Host(`openmetadata.sexydad`)
+        - traefik.http.routers.openmetadata.entrypoints=websecure
+        - traefik.http.routers.openmetadata.tls=true
+        - traefik.http.routers.openmetadata.service=openmetadata
+        - traefik.http.services.openmetadata.loadbalancer.server.port=8585
+        - traefik.http.routers.openmetadata.middlewares=lan-whitelist@docker
+        - traefik.http.services.openmetadata.loadbalancer.healthcheck.path=/api/v1/system/config
+        - traefik.http.services.openmetadata.loadbalancer.healthcheck.interval=30s
+        - traefik.http.services.openmetadata.loadbalancer.healthcheck.timeout=10s
+        - "com.docker.stack.namespace=openmetadata"
+        - "description=OpenMetadata — Data catalog, lineage and quality"
