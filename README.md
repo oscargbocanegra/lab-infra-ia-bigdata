@@ -488,6 +488,7 @@ The script verifies:
 | [`docs/architecture/NETWORKING.md`](docs/architecture/NETWORKING.md) | Overlay networks, domain map, and traffic flow |
 | [`docs/architecture/MEDALLION.md`](docs/architecture/MEDALLION.md) | Deep-dive: Medallion architecture, Delta Lake patterns, code examples |
 | [`docs/adrs/`](docs/adrs/) | Architecture Decision Records (6 ADRs) |
+| [`docs/runbooks/runbook_ufw_docker.md`](docs/runbooks/runbook_ufw_docker.md) | UFW + Docker Swarm architecture, DOCKER-USER chain rules, troubleshooting `ERR_CONNECTION_TIMED_OUT` |
 | [`docs/runbooks/`](docs/runbooks/) | Day-2 operations: deploy, troubleshoot, and maintain each service — including DBeaver SSH Tunnel setup |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Planned phases: Observability (Prometheus + Grafana), backups, hardening |
 
