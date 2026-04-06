@@ -134,8 +134,9 @@ services:
       - om_admin_password
       - om_mysql_user_password
 
-    volumes:
-      - /srv/fastdata/openmetadata/server:/opt/openmetadata/conf
+    # NOTE: Do NOT mount a volume over /opt/openmetadata/conf — it overwrites
+    # the internal openmetadata.yaml config bundled in the image and crashes on start.
+    # Only MySQL needs a persistent volume.
 
     networks:
       - internal
