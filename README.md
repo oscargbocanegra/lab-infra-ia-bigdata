@@ -283,6 +283,8 @@ Layer 2 — Auth:        BasicAuth per service + native auth (Portainer, Airflow
 Layer 3 — Transport:   TLS self-signed on all 15+ HTTPS endpoints
 Layer 4 — Secrets:     Docker Swarm Secrets — zero passwords in repository
 Layer 5 — Network:     Overlay networks (public + internal) — internal services never exposed
+Layer 6 — Host:        UFW active on both nodes (DOCKER-USER chain), SSH key-only auth
+Layer 7 — Backups:     restic daily snapshots → MinIO (encrypted, deduplicated)
 ```
 
 > **Zero secrets in this repository.** All passwords, keys, and certificates are stored exclusively as Docker Swarm Secrets, created manually on the cluster.
@@ -334,6 +336,7 @@ lab-infra-ia-bigdata/
 ├── scripts/
 │   ├── bootstrap/                  # Initial node setup
 │   ├── verify/                     # post-reboot-check.sh — full health check
+│   ├── hardening/                  # Phase 7: UFW, SSH, restic backup, cert rotation
 │   ├── backup/                     # Backup scripts
 │   └── diagnostics/                # Service diagnostics
 │
@@ -485,7 +488,7 @@ The script verifies:
 | [`docs/architecture/NETWORKING.md`](docs/architecture/NETWORKING.md) | Overlay networks, domain map, and traffic flow |
 | [`docs/architecture/MEDALLION.md`](docs/architecture/MEDALLION.md) | Deep-dive: Medallion architecture, Delta Lake patterns, code examples |
 | [`docs/adrs/`](docs/adrs/) | Architecture Decision Records (6 ADRs) |
-| [`docs/runbooks/`](docs/runbooks/) | Day-2 operations: deploy, troubleshoot, and maintain each service |
+| [`docs/runbooks/`](docs/runbooks/) | Day-2 operations: deploy, troubleshoot, and maintain each service — including DBeaver SSH Tunnel setup |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Planned phases: Observability (Prometheus + Grafana), backups, hardening |
 
 ---
@@ -501,7 +504,7 @@ The script verifies:
 | Phase 5 — Big Data | ✅ Done | MinIO, Apache Spark, Apache Airflow, Medallion pipeline |
 | Phase 6.1 — Log Collection | ✅ Done | Fluent Bit (global) → OpenSearch · daily index rollover · 7-day ISM auto-delete |
 | Phase 6.2 — Metrics | ✅ Done | Prometheus + Grafana + node_exporter + cAdvisor + NVIDIA GPU exporter |
-| Phase 7 — Hardening | ⏳ Planned | UFW, SSH hardening, backup automation (restic), cert rotation |
+| Phase 7 — Hardening | ✅ Done | UFW (both nodes + DOCKER-USER chain), SSH hardening, restic backup → MinIO, cert rotation cron |
 | Phase 8 — Vector DB + RAG | ✅ Done | Qdrant v1.13 + RAG API (FastAPI) + Open WebUI v0.6.5 |
 | Phase 9 — Agents & Evals | ⏳ Planned | LangGraph agents, batch evaluation pipelines, model benchmarks |
 

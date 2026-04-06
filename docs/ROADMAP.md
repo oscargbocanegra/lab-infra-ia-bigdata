@@ -1,10 +1,10 @@
 # Lab Infrastructure — Roadmap
 
-> Last updated: 2026-04-03
+> Last updated: 2026-04-05
 
 ---
 
-## Current Status: Phase 6.2 complete ✅
+## Current Status: Phase 7 complete ✅
 
 ```
 Phase 1: Cluster base (Swarm + networks + labels + GPU)           ✅
@@ -15,7 +15,9 @@ Phase 4: Operational stacks (Traefik, Portainer, Postgres,
 Phase 5: Big Data + Automation (MinIO, Spark, Airflow)            ✅
 Phase 6.1: Centralized logs (Fluent Bit → OpenSearch)             ✅
 Phase 6.2: Metrics (Prometheus + Grafana + exporters)             ✅
-Phase 7:   Hardening + Backups                                    ⏳
+Phase 7:   Hardening + Backups                                    ✅
+Phase 8:   Vector DB + RAG + Chat UI                              ✅
+Phase 9:   Agents & Evals                                         ⏳
 ```
 
 ---
@@ -144,34 +146,48 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 
 ---
 
-## Phase 7: Hardening + Backups
+## Phase 7: Hardening + Backups ✅
 
-### 7.1 Automated Backups ⏳
-
-```
-Source (master2)              Destination (master1 or external)
-─────────────────────────── → ──────────────────────────────────
-/srv/fastdata/postgres          /srv/backups/postgres/
-/srv/fastdata/n8n               /srv/backups/n8n/
-MinIO buckets (mc mirror)       /srv/backups/minio/
-```
+### 7.1 Automated Backups ✅
 
 **Tool:** `restic` (deduplication + encryption + retention)
 
-- [ ] Install restic on master1
-- [ ] Script `scripts/backup/backup_postgres.sh`
-- [ ] Airflow DAG for automated backup
-- [ ] Runbook `docs/runbooks/runbook_backups.md`
+**Implemented:**
+- [x] restic installed on master1 and master2
+- [x] Restic repo initialized in MinIO bucket `backups/master2` (s3 backend)
+- [x] Script `scripts/hardening/restic-backup.sh` — daily snapshots of postgres + n8n data
+- [x] Cron job on master2: daily at 02:00 (`/etc/cron.d/restic-backup`)
+- [x] First snapshot verified: `cfbae982` (90.5 MiB — postgres + n8n data)
+
+**Notes:**
+- MinIO has no host port binding — restic connects via `localhost:9000` from master2 only
+- Env file `/etc/restic/env` on master2 contains MinIO credentials (chmod 600)
+- Restic password stored in `/etc/restic/password` on master2 (chmod 600)
 
 ---
 
-### 7.2 OS Hardening ⏳
+### 7.2 OS Hardening ✅
 
-- [ ] UFW on master1: allow only `:22`, `:80`, `:443` + internal LAN
-- [ ] UFW on master2: allow only `:22` + `:5432` LAN + Swarm ports
-- [ ] SSH hardening: `PasswordAuthentication no`, `PermitRootLogin no`
-- [ ] `unattended-upgrades` enabled on both nodes
-- [ ] NTP/chrony verified
+- [x] UFW on master1: `:22`, `:80`, `:443` open; Swarm ports from master2 only; DOCKER-USER chain
+- [x] UFW on master2: `:22` open; `:5432` + `:9000` + Swarm ports from master1 only; DOCKER-USER chain
+- [x] SSH hardening both nodes: `PasswordAuthentication no`, `AllowGroups sshusers`
+- [x] `sshusers` group created on both nodes; `ogiovanni` and `odavid` added
+- [x] odavid authorized_keys configured on both nodes
+- [x] PostgreSQL personal roles: `ogiovanni` and `odavid` created as SUPERUSER
+
+### 7.3 TLS Cert Rotation ✅
+
+- [x] Script `scripts/hardening/cert-rotate.sh` — checks cert expiry, renews if < 30 days
+- [x] Cron job on master1: weekly Sunday 03:00 (`/etc/cron.d/cert-rotate`)
+
+---
+
+## Phase 9: Agents & Evals ⏳
+
+- [ ] LangGraph agents integrated with Ollama + Qdrant
+- [ ] Batch evaluation pipelines for RAG quality
+- [ ] Model benchmarks (MMLU, coding benchmarks on local models)
+- [ ] Agent observability via OpenSearch + Grafana dashboards
 
 ---
 
@@ -211,6 +227,7 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-05 | Phase 7: SSH hardening (both nodes), UFW + DOCKER-USER chains, PostgreSQL personal roles, restic backup to MinIO, cert rotation cron |
 | 2026-04-03 | Phase 6.2: Prometheus + Grafana + node_exporter + cAdvisor + NVIDIA GPU exporter deployed |
 | 2026-04-03 | Traefik: added `--metrics.prometheus` on port 8082, `prometheus_basicauth` secret |
 | 2026-04-03 | Phase 6.1: Fluent Bit → OpenSearch centralized logs + ISM 7d retention |
