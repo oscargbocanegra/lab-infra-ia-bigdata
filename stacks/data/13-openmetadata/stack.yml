@@ -22,6 +22,10 @@ version: "3.9"
 #   om_mysql_root_password  → MySQL root password
 #   om_mysql_user_password  → MySQL 'openmetadata' user password
 #
+# Config required (create once with setup-governance.sh or manually):
+#   openmetadata-env       → Docker Config that sources secrets as env vars
+#                            (mounted at /opt/openmetadata/conf/openmetadata-env.sh)
+#
 # First deploy:
 #   1. Run: bash scripts/governance/setup-governance.sh
 #   2. Deploy: docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata
@@ -42,6 +46,10 @@ secrets:
   om_mysql_root_password:
     external: true
   om_mysql_user_password:
+    external: true
+
+configs:
+  openmetadata-env:
     external: true
 
 services:
@@ -94,6 +102,9 @@ services:
 
     environment:
       # Database connection
+      # NOTE: DB_USER_PASSWORD is injected by the openmetadata-env Docker Config
+      # which is sourced by openmetadata-server-start.sh before the JVM starts.
+      # OpenMetadata 1.4 does NOT support the Docker _FILE env var convention.
       DB_DRIVER_CLASS: com.mysql.cj.jdbc.Driver
       DB_SCHEME: mysql
       DB_USE_SSL: "false"
@@ -101,8 +112,6 @@ services:
       DB_PORT: "3306"
       OM_DATABASE: openmetadata_db
       DB_USER: openmetadata
-      # NOTE: OpenMetadata 1.4 does NOT support the _FILE convention for DB_USER_PASSWORD.
-      # The password is injected via the entrypoint wrapper (see `command` below).
 
       # Server config
       SERVER_HOST_API_URL: https://openmetadata.sexydad/api
@@ -131,19 +140,17 @@ services:
 
       TZ: America/Bogota
 
-    # Read secrets from files and export as env vars before starting the server.
-    # Required because OpenMetadata 1.4 reads DB_USER_PASSWORD and ADMIN_PASSWORD
-    # as plain env vars — it does not support the Docker _FILE convention.
-    command: >
-      sh -c '
-        export DB_USER_PASSWORD=$$(cat /run/secrets/om_mysql_user_password) &&
-        export ADMIN_PASSWORD=$$(cat /run/secrets/om_admin_password) &&
-        exec ./bin/openmetadata-server-start.sh conf/openmetadata.yaml
-      '
-
     secrets:
       - om_admin_password
       - om_mysql_user_password
+
+    configs:
+      # Mount the env injection script over the empty openmetadata-env.sh.
+      # The start script sources this file, which reads secret files and
+      # exports DB_USER_PASSWORD + ADMIN_PASSWORD before the JVM starts.
+      - source: openmetadata-env
+        target: /opt/openmetadata/conf/openmetadata-env.sh
+        mode: 0755
 
     # NOTE: Do NOT mount a volume over /opt/openmetadata/conf — it overwrites
     # the internal openmetadata.yaml config bundled in the image and crashes on start.
