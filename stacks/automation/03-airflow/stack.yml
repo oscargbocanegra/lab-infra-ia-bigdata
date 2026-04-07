@@ -95,6 +95,18 @@ x-airflow-common-env: &airflow-env
   # ── URL pública ───────────────────────────────────────────
   AIRFLOW__WEBSERVER__BASE_URL: https://airflow.sexydad
 
+  # ── REST API auth ─────────────────────────────────────────
+  # Enable basic_auth so the REST API can be called with user:password.
+  # session auth only works from a browser — not useful for automation.
+  AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+  # ── Pip packages for governance DAGs ─────────────────────
+  # boto3: MinIO/S3 client for bronze/silver/gold bucket access
+  # pandas: data quality checks (read CSV/Parquet/JSON from MinIO)
+  # NOTE: _PIP_ADDITIONAL_REQUIREMENTS installs on every container
+  # startup. Fine for a lab; use a custom image for production.
+  _PIP_ADDITIONAL_REQUIREMENTS: "boto3>=1.26 pandas>=2.0"
+
   # ── Privacidad / telemetría ───────────────────────────────
   AIRFLOW__USAGE_DATA_COLLECTION__ENABLED: "false"
 
