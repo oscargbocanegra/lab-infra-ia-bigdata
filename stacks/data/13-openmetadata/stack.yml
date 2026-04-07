@@ -30,7 +30,7 @@ version: "3.9"
 #   om_mysql_user_password  → MySQL 'openmetadata' user password
 #
 # Config required (auto-created by Docker Swarm at deploy time from file:):
-#   openmetadata-env-v2    → Docker Config sourced before JVM start
+#   openmetadata-env-v3    → Docker Config sourced before JVM start
 #                            (mounted at /opt/openmetadata/conf/openmetadata-env.sh)
 #
 # First deploy:
@@ -57,7 +57,7 @@ secrets:
     external: true
 
 configs:
-  openmetadata-env-v2:
+  openmetadata-env-v3:
     file: ./openmetadata-env.sh
 
 services:
@@ -205,7 +205,7 @@ services:
       # Mount the env injection script over the empty openmetadata-env.sh.
       # The start script sources this file, which reads secret files and
       # exports DB_USER_PASSWORD + ADMIN_PASSWORD before the JVM starts.
-      - source: openmetadata-env-v2
+      - source: openmetadata-env-v3
         target: /opt/openmetadata/conf/openmetadata-env.sh
         mode: 0755
 
