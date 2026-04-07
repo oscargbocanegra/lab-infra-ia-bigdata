@@ -3,35 +3,43 @@ version: "3.9"
 # ============================================================
 # Stack: OpenMetadata 1.4 — Data Catalog + Lineage + Quality
 # ============================================================
-# Node:     master1 (tier=control) — ~1.5GB RAM, acceptable
+# Node:     master1 (tier=control)
 # URL:      https://openmetadata.sexydad
 #
 # Architecture:
 #   openmetadata-server  → main API + UI (Java)
 #   openmetadata-mysql   → internal metadata store (MySQL 8)
-#   openmetadata-es      → search index (OpenSearch 2.x compatible)
+#   openmetadata-es      → dedicated OpenSearch 2.x for this stack
+#
+# WHY a dedicated OpenSearch instead of sharing opensearch_opensearch:
+#   OpenMetadata's Java NIO async HTTP client (Apache HttpComponents) is
+#   incompatible with Docker Swarm VIP/DNAT routing. curl works fine to the
+#   Swarm VIP (10.0.2.26) but Java NIO connect() fails. The only reliable fix
+#   is to run OpenSearch as a service INSIDE this stack so that DNS resolves
+#   to the actual task IP (not a VIP), bypassing DNAT entirely.
+#   See: ADR-007, stacks/data/11-opensearch/ (used by other stacks for logs).
 #
 # Connected services (configured post-deploy via UI or ingestion):
 #   - Postgres   → databases: n8n, airflow, rag, openwebui
 #   - MinIO      → buckets: bronze, silver, gold, governance
 #   - Airflow    → DAGs + OpenLineage events
-#   - OpenSearch → indices: docker-logs-*
 #
 # Secrets required:
 #   om_admin_password       → OpenMetadata admin UI password
 #   om_mysql_root_password  → MySQL root password
 #   om_mysql_user_password  → MySQL 'openmetadata' user password
 #
-# Config required (create once with setup-governance.sh or manually):
-#   openmetadata-env       → Docker Config that sources secrets as env vars
+# Config required (auto-created by Docker Swarm at deploy time from file:):
+#   openmetadata-env       → Docker Config sourced before JVM start
 #                            (mounted at /opt/openmetadata/conf/openmetadata-env.sh)
 #
 # First deploy:
 #   1. Run: bash scripts/governance/setup-governance.sh
 #   2. Deploy: docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata
-#   3. Open: https://openmetadata.sexydad
-#   4. Login: admin / <om_admin_password>
-#   5. Configure connectors (see README.md)
+#   3. Wait ~2 min for openmetadata-es to become healthy
+#   4. Open: https://openmetadata.sexydad
+#   5. Login: admin / <om_admin_password>
+#   6. Configure connectors (see README.md)
 # ============================================================
 
 networks:
@@ -53,6 +61,45 @@ configs:
     file: ./openmetadata-env.sh
 
 services:
+
+  # ── OpenSearch — dedicated search index for OpenMetadata ───
+  # WHY dedicated: Java NIO async client (Apache HttpComponents) cannot
+  # connect through Docker Swarm VIP/DNAT. Running OpenSearch inside this
+  # stack ensures DNS resolves to the task IP directly (no VIP hop).
+  openmetadata-es:
+    image: opensearchproject/opensearch:2.19.1
+    hostname: openmetadata-es
+
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      TZ: America/Bogota
+
+    volumes:
+      - /srv/fastdata/openmetadata/opensearch:/usr/share/opensearch/data
+
+    networks:
+      - internal
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 768M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 60s
 
   # ── MySQL — OpenMetadata metadata backend ──────────────────
   openmetadata-mysql:
@@ -99,6 +146,7 @@ services:
     hostname: openmetadata-server
     depends_on:
       - openmetadata-mysql
+      - openmetadata-es
 
     environment:
       # Database connection
@@ -117,9 +165,13 @@ services:
       SERVER_HOST_API_URL: https://openmetadata.sexydad/api
       OPENMETADATA_SERVER_URL: https://openmetadata.sexydad
 
-      # Search — reuse existing OpenSearch instance
+      # Search — dedicated OpenSearch service within this stack.
+      # IMPORTANT: must NOT point to opensearch_opensearch (cross-stack VIP).
+      # Java NIO async client (Apache HttpComponents) is incompatible with
+      # Docker Swarm VIP/DNAT — it fails with Connection refused even though
+      # curl works. Using a service in the same stack gives task-level DNS.
       SEARCH_TYPE: opensearch
-      SEARCH_HOST: http://opensearch:9200
+      SEARCH_HOST: http://openmetadata-es:9200
       SEARCH_PORT: "9200"
       SEARCH_SCHEME: http
 

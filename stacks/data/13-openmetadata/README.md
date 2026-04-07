@@ -11,25 +11,26 @@ integration for all data assets in this lab (MinIO, Postgres, Airflow).
 
 ```
 MinIO (s3://)      ──┐
-Postgres           ──┼──► OpenMetadata Server ──► OpenSearch (search index)
+Postgres           ──┼──► OpenMetadata Server ──► openmetadata-es (dedicated OpenSearch)
 Airflow Pipelines  ──┘         │
                                │
                           MySQL (metadata store)
 ```
 
 - **Metadata store**: MySQL 8 (dedicated container, local to stack)
-- **Search index**: shared OpenSearch instance on `lab-network`
+- **Search index**: `openmetadata-es` — dedicated OpenSearch 2.x within this stack  
+  _(Why dedicated? Java NIO async HTTP client is incompatible with Docker Swarm VIP/DNAT.  
+  See comment in stack.yml for full explanation.)_
 - **UI**: `https://openmetadata.sexydad` via Traefik
-- **Node**: master1 (`node.labels.role == manager`)
-- **Persistence**: `/srv/fastdata/openmetadata/{mysql,server}`
+- **Node**: master1 (`node.labels.tier == control`)
+- **Persistence**: `/srv/fastdata/openmetadata/{mysql,opensearch}`
 
 ---
 
 ## Prerequisites
 
-1. OpenSearch stack running: `docker stack ls | grep opensearch`
-2. Docker Swarm secrets created (see below)
-3. Persistence directories created on master1
+1. Docker Swarm secrets created (see below)
+2. Persistence directories created on master1 (done by `setup-governance.sh`)
 
 ---
 
@@ -43,7 +44,7 @@ sudo bash scripts/governance/setup-governance.sh
 
 This script:
 - Creates 3 Docker Swarm secrets interactively (`om_admin_password`, `om_mysql_root_password`, `om_mysql_user_password`)
-- Creates `/srv/fastdata/openmetadata/mysql` on master1
+- Creates `/srv/fastdata/openmetadata/{mysql,opensearch}` on master1
 - Creates MinIO governance bucket structure (`bronze/`, `silver/`, `gold/`, `governance/`)
 - Writes a base Great Expectations config under `/srv/fastdata/airflow/great_expectations/`
 
@@ -67,7 +68,18 @@ Or from CLI on master1:
 docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata
 ```
 
-### 3. Bootstrap the database (FIRST TIME ONLY)
+### 3. Wait for OpenSearch to be ready (~60 s)
+
+```bash
+# Watch services come up
+watch docker stack services openmetadata
+
+# Verify openmetadata-es is responding
+docker run --rm --network internal alpine \
+  sh -c 'wget -qO- http://openmetadata-es:9200/_cluster/health'
+```
+
+### 4. Bootstrap the database (FIRST TIME ONLY)
 
 Run in a `screen` session — takes 3-5 minutes:
 
@@ -81,9 +93,13 @@ docker run --rm --network internal \
   -e DB_USER_PASSWORD=<om_mysql_user_password> \
   -e OM_DATABASE=openmetadata_db \
   -e DB_DRIVER_CLASS=com.mysql.cj.jdbc.Driver \
+  -e SEARCH_TYPE=opensearch \
+  -e SEARCH_HOST=http://openmetadata-es:9200 \
   openmetadata/server:1.4.7 \
   ./bootstrap/bootstrap_storage.sh migrate-all
 ```
+
+Success message: `[MigrationWorkflow] WorkFlow Completed`
 
 After bootstrap completes, force-restart the server:
 
@@ -91,7 +107,7 @@ After bootstrap completes, force-restart the server:
 docker service update --force openmetadata_openmetadata-server
 ```
 
-### 4. Verify
+### 5. Verify
 
 ```bash
 docker stack services openmetadata
@@ -99,7 +115,7 @@ docker service logs openmetadata_openmetadata-server --tail 50
 curl -sk https://openmetadata.sexydad/api/v1/system/config
 ```
 
-### 5. Access
+### 6. Access
 
 - **URL**: `https://openmetadata.sexydad`
 - **Default credentials**: `admin` / `<the password you set in step 1>`
@@ -112,7 +128,7 @@ curl -sk https://openmetadata.sexydad/api/v1/system/config
 |---------|------|------------|
 | Postgres (lab) | Database | `postgres:5432` (internal Swarm DNS) |
 | MinIO | Object Storage | `http://minio:9000` (internal Swarm DNS) |
-| Airflow | Pipeline | `http://airflow-webserver:8080` |
+| Airflow | Pipeline | `http://airflow_airflow_webserver:8080` |
 
 Navigate to **Settings → Services** to add each connector.
 
@@ -144,7 +160,7 @@ DAGs:
 | Path | Contents |
 |------|----------|
 | `/srv/fastdata/openmetadata/mysql` | MySQL 8 data directory |
-| `/srv/fastdata/openmetadata/server` | OpenMetadata server state |
+| `/srv/fastdata/openmetadata/opensearch` | OpenSearch index data |
 
 Both paths are on master1's NVMe (`/srv/fastdata`).
 
@@ -155,14 +171,24 @@ Both paths are on master1's NVMe (`/srv/fastdata`).
 **Server doesn't start (exits immediately):**
 ```bash
 docker service logs openmetadata_openmetadata-server --tail 100
-# Common cause: MySQL not ready yet — wait 60 s and re-deploy
+# Common cause: MySQL or OpenSearch not ready yet — wait 60s and re-deploy
 docker service update --force openmetadata_openmetadata-server
 ```
 
 **OpenSearch connection refused:**
 ```bash
-# Verify OpenSearch is reachable from the same network
-docker run --rm --network lab-network alpine sh -c 'nc -zv opensearch 9200'
+# Verify openmetadata-es is healthy within the stack network
+docker run --rm --network internal alpine \
+  sh -c 'wget -qO- http://openmetadata-es:9200/_cluster/health'
+# If this fails, the issue is with openmetadata-es service, NOT a VIP routing problem
+docker service logs openmetadata_openmetadata-es --tail 50
+```
+
+**MySQL data dir corruption (e.g. after crash during init):**
+```bash
+docker service scale openmetadata_openmetadata-mysql=0
+sudo rm -rf /srv/fastdata/openmetadata/mysql/*
+docker service scale openmetadata_openmetadata-mysql=1
 ```
 
 **MySQL auth error:**

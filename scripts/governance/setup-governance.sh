@@ -59,8 +59,8 @@ create_secret "om_admin_password"      "OpenMetadata admin UI password"
 info "Step 2: Creating persistence directories on master1..."
 
 mkdir -p /srv/fastdata/openmetadata/mysql
-mkdir -p /srv/fastdata/openmetadata/server
-success "Directories created: /srv/fastdata/openmetadata/{mysql,server}"
+mkdir -p /srv/fastdata/openmetadata/opensearch
+success "Directories created: /srv/fastdata/openmetadata/{mysql,opensearch}"
 
 # ── Step 3: MinIO bucket structure ───────────────────────────────────────────
 if command -v mc &>/dev/null; then
@@ -180,17 +180,21 @@ echo "     Compose path:   stacks/data/13-openmetadata/stack.yml"
 echo "     (or from CLI: docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata)"
 echo ""
 echo "  2. Bootstrap the database (FIRST TIME ONLY — takes 3-5 min):"
-echo "     # Run in a screen/tmux session to avoid timeout:"
+echo "     # Wait ~60s first for openmetadata-es to be healthy:"
+echo "     docker run --rm --network internal alpine sh -c 'wget -qO- http://openmetadata-es:9200/_cluster/health'"
+echo "     # Then run in a screen/tmux session to avoid timeout:"
 echo "     screen -S om-bootstrap"
 echo "     docker run --rm --network internal \\"
 echo "       -e DB_HOST=openmetadata-mysql -e DB_PORT=3306 \\"
 echo "       -e DB_SCHEME=mysql -e DB_USER=openmetadata \\"
-echo "       -e DB_USER_PASSWORD=\$(docker secret inspect om_mysql_user_password --format '{{.Spec.Name}}' 2>/dev/null || echo '<om_mysql_user_password>') \\"
+echo "       -e DB_USER_PASSWORD=<om_mysql_user_password> \\"
 echo "       -e OM_DATABASE=openmetadata_db \\"
 echo "       -e DB_DRIVER_CLASS=com.mysql.cj.jdbc.Driver \\"
+echo "       -e SEARCH_TYPE=opensearch \\"
+echo "       -e SEARCH_HOST=http://openmetadata-es:9200 \\"
 echo "       openmetadata/server:1.4.7 \\"
 echo "       ./bootstrap/bootstrap_storage.sh migrate-all"
-echo "     # NOTE: Pass the actual MySQL user password you set during secret creation."
+echo "     # Success: [MigrationWorkflow] WorkFlow Completed"
 echo "     # After bootstrap, force restart the server service:"
 echo "     docker service update --force openmetadata_openmetadata-server"
 echo ""
