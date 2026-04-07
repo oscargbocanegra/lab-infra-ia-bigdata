@@ -1,0 +1,58 @@
+# ============================================================
+# OpenMetadata — Apache Airflow Connector
+# ============================================================
+# Ingests pipeline metadata (DAGs, tasks, runs, lineage) from
+# the Airflow 2.9 instance running in the 'airflow' stack.
+#
+# This gives OpenMetadata:
+#   - Full DAG catalog with descriptions and tags
+#   - Pipeline run history and status
+#   - Data lineage (when Airflow tasks are annotated)
+#
+# How to use:
+#   Option A — UI:  Settings → Services → Add Service → Pipeline → Airflow
+#                   Host: http://airflow_airflow_webserver:8080
+#   Option B — CLI: metadata ingest -c airflow-connector.yaml
+#
+# Pre-requisite: openmetadata-server must be on the 'internal'
+# overlay network (already the case in stack.yml).
+# ============================================================
+
+source:
+  type: airflow
+  serviceName: lab-airflow
+  serviceConnection:
+    config:
+      type: Airflow
+      # Internal Docker Swarm DNS name for the Airflow webserver
+      hostPort: http://airflow_airflow_webserver:8080
+      numberOfStatus: 10
+      connection:
+        type: Backend
+        # Use Airflow's own metadata DB (no extra credentials needed
+        # when running from inside the same overlay network)
+
+  sourceConfig:
+    config:
+      type: PipelineMetadata
+      # Ingest pipeline status (run history)
+      includeLineage: true
+      # DAG filter — include all by default
+      pipelineFilterPattern:
+        includes:
+          - .*
+      # Tag governance DAGs for easy discovery
+      markDeletedPipelines: true
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  logLevel: INFO
+  openMetadataServerConfig:
+    hostPort: http://openmetadata-server:8585
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "${OM_JWT_TOKEN}"
+      # Generate: Settings → Bots → ingestion-bot → Copy token

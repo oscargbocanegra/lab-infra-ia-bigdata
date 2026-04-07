@@ -1,0 +1,66 @@
+# ============================================================
+# OpenMetadata — MinIO (S3-compatible) Connector
+# ============================================================
+# Ingests metadata from MinIO object storage (master2).
+# Catalogs all buckets and their objects as Data Lake tables.
+#
+# Medallion architecture buckets:
+#   bronze         → Raw ingestion (CSV/JSON/Parquet)
+#   silver         → Curated Delta Lake (clean, typed, deduped)
+#   gold           → Business layer (KPIs, ML features, reports)
+#   airflow-logs   → Airflow task logs
+#   spark-warehouse→ Delta catalog + Spark History Server logs
+#   lab-notebooks  → Jupyter notebook exports
+#
+# How to use:
+#   Option A — UI:  Settings → Services → Add Service → Storage → S3
+#                   Use endpoint override: https://minio-api.sexydad
+#   Option B — CLI: metadata ingest -c minio-connector.yaml
+# ============================================================
+
+source:
+  type: s3
+  serviceName: lab-minio
+  serviceConnection:
+    config:
+      type: S3
+      awsConfig:
+        # MinIO uses the S3 API — any region string works
+        awsRegion: us-east-1
+        # Credentials stored as Swarm secrets minio_access_key / minio_secret_key
+        # Inject via env vars for CLI usage:
+        #   AWS_ACCESS_KEY_ID=$(docker exec <minio-container> cat /run/secrets/minio_access_key)
+        #   AWS_SECRET_ACCESS_KEY=$(docker exec <minio-container> cat /run/secrets/minio_secret_key)
+        awsAccessKeyId: "${AWS_ACCESS_KEY_ID}"
+        awsSecretAccessKey: "${AWS_SECRET_ACCESS_KEY}"
+        # MinIO endpoint — reachable from the internal overlay network
+        # Use internal service name for CLI, public URL for UI-based ingestion
+        endPointURL: http://minio_minio:9000
+  sourceConfig:
+    config:
+      type: StorageMetadata
+      # Buckets to catalog — remove entries to skip specific buckets
+      bucketFilterPattern:
+        includes:
+          - bronze
+          - silver
+          - gold
+          - airflow-logs
+          - spark-warehouse
+          - lab-notebooks
+      # Automatically detect table structure from Parquet/Delta/CSV files
+      storageMetadataConfigSource:
+        type: local
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  logLevel: INFO
+  openMetadataServerConfig:
+    hostPort: http://openmetadata-server:8585
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "${OM_JWT_TOKEN}"
+      # Generate: Settings → Bots → ingestion-bot → Copy token

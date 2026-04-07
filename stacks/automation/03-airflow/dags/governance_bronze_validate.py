@@ -39,7 +39,7 @@ from airflow.models.param import Param
 log = logging.getLogger(__name__)
 
 # ── MinIO connection (reads from Airflow Connections: minio_s3) ───────────────
-MINIO_ENDPOINT = "http://minio:9000"
+MINIO_ENDPOINT = "http://minio_minio:9000"
 MINIO_BUCKET_BRONZE = "bronze"
 MINIO_BUCKET_GOVERNANCE = "governance"
 

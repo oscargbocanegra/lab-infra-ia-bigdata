@@ -33,7 +33,7 @@ from airflow.models.param import Param
 
 log = logging.getLogger(__name__)
 
-MINIO_ENDPOINT = "http://minio:9000"
+MINIO_ENDPOINT = "http://minio_minio:9000"
 MINIO_BUCKET_SILVER = "silver"
 MINIO_BUCKET_GOVERNANCE = "governance"
 

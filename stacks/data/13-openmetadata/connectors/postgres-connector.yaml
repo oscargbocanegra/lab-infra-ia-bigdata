@@ -1,0 +1,69 @@
+# ============================================================
+# OpenMetadata — PostgreSQL Connector
+# ============================================================
+# Ingests metadata from the shared Postgres instance (master2).
+# All application databases (airflow, n8n, rag, openwebui)
+# are cataloged under this single service connection.
+#
+# How to use:
+#   Option A — UI:  Settings → Services → Add Service → Database → PostgreSQL
+#                   Paste values from this file
+#   Option B — CLI: metadata ingest -c postgres-connector.yaml
+#                   (run from inside the openmetadata-server container)
+#
+# Important: the openmetadata-server service must be on the
+# 'internal' overlay network to reach postgres_postgres directly.
+# ============================================================
+
+source:
+  type: postgres
+  serviceName: lab-postgres
+  serviceConnection:
+    config:
+      type: Postgres
+      # DNS name inside the 'internal' overlay network
+      hostPort: postgres_postgres:5432
+      username: postgres
+      # Use the real password stored in the Swarm secret pg_postgres_pass
+      # For UI ingestion just enter the password interactively.
+      # For CLI ingestion, inject via environment variable:
+      #   PG_PASS=$(docker exec <postgres-container> cat /run/secrets/pg_postgres_pass)
+      password: "${PG_PASS}"
+      # Databases to catalog — add/remove as needed
+      database: postgres
+      # Connect using SSL if Postgres is hardened; leave 'disable' for LAN
+      sslMode: disable
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      # Which databases to include (regex)
+      databaseFilterPattern:
+        includes:
+          - airflow
+          - n8n
+          - rag
+          - openwebui
+          - postgres
+      # Tables to exclude (internal/system)
+      tableFilterPattern:
+        excludes:
+          - information_schema.*
+          - pg_catalog.*
+      # Extract view lineage
+      includeViews: true
+      # Extract stored procedures
+      includeStoredProcedures: false
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  logLevel: INFO
+  openMetadataServerConfig:
+    hostPort: http://openmetadata-server:8585
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "${OM_JWT_TOKEN}"
+      # Generate a JWT token for ingestion bots:
+      # Settings → Bots → ingestion-bot → Copy token

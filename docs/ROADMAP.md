@@ -194,7 +194,7 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 - [x] ADR written and approved
 - [x] `stack.yml` created (MySQL 8 + OpenMetadata Server + OpenSearch integration)
 - [x] `scripts/governance/setup-governance.sh` — secrets + dirs + MinIO buckets + GE base config
-- [ ] Stack deployed on master1
+- [x] Stack deployed on master1 — all 3 services `1/1` (openmetadata-es, openmetadata-mysql, openmetadata-server)
 - [ ] Connectors configured: Postgres, MinIO, Airflow
 
 ### 9A.2 Great Expectations — Data Quality
