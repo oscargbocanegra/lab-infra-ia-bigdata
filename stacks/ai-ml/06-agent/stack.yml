@@ -1,0 +1,132 @@
+version: "3.9"
+
+# ============================================================
+# Stack: Lab Hybrid Agent — LangGraph RAG + Data Agent
+# ============================================================
+# Node:     master1 (tier=control)
+# URL:      https://agent.sexydad
+# Docs:     https://agent.sexydad/docs  (Swagger UI)
+#
+# Purpose:
+#   Hybrid LangGraph agent that answers questions using two tools:
+#   - RAG Tool: semantic search in Qdrant (documents/policies)
+#   - Data Tool: natural language → SQL → Postgres (structured data)
+#
+#   Router (gemma3:4b) decides which tool(s) to invoke.
+#   Synthesizer (gemma3:4b) generates the final answer.
+#   SQL generation uses qwen2.5-coder:7b.
+#
+# Build image on master1 first:
+#   cd ~/lab-infra-ia-bigdata/stacks/ai-ml/06-agent
+#   docker build -t lab-agent:latest .
+#
+# Phase: 9B — Agents & Evals
+# ADR:   docs/adrs/ADR-008-agents-evals-langgraph.md
+#
+# Logs: json-file → Fluent Bit → OpenSearch docker-logs-YYYY.MM.DD
+# Traces: OpenSearch agent-traces-YYYY.MM.DD (via app/tracing.py)
+# ============================================================
+
+networks:
+  internal:
+    external: true
+  public:
+    external: true
+
+secrets:
+  qdrant_api_key:
+    external: true
+  pg_rag_pass:
+    external: true
+
+services:
+  agent:
+    # Image built locally on master1: docker build -t lab-agent:latest .
+    # No external registry needed — Swarm uses the local image on the pinned node.
+    image: lab-agent:latest
+
+    environment:
+      # Ollama — GPU inference on master2
+      OLLAMA_BASE_URL: "http://192.168.80.200:11434"
+      AGENT_MODEL: "gemma3:4b"
+      CODER_MODEL: "qwen2.5-coder:7b"
+      EMBED_MODEL: "nomic-embed-text"
+      EMBED_DIMS: "768"
+
+      # Qdrant — internal overlay
+      QDRANT_URL: "http://qdrant:6333"
+      QDRANT_API_KEY_FILE: /run/secrets/qdrant_api_key
+      QDRANT_COLLECTION: "lab_documents_nomic"
+
+      # Postgres — rag DB
+      PG_HOST: "192.168.80.200"
+      PG_PORT: "5432"
+      PG_DB: "rag"
+      PG_USER: "rag"
+      PG_PASSWORD_FILE: /run/secrets/pg_rag_pass
+
+      # OpenSearch — trace sink
+      OPENSEARCH_HOST: "opensearch"
+      OPENSEARCH_PORT: "9200"
+      OPENSEARCH_TRACES_INDEX: "agent-traces"
+
+      # RAG settings
+      TOP_K: "5"
+
+      # API
+      API_TITLE: "Lab Hybrid Agent API"
+      API_VERSION: "1.0.0"
+      LOG_LEVEL: "INFO"
+
+      TZ: "America/Bogota"
+
+    secrets:
+      - qdrant_api_key
+      - pg_rag_pass
+
+    networks:
+      - internal
+      - public
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.stack.namespace"
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 60s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+
+        - "traefik.http.routers.agent.rule=Host(`agent.sexydad`)"
+        - "traefik.http.routers.agent.entrypoints=websecure"
+        - "traefik.http.routers.agent.tls=true"
+        - "traefik.http.routers.agent.service=agent"
+        - "traefik.http.services.agent.loadbalancer.server.port=8000"
+
+        - "traefik.http.routers.agent.middlewares=lan-whitelist@docker"
+
+        - "traefik.http.services.agent.loadbalancer.healthcheck.path=/health"
+        - "traefik.http.services.agent.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.agent.loadbalancer.healthcheck.timeout=10s"
+
+        - "com.docker.stack.namespace=agent"
+        - "description=LangGraph Hybrid Agent — RAG + Data tools"

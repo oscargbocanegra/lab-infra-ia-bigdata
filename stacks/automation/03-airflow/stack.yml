@@ -100,12 +100,14 @@ x-airflow-common-env: &airflow-env
   # session auth only works from a browser — not useful for automation.
   AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
 
-  # ── Pip packages for governance DAGs ─────────────────────
-  # boto3: MinIO/S3 client for bronze/silver/gold bucket access
-  # pandas: data quality checks (read CSV/Parquet/JSON from MinIO)
+  # ── Pip packages for governance + agent DAGs ─────────────
+  # boto3:     MinIO/S3 client for bronze/silver/gold bucket access
+  # pandas:    data quality checks (read CSV/Parquet/JSON from MinIO)
+  # httpx:     async HTTP client for Ollama + Agent API calls
+  # psycopg2:  Postgres access from Data tool + RAGAS DAG
   # NOTE: _PIP_ADDITIONAL_REQUIREMENTS installs on every container
   # startup. Fine for a lab; use a custom image for production.
-  _PIP_ADDITIONAL_REQUIREMENTS: "boto3>=1.26 pandas>=2.0"
+  _PIP_ADDITIONAL_REQUIREMENTS: "boto3>=1.26 pandas>=2.0 httpx>=0.27 psycopg2-binary>=2.9"
 
   # ── MinIO endpoint for governance DAGs ───────────────────
   # boto3 rejects hostnames with underscores (minio_minio) as invalid URLs.

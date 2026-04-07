@@ -223,10 +223,77 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 
 ## Phase 9B: Agents & Evals ⏳
 
-- [ ] LangGraph agents integrated with Ollama + Qdrant
-- [ ] Batch evaluation pipelines for RAG quality (RAGAS metrics)
-- [ ] Model benchmarks (MMLU, coding benchmarks on local models)
-- [ ] Agent observability via OpenSearch + Grafana dashboards
+**ADR:** `docs/adrs/ADR-008-agents-evals-langgraph.md`
+
+### 9B.1 Hybrid LangGraph Agent
+
+**Stack:** `stacks/ai-ml/06-agent/stack.yml`  
+**URL:** `https://agent.sexydad`
+
+Architecture:
+```
+User Question
+      │
+      ▼
+ Router Node (gemma3:4b) → decides: rag | data | both
+      │
+  ┌───┴───┐
+  ▼       ▼
+RAG Node  Data Node
+(Qdrant)  (Postgres SQL via qwen2.5-coder:7b)
+  │       │
+  └───┬───┘
+      ▼
+ Synthesizer (gemma3:4b) → final answer
+      │
+ Trace Writer → OpenSearch agent-traces-YYYY.MM.DD
+```
+
+- [ ] Build image on master1: `docker build -t lab-agent:latest .`
+- [ ] Deploy: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent`
+- [ ] Verify: `https://agent.sexydad/docs`
+
+**Models used:**
+- `gemma3:4b` — routing + synthesis (4.3B, RTX 2080 Ti, fast)
+- `qwen2.5-coder:7b` — SQL generation for Data Tool
+- `nomic-embed-text` — RAG embeddings (768d, Qdrant collection: `lab_documents_nomic`)
+
+### 9B.2 Evaluation Pipelines (Airflow DAGs)
+
+| DAG | Schedule | Purpose |
+|-----|----------|---------|
+| `agent_synthetic_dataset` | Sunday 02:00 | Generate Q&A pairs with gemma3:4b → save to MinIO |
+| `agent_ragas_eval` | Sunday 04:00 | LLM-as-judge RAGAS metrics → OpenSearch |
+| `agent_model_benchmark` | Sunday 06:00 | Benchmark all Ollama models → leaderboard |
+
+**RAGAS metrics tracked:**
+- `faithfulness` — are answers grounded in context?
+- `answer_relevancy` — is the answer on-topic?
+- `context_precision` — are retrieved chunks relevant?
+
+**Benchmark categories:** instruction_following, reasoning, coding (15 questions total)
+
+**Storage pattern:**
+```
+governance/
+├── ragas-datasets/YYYY-MM-DD/dataset.json   ← synthetic Q&A
+├── ragas-results/YYYY-MM-DD/results.json    ← scored records + aggregate
+└── benchmarks/YYYY-MM-DD/results.json       ← model leaderboard
+```
+
+- [ ] Deploy Airflow DAGs to both master1 + master2 `/srv/fastdata/airflow/dags/`
+- [ ] Redeploy Airflow stack (adds httpx + psycopg2 to pip requirements)
+- [ ] Trigger `agent_synthetic_dataset` manually for first run
+- [ ] Trigger `agent_ragas_eval` after dataset is ready
+- [ ] Trigger `agent_model_benchmark` for initial model scores
+
+### 9B.3 Agent Observability
+
+- [ ] OpenSearch index pattern: `agent-traces-*` (auto-created by agent on first query)
+- [ ] OpenSearch index pattern: `ragas-results-*` (auto-created by eval DAG)
+- [ ] OpenSearch index pattern: `model-benchmarks-*` (auto-created by benchmark DAG)
+- [ ] Grafana dashboard: Agent Overview (latency, tool distribution, RAGAS trend)
+- [ ] OpenSearch Dashboards: `top_queries-*` index pattern → use `source.query.bool.filter.range.@timestamp.from` as time field
 
 ---
 
@@ -266,6 +333,7 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | Phase 9B: LangGraph Hybrid Agent (06-agent), 3 evaluation DAGs, ADR-008 |
 | 2026-04-07 | Phase 9A complete ✅ — Airflow REST API basic_auth, governance DAGs running, validation results in MinIO |
 | 2026-04-07 | OpenMetadata: ingestion pipelines created for lab-postgres + lab-minio via API |
 | 2026-04-07 | Fix: boto3 rejects underscore hostnames — use MINIO_ENDPOINT env var (IP fallback) |

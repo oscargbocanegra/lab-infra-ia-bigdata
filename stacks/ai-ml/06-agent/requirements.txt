@@ -1,0 +1,23 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+pydantic==2.11.3
+pydantic-settings==2.8.1
+
+# LangGraph + LangChain
+langgraph==0.3.21
+langchain-core==0.3.52
+langchain-community==0.3.21
+
+# Qdrant
+qdrant-client==1.13.3
+
+# Postgres
+asyncpg==0.30.0
+sqlalchemy==2.0.40
+
+# OpenSearch observability traces
+opensearch-py==2.8.0
+
+# Utils
+python-multipart==0.0.20
