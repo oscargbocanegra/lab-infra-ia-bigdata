@@ -238,7 +238,7 @@ services:
         - traefik.http.routers.openmetadata.service=openmetadata
         - traefik.http.services.openmetadata.loadbalancer.server.port=8585
         - traefik.http.routers.openmetadata.middlewares=lan-whitelist@docker
-        - traefik.http.services.openmetadata.loadbalancer.healthcheck.path=/api/v1/system/config
+        - traefik.http.services.openmetadata.loadbalancer.healthcheck.path=/api/v1/system/version
         - traefik.http.services.openmetadata.loadbalancer.healthcheck.interval=30s
         - traefik.http.services.openmetadata.loadbalancer.healthcheck.timeout=10s
         - "com.docker.stack.namespace=openmetadata"
