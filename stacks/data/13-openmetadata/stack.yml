@@ -181,13 +181,12 @@ services:
 
       # Search — dedicated OpenSearch service within this stack.
       # IMPORTANT: must NOT point to opensearch_opensearch (cross-stack VIP).
-      # Java NIO async client (Apache HttpComponents) is incompatible with
-      # Docker Swarm VIP/DNAT — it fails with Connection refused even though
-      # curl works. Using a service in the same stack gives task-level DNS.
+      # openmetadata.yaml reads ELASTICSEARCH_* vars (not SEARCH_*).
+      # SEARCH_TYPE is the only env var that uses the SEARCH_ prefix.
       SEARCH_TYPE: opensearch
-      SEARCH_HOST: http://openmetadata-es:9200
-      SEARCH_PORT: "9200"
-      SEARCH_SCHEME: http
+      ELASTICSEARCH_HOST: openmetadata-es
+      ELASTICSEARCH_PORT: "9200"
+      ELASTICSEARCH_SCHEME: http
 
       # Auth — basic (no SSO for lab)
       AUTHENTICATION_PROVIDER: basic
