@@ -45,7 +45,9 @@ MINIO_ACCESS = os.environ.get("AWS_ACCESS_KEY_ID", "")
 MINIO_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
 MINIO_BUCKET = "governance"
 
-OLLAMA_URL = "http://192.168.80.200:11434"
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_BASE_URL", "http://ollama:11434"
+)  # Docker overlay DNS
 AGENT_URL = "http://agent:8000"  # internal overlay
 GENERATOR_MODEL = "gemma3:4b"
 
@@ -151,7 +153,7 @@ def agent_synthetic_dataset():
                     "stream": False,
                     "options": {"temperature": 0.7, "num_predict": 64},
                 },
-                timeout=60.0,
+                timeout=180.0,  # 3min — gemma3:4b cold start can take >60s
             )
             q_resp.raise_for_status()
             question = q_resp.json()["response"].strip()
@@ -167,7 +169,7 @@ def agent_synthetic_dataset():
                     "stream": False,
                     "options": {"temperature": 0.1, "num_predict": 256},
                 },
-                timeout=60.0,
+                timeout=180.0,  # 3min — gemma3:4b cold start can take >60s
             )
             gt_resp.raise_for_status()
             ground_truth = gt_resp.json()["response"].strip()

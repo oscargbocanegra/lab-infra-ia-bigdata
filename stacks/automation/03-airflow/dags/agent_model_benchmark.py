@@ -191,7 +191,7 @@ def _judge_response(question: str, expected_format: str, response: str) -> float
                 "stream": False,
                 "options": {"temperature": 0.0, "num_predict": 10},
             },
-            timeout=60.0,
+            timeout=180.0,  # 3min — gemma3:4b cold start can take >60s
         )
         resp.raise_for_status()
         raw = resp.json()["response"].strip()

@@ -42,7 +42,9 @@ MINIO_ACCESS = os.environ.get("AWS_ACCESS_KEY_ID", "")
 MINIO_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
 MINIO_BUCKET = "governance"
 
-OLLAMA_URL = "http://192.168.80.200:11434"
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_BASE_URL", "http://ollama:11434"
+)  # Docker overlay DNS
 JUDGE_MODEL = "gemma3:4b"
 EMBED_MODEL = "nomic-embed-text"
 
@@ -119,7 +121,7 @@ def _llm_score(prompt: str) -> float:
                 "stream": False,
                 "options": {"temperature": 0.0, "num_predict": 10},
             },
-            timeout=60.0,
+            timeout=180.0,  # 3min — gemma3:4b cold start can take >60s
         )
         resp.raise_for_status()
         raw = resp.json()["response"].strip()
