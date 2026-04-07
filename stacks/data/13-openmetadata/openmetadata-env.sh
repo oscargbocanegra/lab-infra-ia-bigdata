@@ -21,10 +21,3 @@ fi
 if [ -f /run/secrets/om_admin_password ]; then
   export ADMIN_PASSWORD=$(cat /run/secrets/om_admin_password)
 fi
-
-# Disable the Airflow pipeline service client health-check job.
-# The standard apache/airflow image does NOT include the openmetadata-managed-apis
-# plugin, so OM's PipelineServiceStatusJob throws "unsupported URI" on every poll.
-# Setting NO_OP disables the polling entirely without losing ingestion functionality
-# (ingestion still works via the OpenMetadata Python SDK inside Airflow DAGs).
-export PIPELINE_SERVICE_CLIENT_CLASS_NAME=org.openmetadata.service.clients.pipeline.noop.NoopClient
