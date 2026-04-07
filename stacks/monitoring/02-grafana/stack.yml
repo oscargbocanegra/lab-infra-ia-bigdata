@@ -70,8 +70,12 @@ services:
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana_datasource_opensearch
+        target: /etc/grafana/provisioning/datasources/opensearch.yml
       - source: grafana_dashboard_provider
         target: /etc/grafana/provisioning/dashboards/provider.yml
+      - source: grafana_dashboard_agent
+        target: /etc/grafana/provisioning/dashboards/agent-observability.json
 
     networks:
       - internal
@@ -114,8 +118,12 @@ services:
 configs:
   grafana_datasources:
     file: ./provisioning/datasources/prometheus.yml
+  grafana_datasource_opensearch:
+    file: ./provisioning/datasources/opensearch.yml
   grafana_dashboard_provider:
     file: ./provisioning/dashboards/provider.yml
+  grafana_dashboard_agent:
+    file: ./dashboards/agent-observability.json
 
 networks:
   internal:

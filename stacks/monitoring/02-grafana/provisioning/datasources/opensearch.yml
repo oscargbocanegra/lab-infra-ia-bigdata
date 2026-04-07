@@ -1,0 +1,29 @@
+# =============================================================================
+# Grafana Provisioning — Datasource: OpenSearch
+# =============================================================================
+# OpenSearch is reachable via Docker overlay DNS on port 9200.
+# Used for agent traces, RAGAS results, and model benchmark indices.
+#
+# Grafana uses the "Elasticsearch" datasource type (compatible with OpenSearch).
+# Index patterns:
+#   - agent-traces-*         (per-query agent traces)
+#   - ragas-results-*        (RAGAS evaluation aggregate)
+#   - model-benchmarks-*     (model benchmark leaderboard)
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: OpenSearch
+    type: elasticsearch
+    access: proxy
+    url: http://opensearch:9200
+    isDefault: false
+    editable: false
+    jsonData:
+      esVersion: "7.10.0"
+      timeField: "@timestamp"
+      interval: Daily
+      logMessageField: message
+      logLevelField: log.level
+      maxConcurrentShardRequests: 5

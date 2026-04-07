@@ -1,0 +1,698 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_OPENSEARCH",
+      "label": "OpenSearch",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "elasticsearch",
+      "pluginName": "Elasticsearch"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "bargauge",
+      "name": "Bar gauge",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "description": "Agent observability — latency, tool usage, RAGAS metrics, model benchmark leaderboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Agent Traces",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3000 },
+              { "color": "red", "value": 8000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Avg Latency (ms)",
+      "type": "stat",
+      "targets": [
+        {
+          "alias": "avg latency",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "auto" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "agent-traces-*",
+          "metrics": [
+            {
+              "field": "latency_ms",
+              "id": "1",
+              "type": "avg"
+            }
+          ],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Total Queries",
+      "type": "stat",
+      "targets": [
+        {
+          "alias": "queries",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "auto" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "agent-traces-*",
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "green", "value": 0.8 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Avg Faithfulness (RAGAS)",
+      "type": "stat",
+      "targets": [
+        {
+          "alias": "faithfulness",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "auto" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "ragas-results-*",
+          "metrics": [
+            {
+              "field": "faithfulness",
+              "id": "1",
+              "type": "avg"
+            }
+          ],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "green", "value": 0.8 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Avg Answer Relevancy (RAGAS)",
+      "type": "stat",
+      "targets": [
+        {
+          "alias": "answer_relevancy",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "auto" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "ragas-results-*",
+          "metrics": [
+            {
+              "field": "answer_relevancy",
+              "id": "1",
+              "type": "avg"
+            }
+          ],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "green", "value": 0.8 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Avg Context Precision (RAGAS)",
+      "type": "stat",
+      "targets": [
+        {
+          "alias": "context_precision",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "auto" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "ragas-results-*",
+          "metrics": [
+            {
+              "field": "context_precision",
+              "id": "1",
+              "type": "avg"
+            }
+          ],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 5 },
+      "id": 10,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "title": "Agent Query Latency Over Time",
+      "type": "timeseries",
+      "targets": [
+        {
+          "alias": "avg latency",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "1h", "min_doc_count": "0", "trimEdges": "0" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "agent-traces-*",
+          "metrics": [
+            {
+              "field": "latency_ms",
+              "id": "1",
+              "type": "avg"
+            }
+          ],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        },
+        {
+          "alias": "p95 latency",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "4",
+              "settings": { "interval": "1h", "min_doc_count": "0", "trimEdges": "0" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "agent-traces-*",
+          "metrics": [
+            {
+              "field": "latency_ms",
+              "id": "3",
+              "settings": { "percents": ["95"] },
+              "type": "percentiles"
+            }
+          ],
+          "query": "",
+          "refId": "B",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+      "id": 11,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "pie",
+        "tooltip": { "mode": "single" }
+      },
+      "title": "Tool Usage Distribution",
+      "type": "piechart",
+      "targets": [
+        {
+          "alias": "tool: {{terms}}",
+          "bucketAggs": [
+            {
+              "field": "tool_used.keyword",
+              "id": "2",
+              "settings": { "min_doc_count": "1", "order": "desc", "orderBy": "_count", "size": "10" },
+              "type": "terms"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "agent-traces-*",
+          "metrics": [{ "id": "1", "type": "count" }],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 101,
+      "title": "RAGAS Evaluation Trends",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "id": 20,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "title": "RAGAS Metrics Trend (Weekly Evaluation)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "alias": "faithfulness",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": { "interval": "1d", "min_doc_count": "0" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "ragas-results-*",
+          "metrics": [{ "field": "faithfulness", "id": "1", "type": "avg" }],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        },
+        {
+          "alias": "answer_relevancy",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "4",
+              "settings": { "interval": "1d", "min_doc_count": "0" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "ragas-results-*",
+          "metrics": [{ "field": "answer_relevancy", "id": "3", "type": "avg" }],
+          "query": "",
+          "refId": "B",
+          "timeField": "@timestamp"
+        },
+        {
+          "alias": "context_precision",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "6",
+              "settings": { "interval": "1d", "min_doc_count": "0" },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "ragas-results-*",
+          "metrics": [{ "field": "context_precision", "id": "5", "type": "avg" }],
+          "query": "",
+          "refId": "C",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 102,
+      "title": "Model Benchmark Leaderboard",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green", "value": 0.75 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "id": 30,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "title": "Model Avg Score by Category (Latest Run)",
+      "type": "bargauge",
+      "targets": [
+        {
+          "alias": "{{terms}} — avg score",
+          "bucketAggs": [
+            {
+              "field": "model.keyword",
+              "id": "2",
+              "settings": { "min_doc_count": "1", "order": "desc", "orderBy": "1", "size": "10" },
+              "type": "terms"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "model-benchmarks-*",
+          "metrics": [{ "field": "score", "id": "1", "type": "avg" }],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "displayMode": "color-background"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "id": 31,
+      "options": {
+        "footer": { "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "score" }]
+      },
+      "title": "Benchmark Results Table",
+      "type": "table",
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [
+            {
+              "field": "model.keyword",
+              "id": "3",
+              "settings": { "min_doc_count": "1", "order": "desc", "orderBy": "1", "size": "20" },
+              "type": "terms"
+            },
+            {
+              "field": "category.keyword",
+              "id": "4",
+              "settings": { "min_doc_count": "1", "order": "desc", "orderBy": "1", "size": "5" },
+              "type": "terms"
+            }
+          ],
+          "datasource": { "type": "elasticsearch", "uid": "${DS_OPENSEARCH}" },
+          "hide": false,
+          "index": "model-benchmarks-*",
+          "metrics": [{ "field": "score", "id": "1", "type": "avg" }],
+          "query": "",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ]
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": ["agent", "ragas", "llm", "evaluation"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Agent Observability",
+  "uid": "agent-observability-v1",
+  "version": 1
+}

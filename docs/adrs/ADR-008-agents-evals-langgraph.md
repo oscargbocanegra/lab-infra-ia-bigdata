@@ -1,7 +1,7 @@
 # ADR-008: Hybrid LangGraph Agent + RAGAS Evaluation Pipeline
 
 **Date:** 2026-04-07  
-**Status:** Accepted  
+**Status:** Implemented ✅  
 **Phase:** 9B — Agents & Evals
 
 ---
@@ -199,3 +199,41 @@ Grafana dashboard queries this index for:
 - **Positive:** RAGAS pipeline reusable for future agent versions
 - **Neutral:** Agent depends on Qdrant having ingested documents (RAG tool needs data)
 - **Negative:** gemma3:4b is good but not GPT-4 quality — faithfulness scores will reflect this
+
+---
+
+## Implementation Notes (post-deploy)
+
+### Critical fixes discovered during deployment
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Benchmark DAG failed connecting to Ollama | Hardcoded `http://192.168.80.200:11434` — host IPs unreachable from Docker overlay network | Changed to `os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")` + added env var to Airflow stack |
+| All DAGs timing out on first Ollama call | gemma3:4b cold start (after container restart) takes >60s | Increased httpx timeout from 60s → 180s across all 3 DAGs |
+| Airflow DAG trigger via curl in PowerShell SSH | PowerShell mangles JSON in `--data` arguments | Created `scripts/trigger_dags.py` — SCP to master1, `docker cp` into webserver, `docker exec python3` |
+
+### Docker overlay DNS (mandatory rule)
+
+Services inside Docker overlay network MUST use DNS service names, NOT host IPs:
+
+| Service | Correct overlay DNS | Wrong (host IP) |
+|---------|-------------------|-----------------|
+| Ollama | `http://ollama:11434` | `http://192.168.80.200:11434` |
+| Postgres RAG | `postgres:5432` | `192.168.80.200:5432` |
+| Agent API | `http://agent:8000` | `http://192.168.80.100:8000` |
+| MinIO | resolved via VIP | `192.168.80.200:9000` |
+
+### First successful run results (2026-04-07)
+
+**`agent_model_benchmark`** — 3 models, 15 questions, ~6 min runtime
+- `qwen2.5-coder:7b` — strong on coding/SQL tasks
+- `gemma3:4b` — balanced reasoning and instruction following
+- `qwen3.5:latest` — highest reasoning scores, slowest inference
+
+**`agent_synthetic_dataset`** — Q&A pairs generated from RAG chunks
+- Dataset saved: `governance/ragas-datasets/2026-04-07/dataset.json`
+
+**`agent_ragas_eval`** — RAGAS metrics computed
+- Results saved: `governance/ragas-results/2026-04-07/results.json`
+- Indexed into OpenSearch: `ragas-results-2026-04-07`
+- Metrics: `faithfulness`, `answer_relevancy`, `context_precision`

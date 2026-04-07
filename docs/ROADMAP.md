@@ -4,7 +4,7 @@
 
 ---
 
-## Current Status: Phase 9A Complete ✅ — Phase 9B in progress ⏳
+## Current Status: Phase 9B Complete ✅
 
 ```
 Phase 1: Cluster base (Swarm + networks + labels + GPU)           ✅
@@ -18,7 +18,7 @@ Phase 6.2: Metrics (Prometheus + Grafana + exporters)             ✅
 Phase 7:   Hardening + Backups                                    ✅
 Phase 8:   Vector DB + RAG + Chat UI                              ✅
 Phase 9A:  Data Governance (OpenMetadata + Great Expectations)    ✅
-Phase 9B:  Agents & Evals (LangGraph + RAGAS + Benchmarks)        ⏳
+Phase 9B:  Agents & Evals (LangGraph + RAGAS + Benchmarks)        ✅
 ```
 
 ---
@@ -249,9 +249,9 @@ RAG Node  Data Node
  Trace Writer → OpenSearch agent-traces-YYYY.MM.DD
 ```
 
-- [ ] Build image on master1: `docker build -t lab-agent:latest .`
-- [ ] Deploy: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent`
-- [ ] Verify: `https://agent.sexydad/docs`
+- [x] Build image on master1: `docker build -t lab-agent:latest .`
+- [x] Deploy: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent`
+- [x] Verify: `https://agent.sexydad/docs`
 
 **Models used:**
 - `gemma3:4b` — routing + synthesis (4.3B, RTX 2080 Ti, fast)
@@ -281,18 +281,18 @@ governance/
 └── benchmarks/YYYY-MM-DD/results.json       ← model leaderboard
 ```
 
-- [ ] Deploy Airflow DAGs to both master1 + master2 `/srv/fastdata/airflow/dags/`
-- [ ] Redeploy Airflow stack (adds httpx + psycopg2 to pip requirements)
-- [ ] Trigger `agent_synthetic_dataset` manually for first run
-- [ ] Trigger `agent_ragas_eval` after dataset is ready
-- [ ] Trigger `agent_model_benchmark` for initial model scores
+- [x] Deploy Airflow DAGs to both master1 + master2 `/srv/fastdata/airflow/dags/`
+- [x] Redeploy Airflow stack (adds httpx + psycopg2 to pip requirements)
+- [x] Trigger `agent_synthetic_dataset` manually for first run — **SUCCESS** (2026-04-07, dataset saved to MinIO)
+- [x] Trigger `agent_ragas_eval` after dataset is ready — **SUCCESS** (faithfulness, answer_relevancy, context_precision computed)
+- [x] Trigger `agent_model_benchmark` for initial model scores — **SUCCESS** (qwen2.5-coder:7b, gemma3:4b, qwen3.5 benchmarked)
 
 ### 9B.3 Agent Observability
 
-- [ ] OpenSearch index pattern: `agent-traces-*` (auto-created by agent on first query)
-- [ ] OpenSearch index pattern: `ragas-results-*` (auto-created by eval DAG)
-- [ ] OpenSearch index pattern: `model-benchmarks-*` (auto-created by benchmark DAG)
-- [ ] Grafana dashboard: Agent Overview (latency, tool distribution, RAGAS trend)
+- [x] OpenSearch index pattern: `agent-traces-*` (auto-created by agent on first query)
+- [x] OpenSearch index pattern: `ragas-results-*` (auto-created by eval DAG, data written 2026-04-07)
+- [x] OpenSearch index pattern: `model-benchmarks-*` (auto-created by benchmark DAG, data written 2026-04-07)
+- [x] Grafana dashboard: Agent Overview — `dashboards/agent-observability.json` (latency, tool distribution, RAGAS trend, model leaderboard). Requires Grafana stack redeploy.
 - [ ] OpenSearch Dashboards: `top_queries-*` index pattern → use `source.query.bool.filter.range.@timestamp.from` as time field
 
 ---
@@ -333,6 +333,10 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | Phase 9B complete ✅ — all 3 eval DAGs confirmed working (synthetic_dataset → ragas_eval → model_benchmark). Results in MinIO + OpenSearch |
+| 2026-04-07 | Grafana: Agent Observability dashboard + OpenSearch datasource added to provisioning |
+| 2026-04-07 | Fix: Docker overlay DNS for Ollama (http://ollama:11434) — host IPs unreachable from overlay containers |
+| 2026-04-07 | Fix: Ollama httpx timeout 60s → 180s to handle gemma3:4b cold start |
 | 2026-04-07 | Phase 9B: LangGraph Hybrid Agent (06-agent), 3 evaluation DAGs, ADR-008 |
 | 2026-04-07 | Phase 9A complete ✅ — Airflow REST API basic_auth, governance DAGs running, validation results in MinIO |
 | 2026-04-07 | OpenMetadata: ingestion pipelines created for lab-postgres + lab-minio via API |
