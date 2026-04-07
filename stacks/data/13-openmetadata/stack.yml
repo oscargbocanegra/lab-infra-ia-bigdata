@@ -187,10 +187,11 @@ services:
       AUTHORIZER_PRINCIPAL_DOMAIN: lab.local
 
       # Pipeline service (Airflow)
-      # NoopClient disables the PipelineServiceStatusJob health-check polling.
-      # Standard apache/airflow image lacks the openmetadata-managed-apis plugin
-      # required by AirflowRESTClient — causing "unsupported URI" errors every poll.
-      # Ingestion still works via OpenMetadata Python SDK running inside Airflow DAGs.
+      # Disabled entirely — standard apache/airflow image lacks the
+      # openmetadata-managed-apis plugin required by AirflowRESTClient.
+      # When disabled, PipelineServiceStatusJob does not run (no log spam).
+      # Ingestion still works via OpenMetadata Python SDK running inside DAGs.
+      PIPELINE_SERVICE_CLIENT_ENABLED: "false"
       PIPELINE_SERVICE_CLIENT_ENDPOINT: http://airflow_airflow_webserver:8080
       PIPELINE_SERVICE_CLIENT_CLASS_NAME: "org.openmetadata.service.clients.pipeline.noop.NoopClient"
       PIPELINE_SERVICE_CLIENT_VERIFY_SSL: "no-ssl"
