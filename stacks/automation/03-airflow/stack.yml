@@ -59,7 +59,7 @@ secrets:
     external: true
 
 configs:
-  airflow_entrypoint_v4:
+  airflow_entrypoint_v5:
     file: ./airflow-entrypoint.sh
 
 # ── Variables de entorno comunes a todos los componentes ─────
@@ -179,7 +179,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v4
+      - source: airflow_entrypoint_v5
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -202,7 +202,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v4
+      - source: airflow_entrypoint_v5
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -249,7 +249,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v4
+      - source: airflow_entrypoint_v5
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -291,7 +291,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master2
     configs:
-      - source: airflow_entrypoint_v4
+      - source: airflow_entrypoint_v5
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -334,7 +334,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v4
+      - source: airflow_entrypoint_v5
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
