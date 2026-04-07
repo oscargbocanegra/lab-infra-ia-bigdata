@@ -66,6 +66,14 @@ services:
   # WHY dedicated: Java NIO async client (Apache HttpComponents) cannot
   # connect through Docker Swarm VIP/DNAT. Running OpenSearch inside this
   # stack ensures DNS resolves to the task IP directly (no VIP hop).
+  #
+  # WHY endpoint_mode: dnsrr:
+  #   By default Swarm uses VIP mode — DNS resolves to a virtual IP that
+  #   DNAT-forwards to the actual task. Java NIO async (non-blocking) connect()
+  #   works with direct TCP but fails through Swarm DNAT/VIP (Connection refused
+  #   even when wget/sync curl works fine).
+  #   dnsrr disables the VIP entirely — DNS returns the task's real IP directly.
+  #   This is safe for single-replica services where no load-balancing is needed.
   openmetadata-es:
     image: opensearchproject/opensearch:2.19.1
     hostname: openmetadata-es
@@ -85,6 +93,7 @@ services:
 
     deploy:
       replicas: 1
+      endpoint_mode: dnsrr
       placement:
         constraints:
           - node.labels.tier == control

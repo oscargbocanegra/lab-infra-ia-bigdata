@@ -11,8 +11,13 @@
 #   Option B — CLI: metadata ingest -c postgres-connector.yaml
 #                   (run from inside the openmetadata-server container)
 #
-# Important: the openmetadata-server service must be on the
-# 'internal' overlay network to reach postgres_postgres directly.
+# IMPORTANT — why IP instead of DNS:
+#   The Postgres stack uses 'mode: host' on port 5432 (no Swarm VIP).
+#   This bypasses the overlay routing mesh entirely — the container binds
+#   directly to the host NIC on master2 (192.168.80.200).
+#   Swarm DNS 'postgres_postgres' resolves to a VIP that never receives
+#   traffic in host-mode publishing, causing "Connection refused".
+#   Solution: use the direct host IP of master2 instead.
 # ============================================================
 
 source:
@@ -21,8 +26,9 @@ source:
   serviceConnection:
     config:
       type: Postgres
-      # DNS name inside the 'internal' overlay network
-      hostPort: postgres_postgres:5432
+      # Direct IP of master2 — Postgres uses mode: host (no Swarm VIP/DNAT)
+      # Swarm DNS postgres_postgres does NOT work with host-mode port publishing
+      hostPort: 192.168.80.200:5432
       username: postgres
       # Use the real password stored in the Swarm secret pg_postgres_pass
       # For UI ingestion just enter the password interactively.
