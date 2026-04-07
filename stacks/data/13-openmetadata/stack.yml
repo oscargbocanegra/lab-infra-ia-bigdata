@@ -50,7 +50,7 @@ secrets:
 
 configs:
   openmetadata-env:
-    external: true
+    file: ./openmetadata-env.sh
 
 services:
 

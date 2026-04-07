@@ -35,35 +35,71 @@ Airflow Pipelines  ──┘         │
 
 ## Deploy
 
-### 1. Run the setup script (first time only)
+### 1. Run the setup script (first time only, via SSH on master1)
 
 ```bash
-bash scripts/governance/setup-governance.sh
+sudo bash scripts/governance/setup-governance.sh
 ```
 
 This script:
 - Creates 3 Docker Swarm secrets interactively (`om_admin_password`, `om_mysql_root_password`, `om_mysql_user_password`)
-- Creates `/srv/fastdata/openmetadata/mysql` and `/srv/fastdata/openmetadata/server` on master1
+- Creates `/srv/fastdata/openmetadata/mysql` on master1
 - Creates MinIO governance bucket structure (`bronze/`, `silver/`, `gold/`, `governance/`)
 - Writes a base Great Expectations config under `/srv/fastdata/airflow/great_expectations/`
 
-### 2. Deploy the stack
+> The `openmetadata-env.sh` file in this directory is bundled as a Docker Config
+> automatically by Docker Swarm when the stack is deployed — no manual `docker config create` needed.
+
+### 2. Deploy from Portainer
+
+In the Portainer UI:
+
+```
+Stacks → Add Stack → Repository
+  Repository URL : https://github.com/<org>/lab-infra-ia-bigdata
+  Compose path   : stacks/data/13-openmetadata/stack.yml
+  Branch         : main
+```
+
+Or from CLI on master1:
 
 ```bash
 docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata
 ```
 
-### 3. Verify
+### 3. Bootstrap the database (FIRST TIME ONLY)
+
+Run in a `screen` session — takes 3-5 minutes:
 
 ```bash
-# Services should reach 1/1 replicas within ~3 minutes
-docker stack services openmetadata
-
-# Check logs if something is wrong
-docker service logs openmetadata_openmetadata-server --tail 50
+screen -S om-bootstrap
+docker run --rm --network internal \
+  -e DB_HOST=openmetadata-mysql \
+  -e DB_PORT=3306 \
+  -e DB_SCHEME=mysql \
+  -e DB_USER=openmetadata \
+  -e DB_USER_PASSWORD=<om_mysql_user_password> \
+  -e OM_DATABASE=openmetadata_db \
+  -e DB_DRIVER_CLASS=com.mysql.cj.jdbc.Driver \
+  openmetadata/server:1.4.7 \
+  ./bootstrap/bootstrap_storage.sh migrate-all
 ```
 
-### 4. Access
+After bootstrap completes, force-restart the server:
+
+```bash
+docker service update --force openmetadata_openmetadata-server
+```
+
+### 4. Verify
+
+```bash
+docker stack services openmetadata
+docker service logs openmetadata_openmetadata-server --tail 50
+curl -sk https://openmetadata.sexydad/api/v1/system/config
+```
+
+### 5. Access
 
 - **URL**: `https://openmetadata.sexydad`
 - **Default credentials**: `admin` / `<the password you set in step 1>`
