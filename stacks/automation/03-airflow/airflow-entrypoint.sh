@@ -46,5 +46,11 @@ if [ -f /run/secrets/minio_access_key ]; then
   export AWS_SECRET_ACCESS_KEY="$(tr -d '\r\n' < /run/secrets/minio_secret_key)"
 fi
 
+# Export RAG Postgres password for agent DAGs (synthetic dataset, RAGAS eval).
+# Used by DAGs that query the rag schema directly via psycopg2.
+if [ -f /run/secrets/pg_rag_pass ]; then
+  export PG_RAG_PASS="$(tr -d '\r\n' < /run/secrets/pg_rag_pass)"
+fi
+
 # Ejecutar el comando que se pase como argumentos
 exec "$@"

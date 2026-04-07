@@ -47,6 +47,8 @@ networks:
 secrets:
   pg_airflow_pass:
     external: true
+  pg_rag_pass:
+    external: true
   airflow_fernet_key:
     external: true
   airflow_webserver_secret:
@@ -59,7 +61,7 @@ secrets:
     external: true
 
 configs:
-  airflow_entrypoint_v6:
+  airflow_entrypoint_v7:
     file: ./airflow-entrypoint.sh
 
 # ── Variables de entorno comunes a todos los componentes ─────
@@ -120,6 +122,7 @@ x-airflow-common-env: &airflow-env
 
 x-airflow-common-secrets: &airflow-secrets
   - pg_airflow_pass
+  - pg_rag_pass
   - airflow_fernet_key
   - airflow_webserver_secret
   - airflow_admin_password
@@ -199,7 +202,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v6
+      - source: airflow_entrypoint_v7
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -222,7 +225,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v6
+      - source: airflow_entrypoint_v7
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -269,7 +272,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v6
+      - source: airflow_entrypoint_v7
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -311,7 +314,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master2
     configs:
-      - source: airflow_entrypoint_v6
+      - source: airflow_entrypoint_v7
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -354,7 +357,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v6
+      - source: airflow_entrypoint_v7
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
