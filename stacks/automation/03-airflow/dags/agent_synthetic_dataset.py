@@ -49,7 +49,7 @@ OLLAMA_URL = "http://192.168.80.200:11434"
 AGENT_URL = "http://agent:8000"  # internal overlay
 GENERATOR_MODEL = "gemma3:4b"
 
-PG_HOST = "192.168.80.200"
+PG_HOST = os.environ.get("PG_RAG_HOST", "postgres")  # Docker overlay DNS
 PG_PORT = 5432
 PG_DB = "rag"
 PG_USER = "rag"
