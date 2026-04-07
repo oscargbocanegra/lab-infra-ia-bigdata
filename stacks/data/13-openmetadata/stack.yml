@@ -82,7 +82,12 @@ services:
       discovery.type: single-node
       DISABLE_SECURITY_PLUGIN: "true"
       DISABLE_INSTALL_DEMO_CONFIG: "true"
-      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      # -Djava.net.preferIPv4Stack=true forces OpenSearch JVM to bind on IPv4
+      # (0.0.0.0) instead of IPv6 (::). Without this flag the kernel default
+      # IPV6_V6ONLY=1 causes the socket to bind only on '::' and Java NIO async
+      # connect() from openmetadata-server fails with Connection refused even
+      # though sync wget/curl work fine through the IPv6 socket.
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m -Djava.net.preferIPv4Stack=true"
       TZ: America/Bogota
 
     volumes:
