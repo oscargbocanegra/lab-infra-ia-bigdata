@@ -16,11 +16,6 @@
 set -euo pipefail
 
 # Leer secrets de Swarm y exportar como variables de entorno
-# tr -d '\r\n' elimina tanto carriage returns (\r) como newlines (\n) al final
-# de los secrets. Ambos rompen el URL parsing de Python/Celery:
-#   - \r causa "Port could not be cast to integer value as '0R'"
-#   - \n al final corrompe la URL silenciosamente
-# Los secrets creados con 'echo' o desde Windows siempre tienen uno u otro.
 PG_PASS=$(tr -d '\r\n' < /run/secrets/pg_airflow_pass)
 FERNET_KEY=$(tr -d '\r\n' < /run/secrets/airflow_fernet_key)
 WEBSERVER_SECRET=$(tr -d '\r\n' < /run/secrets/airflow_webserver_secret)
@@ -34,8 +29,14 @@ export AIRFLOW__CELERY__RESULT_BACKEND="db+postgresql://airflow:${PG_PASS_ENCODE
 export AIRFLOW__CORE__FERNET_KEY="${FERNET_KEY}"
 export AIRFLOW__WEBSERVER__SECRET_KEY="${WEBSERVER_SECRET}"
 
-# Para airflow_init: pasar el password del usuario admin
-export _AIRFLOW_WWW_USER_PASSWORD="${WEBSERVER_SECRET}"
+# Para airflow_init: usar secret dedicado para la contraseña del admin UI.
+# El webserver_secret es una clave criptográfica interna de Flask, no una contraseña.
+if [ -f /run/secrets/airflow_admin_password ]; then
+  export _AIRFLOW_WWW_USER_PASSWORD="$(tr -d '\r\n' < /run/secrets/airflow_admin_password)"
+else
+  # Fallback: usar webserver_secret (solo para compatibilidad retroactiva)
+  export _AIRFLOW_WWW_USER_PASSWORD="${WEBSERVER_SECRET}"
+fi
 
 # Ejecutar el comando que se pase como argumentos
 exec "$@"

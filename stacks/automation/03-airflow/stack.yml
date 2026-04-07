@@ -51,6 +51,8 @@ secrets:
     external: true
   airflow_webserver_secret:
     external: true
+  airflow_admin_password:
+    external: true
   minio_access_key:
     external: true
   minio_secret_key:
@@ -100,6 +102,7 @@ x-airflow-common-secrets: &airflow-secrets
   - pg_airflow_pass
   - airflow_fernet_key
   - airflow_webserver_secret
+  - airflow_admin_password
   - minio_access_key
   - minio_secret_key
 
