@@ -30,7 +30,7 @@ version: "3.9"
 #   om_mysql_user_password  → MySQL 'openmetadata' user password
 #
 # Config required (auto-created by Docker Swarm at deploy time from file:):
-#   openmetadata-env       → Docker Config sourced before JVM start
+#   openmetadata-env-v2    → Docker Config sourced before JVM start
 #                            (mounted at /opt/openmetadata/conf/openmetadata-env.sh)
 #
 # First deploy:
@@ -57,7 +57,7 @@ secrets:
     external: true
 
 configs:
-  openmetadata-env:
+  openmetadata-env-v2:
     file: ./openmetadata-env.sh
 
 services:
@@ -187,8 +187,11 @@ services:
       AUTHORIZER_PRINCIPAL_DOMAIN: lab.local
 
       # Pipeline service (Airflow)
+      # NOTE: PIPELINE_SERVICE_CLIENT_CLASS_NAME is overridden to NoopClient
+      # in openmetadata-env.sh to disable the PipelineServiceStatusJob health-check.
+      # Standard apache/airflow image lacks the openmetadata-managed-apis plugin
+      # required for that endpoint — resulting in "unsupported URI" errors every poll.
       PIPELINE_SERVICE_CLIENT_ENDPOINT: http://airflow_airflow_webserver:8080
-      PIPELINE_SERVICE_CLIENT_CLASS_NAME: "org.openmetadata.service.clients.pipeline.airflow.AirflowRESTClient"
 
       TZ: America/Bogota
 
@@ -200,7 +203,7 @@ services:
       # Mount the env injection script over the empty openmetadata-env.sh.
       # The start script sources this file, which reads secret files and
       # exports DB_USER_PASSWORD + ADMIN_PASSWORD before the JVM starts.
-      - source: openmetadata-env
+      - source: openmetadata-env-v2
         target: /opt/openmetadata/conf/openmetadata-env.sh
         mode: 0755
 
