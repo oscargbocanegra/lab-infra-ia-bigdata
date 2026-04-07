@@ -1,10 +1,10 @@
 # Lab Infrastructure — Roadmap
 
-> Last updated: 2026-04-06
+> Last updated: 2026-04-07
 
 ---
 
-## Current Status: Phase 9A in progress ⏳
+## Current Status: Phase 9A Complete ✅ — Phase 9B in progress ⏳
 
 ```
 Phase 1: Cluster base (Swarm + networks + labels + GPU)           ✅
@@ -17,7 +17,7 @@ Phase 6.1: Centralized logs (Fluent Bit → OpenSearch)             ✅
 Phase 6.2: Metrics (Prometheus + Grafana + exporters)             ✅
 Phase 7:   Hardening + Backups                                    ✅
 Phase 8:   Vector DB + RAG + Chat UI                              ✅
-Phase 9A:  Data Governance (OpenMetadata + Great Expectations)    ⏳
+Phase 9A:  Data Governance (OpenMetadata + Great Expectations)    ✅
 Phase 9B:  Agents & Evals (LangGraph + RAGAS + Benchmarks)        ⏳
 ```
 
@@ -183,7 +183,7 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 
 ---
 
-## Phase 9A: Data Governance ⏳
+## Phase 9A: Data Governance ✅
 
 ### 9A.1 OpenMetadata 1.4 — Data Catalog
 
@@ -195,14 +195,29 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 - [x] `stack.yml` created (MySQL 8 + OpenMetadata Server + OpenSearch integration)
 - [x] `scripts/governance/setup-governance.sh` — secrets + dirs + MinIO buckets + GE base config
 - [x] Stack deployed on master1 — all 3 services `1/1` (openmetadata-es, openmetadata-mysql, openmetadata-server)
-- [ ] Connectors configured: Postgres, MinIO, Airflow
+- [x] Root cause fix: `ELASTICSEARCH_*` env vars (not `SEARCH_*`) — commit `b4c351b`
+- [x] Search indices created: `SearchIndexingApplication` — status=success, 20 records
+- [x] Service created: `lab-postgres` (DatabaseService — Postgres 5432 on master2)
+- [x] Service created: `lab-minio` (StorageService — S3-compatible MinIO on master2)
+- [x] Ingestion pipeline created: `lab-postgres-metadata-ingestion` (DatabaseMetadata)
+- [x] Ingestion pipeline created: `lab-minio-metadata-ingestion` (StorageMetadata)
+
+**Notes:**
+- `PIPELINE_SERVICE_CLIENT_CLASS_NAME: NoopClient` — standard Airflow image lacks `openmetadata-managed-apis` plugin.
+  Ingestion pipelines are NOT triggered via OM API — they are executed directly by Airflow DAGs using the OM Python SDK.
+- `JWTTokenExpiry: "Unlimited"` is the correct enum value for the bot token generation endpoint.
+- MinIO service in OpenMetadata uses VIP IP `10.0.2.28:9000` — boto3 rejects hostnames with underscores as endpoint URLs.
 
 ### 9A.2 Great Expectations — Data Quality
 
-- [x] `governance_bronze_validate` DAG — validates raw file ingestion
+- [x] `governance_bronze_validate` DAG — validates raw file ingestion (bronze layer)
 - [x] `governance_silver_validate` DAG — validates silver → gold promotion
-- [ ] DAGs deployed and verified in Airflow UI
-- [ ] OpenMetadata ↔ GE result publishing via OM Python SDK
+- [x] DAGs deployed: both active, `has_import_errors: false`, boto3/pandas installed via `_PIP_ADDITIONAL_REQUIREMENTS`
+- [x] Airflow REST API basic_auth enabled (`AIRFLOW__API__AUTH_BACKENDS`)
+- [x] Sample data seeded: `bronze/sales/2026-04-06/sales_20260406.csv` (10 rows)
+- [x] `governance_bronze_validate` triggered and **succeeded** — all 4 tasks PASS
+- [x] Validation result saved: `governance/ge-results/sales/2026-04-06/result.json`
+- [ ] OpenMetadata ↔ GE result publishing via OM Python SDK (Phase 9B scope)
 
 ---
 
@@ -251,6 +266,10 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | Phase 9A complete ✅ — Airflow REST API basic_auth, governance DAGs running, validation results in MinIO |
+| 2026-04-07 | OpenMetadata: ingestion pipelines created for lab-postgres + lab-minio via API |
+| 2026-04-07 | Fix: boto3 rejects underscore hostnames — use MINIO_ENDPOINT env var (IP fallback) |
+| 2026-04-07 | Fix: ELASTICSEARCH_* env vars corrected in OM stack (was SEARCH_* prefix) |
 | 2026-04-06 | Phase 9A: Data governance foundations — OpenMetadata stack, GE DAGs, ADR-007, GOVERNANCE.md |
 | 2026-04-05 | Phase 7: SSH hardening (both nodes), UFW + DOCKER-USER chains, PostgreSQL personal roles, restic backup to MinIO, cert rotation cron |
 | 2026-04-03 | Phase 6.2: Prometheus + Grafana + node_exporter + cAdvisor + NVIDIA GPU exporter deployed |
