@@ -117,6 +117,15 @@ x-airflow-common-env: &airflow-env
   # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from Swarm secrets.
   MINIO_ENDPOINT: "http://10.0.2.28:9000"
 
+  # ── Ollama endpoint for agent eval DAGs ──────────────────
+  # Ollama runs on master2. From inside Docker overlay containers
+  # the host IP (192.168.80.200) is NOT reachable — must use the
+  # overlay DNS service name instead.
+  OLLAMA_BASE_URL: "http://ollama:11434"
+
+  # ── RAG Postgres endpoint for agent eval DAGs ────────────
+  PG_RAG_HOST: "postgres"
+
   # ── Privacidad / telemetría ───────────────────────────────
   AIRFLOW__USAGE_DATA_COLLECTION__ENABLED: "false"
 
