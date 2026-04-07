@@ -40,6 +40,11 @@ jobs:
     # This job runs on master1 — the self-hosted runner installed there
     runs-on: self-hosted
 
+    # Requires manual approval from a designated reviewer before deploy runs.
+    # Protects against malicious PRs from forks executing code on master1.
+    # Configure reviewers at: Settings → Environments → production
+    environment: production
+
     # Only run if CI passed (prevents deploying broken code)
     # When triggered manually via workflow_dispatch, CI check is skipped
     # (useful for infrastructure-only changes that don't touch Python code)
