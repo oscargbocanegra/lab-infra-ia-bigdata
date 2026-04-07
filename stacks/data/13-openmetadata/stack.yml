@@ -200,6 +200,15 @@ services:
       AUTHORIZER_ADMIN_PRINCIPALS: '["admin"]'
       AUTHORIZER_PRINCIPAL_DOMAIN: lab.local
 
+      # JVM options — force IPv4 stack on the OM server JVM.
+      # The Apache HttpComponents async NIO client (RestHighLevelClient) uses
+      # Java NIO SocketChannelImpl.finishConnect() which fails with
+      # Connection refused on overlay networks when the kernel resolves to
+      # an IPv6 address or uses IPv6 NIO internally, even if the target IP is
+      # IPv4. -Djava.net.preferIPv4Stack=true forces ALL JVM network IO to
+      # use IPv4, unblocking the async HTTP client used for OpenSearch indexing.
+      OPENMETADATA_OPTS: "-Djava.net.preferIPv4Stack=true"
+
       # Pipeline service (Airflow)
       # Disabled entirely — standard apache/airflow image lacks the
       # openmetadata-managed-apis plugin required by AirflowRESTClient.
