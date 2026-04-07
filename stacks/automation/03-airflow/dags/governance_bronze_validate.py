@@ -237,13 +237,31 @@ def governance_bronze_validate():
     @task
     def save_result(validation_result: dict, source: str, date: str) -> None:
         """Persist validation result to MinIO governance/ge-results/<source>/<date>/"""
+        import numpy as np  # pandas uses numpy dtypes — must convert for json.dumps
+
+        def _to_serializable(obj):
+            """Recursively convert numpy/pandas types to Python native types."""
+            if isinstance(obj, dict):
+                return {k: _to_serializable(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_to_serializable(v) for v in obj]
+            if isinstance(obj, (np.bool_,)):
+                return bool(obj)
+            if isinstance(obj, (np.integer,)):
+                return int(obj)
+            if isinstance(obj, (np.floating,)):
+                return float(obj)
+            return obj
+
         s3 = _get_minio_client()
         key = f"ge-results/{source}/{date}/result.json"
 
         s3.put_object(
             Bucket=MINIO_BUCKET_GOVERNANCE,
             Key=key,
-            Body=json.dumps(validation_result, indent=2).encode("utf-8"),
+            Body=json.dumps(_to_serializable(validation_result), indent=2).encode(
+                "utf-8"
+            ),
             ContentType="application/json",
         )
         log.info("Validation result saved to governance/%s", key)
