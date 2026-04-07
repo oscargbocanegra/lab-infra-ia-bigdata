@@ -38,5 +38,13 @@ else
   export _AIRFLOW_WWW_USER_PASSWORD="${WEBSERVER_SECRET}"
 fi
 
+# Export MinIO credentials as standard AWS env vars so governance DAGs
+# can use boto3 to connect to MinIO without Airflow Connections setup.
+# minio_access_key / minio_secret_key are Swarm secrets mounted in /run/secrets/.
+if [ -f /run/secrets/minio_access_key ]; then
+  export AWS_ACCESS_KEY_ID="$(tr -d '\r\n' < /run/secrets/minio_access_key)"
+  export AWS_SECRET_ACCESS_KEY="$(tr -d '\r\n' < /run/secrets/minio_secret_key)"
+fi
+
 # Ejecutar el comando que se pase como argumentos
 exec "$@"

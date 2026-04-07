@@ -33,7 +33,9 @@ from airflow.models.param import Param
 
 log = logging.getLogger(__name__)
 
-MINIO_ENDPOINT = "http://minio_minio:9000"
+MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://10.0.2.28:9000")
+# NOTE: boto3 rejects hostnames with underscores (e.g. minio_minio) as invalid
+# endpoint URLs. Use MINIO_ENDPOINT env var override or the overlay IP fallback.
 MINIO_BUCKET_SILVER = "silver"
 MINIO_BUCKET_GOVERNANCE = "governance"
 

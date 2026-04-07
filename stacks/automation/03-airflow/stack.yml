@@ -59,7 +59,7 @@ secrets:
     external: true
 
 configs:
-  airflow_entrypoint_v5:
+  airflow_entrypoint_v6:
     file: ./airflow-entrypoint.sh
 
 # ── Variables de entorno comunes a todos los componentes ─────
@@ -106,6 +106,12 @@ x-airflow-common-env: &airflow-env
   # NOTE: _PIP_ADDITIONAL_REQUIREMENTS installs on every container
   # startup. Fine for a lab; use a custom image for production.
   _PIP_ADDITIONAL_REQUIREMENTS: "boto3>=1.26 pandas>=2.0"
+
+  # ── MinIO endpoint for governance DAGs ───────────────────
+  # boto3 rejects hostnames with underscores (minio_minio) as invalid URLs.
+  # Using the overlay VIP IP directly. The entrypoint also exports
+  # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from Swarm secrets.
+  MINIO_ENDPOINT: "http://10.0.2.28:9000"
 
   # ── Privacidad / telemetría ───────────────────────────────
   AIRFLOW__USAGE_DATA_COLLECTION__ENABLED: "false"
@@ -191,7 +197,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v5
+      - source: airflow_entrypoint_v6
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -214,7 +220,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v5
+      - source: airflow_entrypoint_v6
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -261,7 +267,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v5
+      - source: airflow_entrypoint_v6
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -303,7 +309,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master2
     configs:
-      - source: airflow_entrypoint_v5
+      - source: airflow_entrypoint_v6
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -346,7 +352,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v5
+      - source: airflow_entrypoint_v6
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:

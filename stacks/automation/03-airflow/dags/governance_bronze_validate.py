@@ -39,7 +39,12 @@ from airflow.models.param import Param
 log = logging.getLogger(__name__)
 
 # ── MinIO connection (reads from Airflow Connections: minio_s3) ───────────────
-MINIO_ENDPOINT = "http://minio_minio:9000"
+# NOTE: boto3 rejects hostnames containing underscores (e.g. minio_minio) as
+# invalid endpoint URLs. The MINIO_ENDPOINT env var is used as an override so
+# the operator can inject the correct address at deploy time without touching
+# DAG code. Fallback to the internal overlay IP (10.0.2.28) which is the
+# address MinIO's overlay VIP resolves to on this Swarm cluster.
+MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://10.0.2.28:9000")
 MINIO_BUCKET_BRONZE = "bronze"
 MINIO_BUCKET_GOVERNANCE = "governance"
 
