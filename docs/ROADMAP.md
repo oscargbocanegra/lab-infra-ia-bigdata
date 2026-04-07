@@ -4,7 +4,7 @@
 
 ---
 
-## Current Status: Phase 9B Complete ✅
+## Current Status: Phase 10 Complete ✅
 
 ```
 Phase 1: Cluster base (Swarm + networks + labels + GPU)           ✅
@@ -19,6 +19,7 @@ Phase 7:   Hardening + Backups                                    ✅
 Phase 8:   Vector DB + RAG + Chat UI                              ✅
 Phase 9A:  Data Governance (OpenMetadata + Great Expectations)    ✅
 Phase 9B:  Agents & Evals (LangGraph + RAGAS + Benchmarks)        ✅
+Phase 10:  CI/CD (GitHub Actions + self-hosted runner + tests)    ✅
 ```
 
 ---
@@ -297,6 +298,67 @@ governance/
 
 ---
 
+## Phase 10: CI/CD ✅
+
+**Runbook:** `docs/runbooks/cicd.md`
+
+### 10.1 Continuous Integration (GitHub cloud runners)
+
+**Workflow:** `.github/workflows/ci.yml`
+
+- Runs on every push and pull request to `main`
+- 3 parallel jobs: `lint` (ruff), `test-rag-api` (Python 3.11), `test-agent` (Python 3.12)
+- No secrets required — safe for public repo
+- Coverage: 20 tests total (9 for rag-api, 11 for agent)
+
+**Test structure:**
+```
+tests/
+├── rag_api/
+│   ├── conftest.py         — mock Qdrant, Postgres, MinIO fixtures
+│   ├── test_health.py      — 4 tests (ok, degraded states, schema)
+│   └── test_ingest.py      — 5 tests (extract_text, rag_prompt, ingest flow)
+└── agent/
+    ├── conftest.py         — mock Qdrant, Postgres, OpenSearch, Ollama fixtures
+    ├── test_health.py      — 3 tests (ok, version, no auth)
+    └── test_router.py      — 8 tests (route_condition, router_node logic)
+```
+
+### 10.2 Continuous Deployment (self-hosted runner on master1)
+
+**Workflow:** `.github/workflows/deploy.yml`
+
+- Runs on push to `main` only
+- Runner: `self-hosted` tag (GitHub Actions runner installed on master1)
+- Steps: build both images → tag `latest` + `sha-<short>` → push to Docker Hub → `docker stack deploy` both stacks → health check
+
+**Images published:**
+| Image | Docker Hub |
+|---|---|
+| `giovannotti/lab-rag-api` | `:latest` + `:sha-XXXXXXX` |
+| `giovannotti/lab-agent` | `:latest` + `:sha-XXXXXXX` |
+
+**GitHub Secrets required:**
+| Secret | Value |
+|---|---|
+| `DOCKER_USERNAME` | `giovannotti` |
+| `DOCKER_TOKEN` | Docker Hub Personal Access Token |
+
+### 10.3 Code Quality
+
+**Tool:** `ruff` (lint + format, replaces flake8 + black + isort)  
+**Config:** `pyproject.toml` (root)  
+**Python targets:** 3.11 (rag-api) + 3.12 (agent)
+
+- [x] `pyproject.toml` created with ruff + pytest config
+- [x] `ci.yml` — lint + test on every push/PR
+- [x] `deploy.yml` — build + push + deploy on push to main
+- [x] 20 unit tests (all services mocked — no real infrastructure needed)
+- [x] `stack.yml` files updated to use `giovannotti/*` Docker Hub images
+- [x] Self-hosted runner install instructions in `docs/runbooks/cicd.md`
+
+---
+
 ## Infrastructure Improvements
 
 ### LAN Wildcard DNS ⏳
@@ -333,6 +395,7 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | Phase 10 complete ✅ — GitHub Actions CI/CD (ci.yml + deploy.yml), 20 unit tests, pyproject.toml, cicd.md runbook |
 | 2026-04-07 | Phase 9B complete ✅ — all 3 eval DAGs confirmed working (synthetic_dataset → ragas_eval → model_benchmark). Results in MinIO + OpenSearch |
 | 2026-04-07 | Grafana: Agent Observability dashboard + OpenSearch datasource added to provisioning |
 | 2026-04-07 | Fix: Docker overlay DNS for Ollama (http://ollama:11434) — host IPs unreachable from overlay containers |

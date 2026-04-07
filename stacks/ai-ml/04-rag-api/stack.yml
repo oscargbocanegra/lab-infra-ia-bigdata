@@ -47,9 +47,9 @@ secrets:
 
 services:
   rag-api:
-    # Image built locally on master1: docker build -t lab-rag-api:latest .
-    # No external registry needed — Swarm uses the local image on the pinned node.
-    image: lab-rag-api:latest
+    # Image built by GitHub Actions (self-hosted runner on master1) and pushed to Docker Hub.
+    # CI/CD: .github/workflows/deploy.yml builds + pushes giovannotti/lab-rag-api:latest
+    image: giovannotti/lab-rag-api:latest
 
     environment:
       # Ollama — direct host port on master2 (GPU inference)

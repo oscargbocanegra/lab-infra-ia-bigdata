@@ -1,0 +1,174 @@
+# =============================================================================
+# deploy.yml — Continuous Deployment
+# =============================================================================
+# Runs ONLY on push to main, AFTER ci.yml passes.
+# Executes on the self-hosted runner installed on master1.
+#
+# What it does:
+#   1. Pull latest code (runner already has the repo cloned)
+#   2. Build custom Docker images locally on master1
+#   3. Push images to Docker Hub (giovannotti namespace) with two tags:
+#        - latest          → always points to the newest build
+#        - sha-<git-short> → exact traceability per commit
+#   4. Deploy updated stacks to Docker Swarm
+#   5. Health check both services post-deploy
+#
+# Secrets required (set in GitHub → Settings → Secrets → Actions):
+#   DOCKER_USERNAME : giovannotti
+#   DOCKER_TOKEN    : Docker Hub personal access token (Read, Write, Delete)
+#
+# Runner label: self-hosted (installed on master1 as systemd service)
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+  # Allow manual trigger — useful for forced redeploy without code changes
+  workflow_dispatch:
+
+# Only one deploy at a time — prevent race conditions on the Swarm
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # queue, don't cancel — deploys must complete
+
+jobs:
+  deploy:
+    name: Build → Push → Deploy
+    # This job runs on master1 — the self-hosted runner installed there
+    runs-on: self-hosted
+
+    # Only run if CI passed (prevents deploying broken code)
+    # When triggered manually via workflow_dispatch, CI check is skipped
+    # (useful for infrastructure-only changes that don't touch Python code)
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Checkout — runner already has the repo, this updates to latest commit
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for accurate git log and SHA tagging
+          fetch-depth: 1
+
+      # -----------------------------------------------------------------------
+      # 2. Compute image tags
+      # -----------------------------------------------------------------------
+      - name: Set image tags
+        id: tags
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "rag_api_latest=giovannotti/lab-rag-api:latest" >> $GITHUB_OUTPUT
+          echo "rag_api_sha=giovannotti/lab-rag-api:sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "agent_latest=giovannotti/lab-agent:latest" >> $GITHUB_OUTPUT
+          echo "agent_sha=giovannotti/lab-agent:sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "--- Image tags computed ---"
+          echo "  rag-api : giovannotti/lab-rag-api:latest + sha-${SHORT_SHA}"
+          echo "  agent   : giovannotti/lab-agent:latest   + sha-${SHORT_SHA}"
+
+      # -----------------------------------------------------------------------
+      # 3. Build images locally on master1
+      #    Using --cache-from to speed up subsequent builds (layer cache)
+      # -----------------------------------------------------------------------
+      - name: Build lab-rag-api image
+        run: |
+          docker build \
+            --cache-from giovannotti/lab-rag-api:latest \
+            --label "org.opencontainers.image.revision=${{ steps.tags.outputs.short_sha }}" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t ${{ steps.tags.outputs.rag_api_latest }} \
+            -t ${{ steps.tags.outputs.rag_api_sha }} \
+            stacks/ai-ml/04-rag-api/
+
+      - name: Build lab-agent image
+        run: |
+          docker build \
+            --cache-from giovannotti/lab-agent:latest \
+            --label "org.opencontainers.image.revision=${{ steps.tags.outputs.short_sha }}" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t ${{ steps.tags.outputs.agent_latest }} \
+            -t ${{ steps.tags.outputs.agent_sha }} \
+            stacks/ai-ml/06-agent/
+
+      # -----------------------------------------------------------------------
+      # 4. Login to Docker Hub and push
+      #    Secrets are injected by GitHub — never visible in logs
+      # -----------------------------------------------------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Push lab-rag-api to Docker Hub
+        run: |
+          docker push ${{ steps.tags.outputs.rag_api_latest }}
+          docker push ${{ steps.tags.outputs.rag_api_sha }}
+
+      - name: Push lab-agent to Docker Hub
+        run: |
+          docker push ${{ steps.tags.outputs.agent_latest }}
+          docker push ${{ steps.tags.outputs.agent_sha }}
+
+      # -----------------------------------------------------------------------
+      # 5. Deploy stacks to Docker Swarm
+      #    --with-registry-auth passes Docker Hub credentials to Swarm workers
+      # -----------------------------------------------------------------------
+      - name: Deploy rag-api stack
+        run: |
+          docker stack deploy \
+            --with-registry-auth \
+            --prune \
+            -c stacks/ai-ml/04-rag-api/stack.yml \
+            rag-api
+
+      - name: Deploy agent stack
+        run: |
+          docker stack deploy \
+            --with-registry-auth \
+            --prune \
+            -c stacks/ai-ml/06-agent/stack.yml \
+            agent
+
+      # -----------------------------------------------------------------------
+      # 6. Wait for services to stabilize + health check
+      #    Swarm rolling updates take a few seconds
+      # -----------------------------------------------------------------------
+      - name: Wait for Swarm services to stabilize
+        run: sleep 20
+
+      - name: Health check — rag-api
+        run: |
+          echo "Checking https://rag-api.sexydad/health ..."
+          curl --fail --silent --show-error --max-time 15 \
+            --resolve "rag-api.sexydad:443:127.0.0.1" \
+            --insecure \
+            https://rag-api.sexydad/health | jq .
+          echo "✅ rag-api is healthy"
+
+      - name: Health check — agent
+        run: |
+          echo "Checking https://agent.sexydad/health ..."
+          curl --fail --silent --show-error --max-time 15 \
+            --resolve "agent.sexydad:443:127.0.0.1" \
+            --insecure \
+            https://agent.sexydad/health | jq .
+          echo "✅ agent is healthy"
+
+      # -----------------------------------------------------------------------
+      # 7. Summary — printed in GitHub Actions UI
+      # -----------------------------------------------------------------------
+      - name: Deployment summary
+        run: |
+          echo "## ✅ Deployment complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service     | Image tag |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| lab-rag-api | \`sha-${{ steps.tags.outputs.short_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| lab-agent   | \`sha-${{ steps.tags.outputs.short_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed at: $(date -u)" >> $GITHUB_STEP_SUMMARY

@@ -6,11 +6,12 @@ REST API that orchestrates the complete Retrieval-Augmented Generation (RAG) wor
 
 | Property | Value |
 |---|---|
-| Image | `ghcr.io/oscargbocanegra/lab-rag-api:latest` |
+| Image | `giovannotti/lab-rag-api:latest` (Docker Hub) |
 | Node | master1 (`tier=control`) |
 | URL | `https://rag-api.sexydad` |
 | Swagger UI | `https://rag-api.sexydad/docs` |
 | Framework | FastAPI + Python 3.11 |
+| CI/CD | GitHub Actions — `.github/workflows/ci.yml` + `deploy.yml` |
 
 ## Architecture
 
@@ -79,6 +80,17 @@ No new databases are introduced. Everything uses existing cluster services.
 5. Generate answer via Ollama LLM (`qwen2.5:7b` by default)
 6. Return answer + sources with scores
 
+## CI/CD
+
+This service is built and deployed automatically via GitHub Actions.
+
+| Workflow | Trigger | Runner | What it does |
+|---|---|---|---|
+| `ci.yml` | push / PR to any branch | GitHub cloud | `ruff` lint + 9 pytest tests |
+| `deploy.yml` | push to `main` | self-hosted (master1) | build → push `giovannotti/lab-rag-api:{latest,sha-XXXX}` → `docker stack deploy` |
+
+Tests live in `tests/rag_api/`. They mock Qdrant, Postgres, and MinIO — no real services needed.
+
 ## Deployment
 
 ### Prerequisites
@@ -90,18 +102,19 @@ echo "your-qdrant-key" | docker secret create qdrant_api_key -
 # minio_access_key and minio_secret_key must already exist (from minio stack)
 ```
 
-### Build and push image
+### Deploy (automated via CI/CD)
+
+On every push to `main`, GitHub Actions builds and pushes the image, then runs:
 
 ```bash
-cd stacks/ai-ml/04-rag-api
-docker build -t ghcr.io/oscargbocanegra/lab-rag-api:latest .
-docker push ghcr.io/oscargbocanegra/lab-rag-api:latest
+docker stack deploy -c stacks/ai-ml/04-rag-api/stack.yml rag-api --with-registry-auth
 ```
 
-### Deploy
+### Manual deploy (if needed)
 
 ```bash
-docker stack deploy -c stacks/ai-ml/04-rag-api/stack.yml rag-api
+docker pull giovannotti/lab-rag-api:latest
+docker stack deploy -c stacks/ai-ml/04-rag-api/stack.yml rag-api --with-registry-auth
 ```
 
 ## Configuration

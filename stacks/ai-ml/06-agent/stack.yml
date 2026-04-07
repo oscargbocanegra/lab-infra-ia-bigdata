@@ -16,9 +16,8 @@ version: "3.9"
 #   Synthesizer (gemma3:4b) generates the final answer.
 #   SQL generation uses qwen2.5-coder:7b.
 #
-# Build image on master1 first:
-#   cd ~/lab-infra-ia-bigdata/stacks/ai-ml/06-agent
-#   docker build -t lab-agent:latest .
+# Image is built and pushed automatically by CI/CD on every push to main.
+# Manual build (if needed): docker build -t giovannotti/lab-agent:latest .
 #
 # Phase: 9B — Agents & Evals
 # ADR:   docs/adrs/ADR-008-agents-evals-langgraph.md
@@ -41,9 +40,9 @@ secrets:
 
 services:
   agent:
-    # Image built locally on master1: docker build -t lab-agent:latest .
-    # No external registry needed — Swarm uses the local image on the pinned node.
-    image: lab-agent:latest
+    # Image built by GitHub Actions (self-hosted runner on master1) and pushed to Docker Hub.
+    # CI/CD: .github/workflows/deploy.yml builds + pushes giovannotti/lab-agent:latest
+    image: giovannotti/lab-agent:latest
 
     environment:
       # Ollama — GPU inference on master2

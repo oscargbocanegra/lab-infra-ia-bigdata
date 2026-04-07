@@ -1,0 +1,108 @@
+# =============================================================================
+# pyproject.toml — Lab Infra IA & Big Data
+# =============================================================================
+# Centralizes all Python tooling configuration:
+#   - ruff  : linter + formatter (replaces flake8 + black + isort)
+#   - pytest : test runner
+#
+# Usage:
+#   ruff check .          # lint
+#   ruff format --check . # format check (CI)
+#   ruff format .         # auto-format (local)
+#   pytest                # run all tests
+#   pytest tests/rag_api/ # run only RAG API tests
+#   pytest tests/agent/   # run only Agent tests
+# =============================================================================
+
+[tool.ruff]
+# Target Python version (matches Dockerfiles: rag-api=3.11, agent=3.12)
+target-version = "py311"
+
+# Max line length — 88 is Black's default, widely accepted
+line-length = 88
+
+# Directories to include in linting
+include = [
+    "stacks/ai-ml/04-rag-api/app/**/*.py",
+    "stacks/ai-ml/06-agent/app/**/*.py",
+    "stacks/automation/03-airflow/dags/**/*.py",
+    "tests/**/*.py",
+]
+
+# Directories to exclude
+exclude = [
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    "*.egg-info",
+    ".venv",
+    "venv",
+]
+
+[tool.ruff.lint]
+# Rule sets enabled:
+#   E/W  : pycodestyle errors and warnings
+#   F    : pyflakes (undefined names, unused imports)
+#   I    : isort (import ordering)
+#   B    : flake8-bugbear (common bugs and design issues)
+#   UP   : pyupgrade (modern Python idioms)
+#   S    : flake8-bandit security checks (subset)
+select = ["E", "W", "F", "I", "B", "UP"]
+
+# Rules to ignore project-wide:
+#   E501 : line too long — ruff formatter handles this, not linter
+#   B008 : do not perform function calls in default arguments (FastAPI uses this)
+#   B904 : raise from within except (too strict for DAGs)
+#   UP007: Use X | Y for union types — requires Python 3.10+, we target 3.11 but
+#          some DAGs run in Airflow's Python 3.9 container
+ignore = ["E501", "B008", "B904", "UP007"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: allow assert statements and magic values in test code
+"tests/**/*.py" = ["S101", "S106", "E712"]
+# DAGs: Airflow uses top-level code execution patterns
+"stacks/automation/03-airflow/dags/**/*.py" = ["E402", "F401"]
+
+[tool.ruff.lint.isort]
+# Group imports: stdlib → third-party → first-party
+known-first-party = ["app"]
+force-sort-within-sections = true
+
+[tool.ruff.format]
+# Use double quotes (consistent with existing codebase)
+quote-style = "double"
+# Indent with spaces
+indent-style = "space"
+
+# =============================================================================
+# pytest configuration
+# =============================================================================
+
+[tool.pytest.ini_options]
+# Test discovery
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Output options
+addopts = [
+    "--verbose",          # show each test name
+    "--tb=short",         # short traceback on failure
+    "--strict-markers",   # error on unknown markers
+    "--no-header",        # cleaner CI output
+    "-ra",                # show summary of all non-passing tests
+]
+
+# Custom markers
+markers = [
+    "unit: pure unit tests with no external dependencies",
+    "integration: tests that require real services (skipped in CI)",
+    "slow: tests that take more than 1 second",
+]
+
+# Async support (for FastAPI async tests)
+asyncio_mode = "auto"
+
+# Minimum test coverage (informational — not enforced in CI yet)
+# Activate with: pytest --cov=app --cov-report=term-missing
