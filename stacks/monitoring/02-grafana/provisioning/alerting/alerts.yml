@@ -1,0 +1,207 @@
+# =============================================================================
+# Grafana Alerting Provisioning — lab-infra-ia-bigdata
+# =============================================================================
+# Provisioned via Docker Config (read-only at runtime).
+# Grafana 11.6.14 built-in alerting (no Alertmanager required).
+#
+# Alerts:
+#   1. disk-usage-high       — Node disk usage > 80% (Prometheus)
+#   2. service-down          — RAG API or Agent HTTP health check fails (Prometheus)
+#   3. ragas-faithfulness-low — RAGAS faithfulness metric < 0.7 (Prometheus via push)
+#
+# Contact points and notification policies are defined inline below.
+# For production, replace webhook URLs with real endpoints (Slack, PagerDuty, etc.)
+# =============================================================================
+
+apiVersion: 1
+
+# ---------------------------------------------------------------------------
+# Contact Points
+# ---------------------------------------------------------------------------
+contactPoints:
+  - orgId: 1
+    name: lab-default
+    receivers:
+      - uid: lab-webhook-01
+        type: webhook
+        settings:
+          url: http://localhost:9999/grafana-alerts   # placeholder — replace with real endpoint
+          httpMethod: POST
+        disableResolveMessage: false
+
+# ---------------------------------------------------------------------------
+# Notification Policies
+# ---------------------------------------------------------------------------
+policies:
+  - orgId: 1
+    receiver: lab-default
+    group_by:
+      - alertname
+      - severity
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      - receiver: lab-default
+        matchers:
+          - severity =~ "critical|warning"
+
+# ---------------------------------------------------------------------------
+# Alert Rules
+# ---------------------------------------------------------------------------
+groups:
+  - orgId: 1
+    name: infrastructure
+    folder: Lab Alerts
+    interval: 1m
+    rules:
+
+      # -----------------------------------------------------------------------
+      # Alert 1 — Disk Usage High (> 80%)
+      # -----------------------------------------------------------------------
+      - uid: disk-usage-high-01
+        title: "Disk Usage High"
+        condition: disk_threshold
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: |
+                (
+                  1 - (
+                    node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs",mountpoint="/"}
+                    /
+                    node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs",mountpoint="/"}
+                  )
+                ) * 100
+              legendFormat: "{{instance}}"
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: disk_threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              conditions:
+                - evaluator:
+                    params:
+                      - 80
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Disk usage above 80% on {{ $labels.instance }}"
+          description: >
+            Node {{ $labels.instance }} has disk usage of {{ $values.A.Value | printf "%.1f" }}%.
+            Free up space or expand the volume before it reaches 95%.
+
+      # -----------------------------------------------------------------------
+      # Alert 2 — Service Down (RAG API or Agent health endpoint)
+      # -----------------------------------------------------------------------
+      - uid: service-down-01
+        title: "Service Down"
+        condition: service_threshold
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 120
+              to: 0
+            model:
+              # probe_success = 1 (up) or 0 (down) from blackbox-exporter
+              # If blackbox is not deployed, replace with up{job=~"rag-api|agent"}
+              expr: |
+                up{job=~"rag-api|agent"}
+              legendFormat: "{{job}} {{instance}}"
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: service_threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 2m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
+          description: >
+            Prometheus scrape target {{ $labels.job }} ({{ $labels.instance }}) has been
+            unreachable for more than 2 minutes. Check container logs and Swarm task status.
+
+      # -----------------------------------------------------------------------
+      # Alert 3 — RAGAS Faithfulness Low (< 0.7)
+      # -----------------------------------------------------------------------
+      - uid: ragas-faithfulness-low-01
+        title: "RAGAS Faithfulness Low"
+        condition: ragas_threshold
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            model:
+              # Metric pushed via Prometheus Pushgateway after each RAGAS eval run.
+              # Job name: ragas_eval  |  metric: ragas_faithfulness
+              expr: |
+                ragas_faithfulness{job="ragas_eval"}
+              legendFormat: "faithfulness"
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: ragas_threshold
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.7
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+        noDataState: NoData
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "RAGAS faithfulness dropped below 0.7"
+          description: >
+            The latest RAGAS evaluation reported a faithfulness score of
+            {{ $values.A.Value | printf "%.3f" }}, which is below the 0.7 threshold.
+            Review the RAG pipeline — possible causes: context window too small,
+            retrieved chunks off-topic, or embedding model drift.

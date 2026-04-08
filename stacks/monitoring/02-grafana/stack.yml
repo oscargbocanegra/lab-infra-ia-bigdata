@@ -76,6 +76,8 @@ services:
         target: /etc/grafana/provisioning/dashboards/provider.yml
       - source: grafana_dashboard_agent
         target: /etc/grafana/provisioning/dashboards/agent-observability.json
+      - source: grafana_alerting
+        target: /etc/grafana/provisioning/alerting/alerts.yml
 
     networks:
       - internal
@@ -124,6 +126,8 @@ configs:
     file: ./provisioning/dashboards/provider.yml
   grafana_dashboard_agent:
     file: ./dashboards/agent-observability.json
+  grafana_alerting:
+    file: ./provisioning/alerting/alerts.yml
 
 networks:
   internal:
