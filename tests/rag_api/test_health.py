@@ -38,9 +38,8 @@ async def test_health_degraded_when_qdrant_fails(mock_pg_session, mock_minio_cli
         patch("app.db.qdrant.init_qdrant", new_callable=AsyncMock),
         patch("app.db.postgres.init_postgres", new_callable=AsyncMock),
         patch("app.db.minio.init_minio", new_callable=AsyncMock),
-        patch("app.db.qdrant.get_qdrant", return_value=broken_qdrant),
-        patch("app.db.postgres.get_session", return_value=mock_pg_session),
-        patch("app.db.minio.get_minio", return_value=mock_minio_client),
+        patch("app.routers.health.get_qdrant", return_value=broken_qdrant),
+        patch("app.routers.health.get_session", return_value=mock_pg_session),
     ):
         from httpx import ASGITransport, AsyncClient
 
@@ -74,9 +73,8 @@ async def test_health_degraded_when_postgres_fails(
         patch("app.db.qdrant.init_qdrant", new_callable=AsyncMock),
         patch("app.db.postgres.init_postgres", new_callable=AsyncMock),
         patch("app.db.minio.init_minio", new_callable=AsyncMock),
-        patch("app.db.qdrant.get_qdrant", return_value=mock_qdrant_client),
-        patch("app.db.postgres.get_session", return_value=broken_session_cm),
-        patch("app.db.minio.get_minio", return_value=mock_minio_client),
+        patch("app.routers.health.get_qdrant", return_value=mock_qdrant_client),
+        patch("app.routers.health.get_session", return_value=broken_session_cm),
     ):
         from httpx import ASGITransport, AsyncClient
 

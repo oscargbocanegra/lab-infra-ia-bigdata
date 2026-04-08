@@ -95,9 +95,14 @@ async def rag_client(mock_qdrant_client, mock_pg_session, mock_minio_client):
         patch("app.db.qdrant.init_qdrant", new_callable=AsyncMock),
         patch("app.db.postgres.init_postgres", new_callable=AsyncMock),
         patch("app.db.minio.init_minio", new_callable=AsyncMock),
-        patch("app.db.qdrant.get_qdrant", return_value=mock_qdrant_client),
-        patch("app.db.postgres.get_session", return_value=mock_pg_session),
-        patch("app.db.minio.get_minio", return_value=mock_minio_client),
+        # Patch at the usage site — health.py and ingest.py do
+        # `from app.db.xxx import yyy`, so the name is bound locally
+        # in each router module. Patching the source module has no effect.
+        patch("app.routers.health.get_qdrant", return_value=mock_qdrant_client),
+        patch("app.routers.health.get_session", return_value=mock_pg_session),
+        patch("app.routers.ingest.get_qdrant", return_value=mock_qdrant_client),
+        patch("app.routers.ingest.get_session", return_value=mock_pg_session),
+        patch("app.routers.ingest.get_minio", return_value=mock_minio_client),
     ):
         # Import app AFTER patches are in place
         from app.main import app
