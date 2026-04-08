@@ -1,0 +1,73 @@
+Introduction to Large Language Models (LLMs)
+
+Large Language Models (LLMs) are a class of deep learning models trained on massive text corpora
+to understand and generate human language. They are based on the Transformer architecture,
+introduced by Vaswani et al. in the paper "Attention Is All You Need" (2017).
+
+## How LLMs Work
+
+LLMs are pre-trained using self-supervised learning on billions of tokens of text from the internet,
+books, and other sources. The model learns to predict the next token in a sequence, which forces it
+to develop internal representations of grammar, facts, reasoning patterns, and world knowledge.
+
+The core mechanism is the **attention mechanism**, which allows the model to weigh the relevance
+of each token in the context window when generating the next token. This enables LLMs to handle
+long-range dependencies in text far better than previous architectures like RNNs and LSTMs.
+
+## Key Concepts
+
+**Tokens**: LLMs process text as tokens — subword units produced by a tokenizer (e.g., BPE or
+SentencePiece). A typical English word maps to 1-2 tokens. The context window (e.g., 8k, 32k,
+128k tokens) defines how much text the model can "see" at once.
+
+**Parameters**: Model size is measured in parameters — the learnable weights. Larger models
+(7B, 13B, 70B parameters) generally have better reasoning but require more VRAM.
+
+**Fine-tuning**: A pre-trained LLM can be fine-tuned on domain-specific data to improve
+performance on specialized tasks (e.g., medical records, legal documents, code generation).
+
+**RLHF (Reinforcement Learning from Human Feedback)**: A technique used to align LLMs with
+human preferences — making responses more helpful, harmless, and honest.
+
+## Popular Open-Source LLMs
+
+- **Llama 3** (Meta): 8B and 70B variants, strong general-purpose reasoning
+- **Mistral / Mixtral** (Mistral AI): efficient 7B model and 8x7B mixture-of-experts
+- **Gemma** (Google): lightweight 2B/7B models optimized for on-device inference
+- **Qwen** (Alibaba): strong multilingual and coding capabilities
+- **Phi-3** (Microsoft): small but capable models (3.8B) designed for edge deployment
+
+## RAG: Retrieval-Augmented Generation
+
+A key limitation of LLMs is that their knowledge is frozen at training time. RAG addresses this
+by combining a retrieval system with the LLM:
+
+1. **Indexing**: Documents are chunked, embedded into vectors, and stored in a vector database
+   (e.g., Qdrant, pgvector, Pinecone).
+2. **Retrieval**: At query time, the question is embedded and the most similar chunks are
+   retrieved using approximate nearest neighbor (ANN) search.
+3. **Augmentation**: The retrieved chunks are injected into the LLM prompt as context.
+4. **Generation**: The LLM generates an answer grounded in the retrieved context.
+
+RAG significantly reduces hallucinations and allows LLMs to answer questions about private,
+proprietary, or up-to-date information without retraining.
+
+## Embeddings
+
+Embeddings are dense vector representations of text in a high-dimensional space (e.g., 768d or
+1536d). Semantically similar texts have embeddings that are geometrically close (measured by
+cosine similarity or dot product). They are the foundation of semantic search in RAG systems.
+
+Models like `nomic-embed-text` (768d), `bge-m3` (1024d), and OpenAI `text-embedding-3-small`
+(1536d) are commonly used for generating document embeddings.
+
+## Evaluation: RAGAS Metrics
+
+Measuring RAG quality requires specialized metrics:
+
+- **Faithfulness**: Are the claims in the answer supported by the retrieved context?
+- **Answer Relevancy**: Is the answer relevant to the original question?
+- **Context Precision**: Are the retrieved chunks actually useful for answering the question?
+
+RAGAS (Retrieval-Augmented Generation Assessment) provides an automated LLM-as-judge framework
+for computing these metrics at scale, enabling continuous quality monitoring of RAG pipelines.
