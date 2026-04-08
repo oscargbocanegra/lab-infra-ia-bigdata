@@ -60,8 +60,9 @@ ignore = ["E501", "B008", "B904", "UP007"]
 [tool.ruff.lint.per-file-ignores]
 # Tests: allow assert statements and magic values in test code
 "tests/**/*.py" = ["S101", "S106", "E712"]
-# DAGs: Airflow uses top-level code execution patterns
-"stacks/automation/03-airflow/dags/**/*.py" = ["E402", "F401"]
+# DAGs: Airflow uses top-level code execution patterns.
+# UP038 ignored: DAGs may run on Python 3.9 where X | Y in isinstance() is unavailable.
+"stacks/automation/03-airflow/dags/**/*.py" = ["E402", "F401", "UP038"]
 
 [tool.ruff.lint.isort]
 # Group imports: stdlib → third-party → first-party
