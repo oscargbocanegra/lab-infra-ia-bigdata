@@ -9,7 +9,7 @@
 [![Apache Spark](https://img.shields.io/badge/Apache_Spark_3.5-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
 [![Apache Airflow](https://img.shields.io/badge/Apache_Airflow_2.9-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white)](https://airflow.apache.org/)
 [![Jupyter](https://img.shields.io/badge/JupyterLab-F37626?style=for-the-badge&logo=jupyter&logoColor=white)](https://jupyter.org/)
-[![Ollama](https://img.shields.io/badge/Ollama_0.19-000000?style=for-the-badge&logo=ollama&logoColor=white)](https://ollama.com/)
+[![Ollama](https://img.shields.io/badge/Ollama_latest-000000?style=for-the-badge&logo=ollama&logoColor=white)](https://ollama.com/)
 [![Qdrant](https://img.shields.io/badge/Qdrant_v1.13-DC244C?style=for-the-badge&logo=qdrant&logoColor=white)](https://qdrant.tech/)
 [![Open WebUI](https://img.shields.io/badge/Open_WebUI_v0.6.5-000000?style=for-the-badge&logo=openai&logoColor=white)](https://github.com/open-webui/open-webui)
 
@@ -45,7 +45,7 @@ Every component is production-grade: secrets management via Docker Swarm Secrets
 
 | Capability | Implementation |
 |-----------|---------------|
-| 🤖 **Local LLM inference** | Ollama 0.19 on RTX 2080 Ti (11 GB VRAM), no cloud required |
+| 🤖 **Local LLM inference** | Ollama latest on RTX 2080 Ti (11 GB VRAM), gemma4:26b MoE — function calling + thinking mode |
 | 💬 **Chat UI + RAG** | Open WebUI v0.6.5 — multi-model chat with document knowledge bases |
 | 🔍 **Vector search** | Qdrant v1.13 — semantic embeddings + ANN search for RAG pipelines |
 | 🧪 **AI-powered notebooks** | JupyterLab with `%%JARVIS` magic + chat panel via `jupyter-ai` → Ollama |
@@ -73,8 +73,8 @@ graph TB
 
         subgraph AI_ML["AI / ML"]
             Qdrant["🔍 Qdrant v1.13\nVector DB"]
-            RAG["📄 RAG API\nFastAPI + nomic-embed-text"]
-            Agent["🤖 Hybrid Agent\nLangGraph + gemma3:4b"]
+            RAG["📄 RAG API\nFastAPI + bge-m3 (1024d)"]
+            Agent["🤖 Hybrid Agent\nLangGraph + gemma4:26b"]
             WebUI["💬 Open WebUI\nChat UI"]
         end
 
@@ -92,7 +92,7 @@ graph TB
 
     subgraph master2["master2 — Compute + Data + GPU (i9-9900K · 32 GB · RTX 2080 Ti)"]
         subgraph Inference["GPU Inference"]
-            Ollama["🦙 Ollama 0.19\ngemma3:4b · qwen2.5-coder:7b\nnomic-embed-text"]
+            Ollama["🦙 Ollama latest\ngemma4:26b MoE · bge-m3\n256K ctx · function calling"]
         end
 
         subgraph Storage["Storage"]

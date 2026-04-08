@@ -1,6 +1,6 @@
 # Lab Infrastructure — Roadmap
 
-> Last updated: 2026-04-07
+> Last updated: 2026-04-08
 
 ---
 
@@ -236,16 +236,16 @@ Architecture:
 User Question
       │
       ▼
- Router Node (gemma3:4b) → decides: rag | data | both
+ Router Node (gemma4:26b) → decides: rag | data | both
       │
   ┌───┴───┐
   ▼       ▼
 RAG Node  Data Node
-(Qdrant)  (Postgres SQL via qwen2.5-coder:7b)
+(Qdrant)  (Postgres SQL via gemma4:26b)
   │       │
   └───┬───┘
       ▼
- Synthesizer (gemma3:4b) → final answer
+ Synthesizer (gemma4:26b) → final answer
       │
  Trace Writer → OpenSearch agent-traces-YYYY.MM.DD
 ```
@@ -254,16 +254,18 @@ RAG Node  Data Node
 - [x] Deploy: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent`
 - [x] Verify: `https://agent.sexydad/docs`
 
-**Models used:**
-- `gemma3:4b` — routing + synthesis (4.3B, RTX 2080 Ti, fast)
-- `qwen2.5-coder:7b` — SQL generation for Data Tool
-- `nomic-embed-text` — RAG embeddings (768d, Qdrant collection: `lab_documents_nomic`)
+**Models used (as of 2026-04-08):**
+- `gemma4:26b` — routing + synthesis + SQL (MoE, 3.8B active, 256K ctx, function calling, thinking mode)
+- `bge-m3` — RAG embeddings (1024d, Qdrant collection: `lab_documents_bge`)
+- **ADR:** `docs/adrs/ADR-010-gemma4-migration-global-model-pattern.md`
+
+**Global model pattern:** all stacks use `${LAB_LLM_MODEL:-gemma4:26b}` — change model from one place via `/etc/lab/lab.env`
 
 ### 9B.2 Evaluation Pipelines (Airflow DAGs)
 
 | DAG | Schedule | Purpose |
 |-----|----------|---------|
-| `agent_synthetic_dataset` | Sunday 02:00 | Generate Q&A pairs with gemma3:4b → save to MinIO |
+| `agent_synthetic_dataset` | Sunday 02:00 | Generate Q&A pairs with gemma4:26b → save to MinIO |
 | `agent_ragas_eval` | Sunday 04:00 | LLM-as-judge RAGAS metrics → OpenSearch |
 | `agent_model_benchmark` | Sunday 06:00 | Benchmark all Ollama models → leaderboard |
 
@@ -395,6 +397,8 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-04-08 | ADR-010: Migrate to gemma4:26b MoE — replaces gemma3:4b + qwen2.5-coder:7b + qwen3.5 + nomic-embed-text. Global model pattern via /etc/lab/lab.env |
+| 2026-04-08 | Ollama upgrade latest (was 0.19.0) — required for gemma4 pull support |
 | 2026-04-07 | Phase 10 complete ✅ — GitHub Actions CI/CD (ci.yml + deploy.yml), 20 unit tests, pyproject.toml, cicd.md runbook |
 | 2026-04-07 | Phase 9B complete ✅ — all 3 eval DAGs confirmed working (synthetic_dataset → ragas_eval → model_benchmark). Results in MinIO + OpenSearch |
 | 2026-04-07 | Grafana: Agent Observability dashboard + OpenSearch datasource added to provisioning |
