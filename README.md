@@ -60,6 +60,84 @@ Every component is production-grade: secrets management via Docker Swarm Secrets
 
 ## 📐 Architecture
 
+### Full Stack Overview
+
+```mermaid
+graph TB
+    subgraph LAN["LAN — all traffic via HTTPS :443"]
+        User([👤 User / Browser])
+    end
+
+    subgraph master1["master1 — Control Plane (i7-6700T · 32 GB)"]
+        Traefik["🔀 Traefik v2.11\nReverse Proxy + TLS + Whitelist"]
+
+        subgraph AI_ML["AI / ML"]
+            Qdrant["🔍 Qdrant v1.13\nVector DB"]
+            RAG["📄 RAG API\nFastAPI + nomic-embed-text"]
+            Agent["🤖 Hybrid Agent\nLangGraph + gemma3:4b"]
+            WebUI["💬 Open WebUI\nChat UI"]
+        end
+
+        subgraph Automation["Automation"]
+            Airflow["🌀 Airflow 2.9\nCeleryExecutor"]
+            Spark_M["⚡ Spark Master 3.5"]
+        end
+
+        subgraph Observability["Observability"]
+            Prometheus["📈 Prometheus v2.53"]
+            Grafana["📊 Grafana 11.6\nDashboards + Alerts"]
+            OpenSearch["🔎 OpenSearch 2.19\nLogs + Traces + Evals"]
+        end
+    end
+
+    subgraph master2["master2 — Compute + Data + GPU (i9-9900K · 32 GB · RTX 2080 Ti)"]
+        subgraph Inference["GPU Inference"]
+            Ollama["🦙 Ollama 0.19\ngemma3:4b · qwen2.5-coder:7b\nnomic-embed-text"]
+        end
+
+        subgraph Storage["Storage"]
+            Postgres["🐘 PostgreSQL 16\npgvector · metadata · audit"]
+            MinIO["🪣 MinIO\nS3-compatible\nbronze/silver/gold/governance"]
+        end
+
+        subgraph Compute["Compute"]
+            Jupyter["📓 JupyterLab\nLLM · AI/ML · BigData kernels"]
+            Spark_W["⚡ Spark Worker\n10 CPUs · 14 GB"]
+            Airflow_W["🌀 Airflow Worker\nCelery"]
+        end
+    end
+
+    subgraph CI_CD["CI/CD — GitHub Actions"]
+        CI["✅ CI\nruff lint + pytest\n20 tests"]
+        CD["🚀 CD\nBuild → Docker Hub → Swarm deploy"]
+    end
+
+    User -->|HTTPS| Traefik
+    Traefik --> RAG & Agent & WebUI & Airflow & Spark_M & Prometheus & Grafana & OpenSearch & Qdrant & Jupyter
+
+    RAG -->|embed| Ollama
+    RAG -->|vector search| Qdrant
+    RAG -->|metadata| Postgres
+    RAG -->|raw files| MinIO
+
+    Agent -->|route + synthesize| Ollama
+    Agent -->|semantic search| Qdrant
+    Agent -->|SQL queries| Postgres
+    Agent -->|traces| OpenSearch
+
+    Airflow --> Airflow_W
+    Airflow_W -->|eval DAGs| MinIO & OpenSearch & Ollama
+
+    Spark_M --> Spark_W
+    Spark_W -->|Delta Lake| MinIO
+
+    Prometheus -->|scrape| master1 & master2
+    Grafana -->|query| Prometheus & OpenSearch
+
+    CI_CD -->|push to main| CD
+    CD -->|deploy stacks| master1 & master2
+```
+
 ### Physical Cluster
 
 ```
@@ -209,6 +287,7 @@ Data Sources (CSV, JSON, APIs, DB exports)
 | **Ollama** — LLM inference | 0.19 + RTX 2080 Ti | master2 | `https://ollama.sexydad` | ✅ |
 | **Qdrant** — Vector DB | v1.13.4 | master1 | `https://qdrant.sexydad` | ✅ |
 | **RAG API** — FastAPI RAG orchestration | latest | master1 | `https://rag-api.sexydad` | ✅ |
+| **Hybrid Agent API** — LangGraph agent | latest | master1 | `https://agent.sexydad` | ✅ |
 | **Open WebUI** — Chat UI | v0.6.5 | master1 | `https://chat.sexydad` | ✅ |
 
 ### Data / Big Data
@@ -307,13 +386,15 @@ lab-infra-ia-bigdata/
 │   ├── data/
 │   │   ├── 11-opensearch/          # Search engine + dashboards
 │   │   ├── 12-minio/               # S3-compatible object storage
+│   │   ├── 13-openmetadata/        # Data catalog + lineage (OpenMetadata)
 │   │   └── 98-spark/               # Distributed processing cluster
 │   ├── ai-ml/
 │       ├── 01-jupyter/             # Multi-user JupyterLab + GPU + AI
 │       ├── 02-ollama/              # Local LLM inference engine
 │       ├── 03-qdrant/              # Vector DB for RAG pipelines
 │       ├── 04-rag-api/             # FastAPI RAG orchestration service
-│       └── 05-open-webui/          # ChatGPT-like UI + multi-model chat + RAG
+│       ├── 05-open-webui/          # ChatGPT-like UI + multi-model chat + RAG
+│       └── 06-agent/               # LangGraph hybrid agent (RAG + SQL routing)
 │   └── monitoring/
 │       ├── 00-fluent-bit/          # Centralized log collection → OpenSearch
 │       ├── 01-prometheus/          # Prometheus TSDB + node/container exporters
@@ -329,8 +410,8 @@ lab-infra-ia-bigdata/
 │   │   ├── STORAGE.md              # Disk layout, LVM, mount points
 │   │   ├── NETWORKING.md           # Overlay networks, domains, ports
 │   │   └── MEDALLION.md            # Medallion architecture deep-dive
-│   ├── adrs/                       # Architecture Decision Records (6 ADRs)
-│   ├── runbooks/                   # Day-2 operations per service (12 runbooks)
+│   ├── adrs/                       # Architecture Decision Records (9 ADRs)
+│   ├── runbooks/                   # Day-2 operations per service
 │   └── ROADMAP.md                  # Next phases and planned improvements
 │
 ├── scripts/
@@ -344,6 +425,9 @@ lab-infra-ia-bigdata/
 │   └── examples/                   # .env.example per stack (no secrets)
 │
 └── secrets/                        # NOT versioned (.gitignore)
+│
+├── notebooks/                      # Version-controlled demo notebooks (with outputs)
+│   └── lab_demo.ipynb              # End-to-end demo: RAG · Agent · RAGAS · Benchmark
 ```
 
 ---
@@ -423,7 +507,7 @@ Add to `/etc/hosts` on each LAN client (or configure a local DNS wildcard):
 <master1-ip>  ollama.sexydad jupyter-<admin-user>.sexydad jupyter-<second-user>.sexydad
 <master1-ip>  minio.sexydad minio-api.sexydad n8n.sexydad
 <master1-ip>  prometheus.sexydad grafana.sexydad
-<master1-ip>  chat.sexydad qdrant.sexydad rag-api.sexydad
+<master1-ip>  chat.sexydad qdrant.sexydad rag-api.sexydad agent.sexydad
 ```
 
 > All endpoints use self-signed TLS. Accept the browser security exception on first visit.
@@ -487,7 +571,7 @@ The script verifies:
 | [`docs/architecture/STORAGE.md`](docs/architecture/STORAGE.md) | Disk layout, LVM configuration, and mount points |
 | [`docs/architecture/NETWORKING.md`](docs/architecture/NETWORKING.md) | Overlay networks, domain map, and traffic flow |
 | [`docs/architecture/MEDALLION.md`](docs/architecture/MEDALLION.md) | Deep-dive: Medallion architecture, Delta Lake patterns, code examples |
-| [`docs/adrs/`](docs/adrs/) | Architecture Decision Records (6 ADRs) |
+| [`docs/adrs/`](docs/adrs/) | Architecture Decision Records (9 ADRs) |
 | [`docs/runbooks/runbook_ufw_docker.md`](docs/runbooks/runbook_ufw_docker.md) | UFW + Docker Swarm architecture, DOCKER-USER chain rules, troubleshooting `ERR_CONNECTION_TIMED_OUT` |
 | [`docs/runbooks/`](docs/runbooks/) | Day-2 operations: deploy, troubleshoot, and maintain each service — including DBeaver SSH Tunnel setup |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Planned phases: Observability (Prometheus + Grafana), backups, hardening |
@@ -507,7 +591,10 @@ The script verifies:
 | Phase 6.2 — Metrics | ✅ Done | Prometheus + Grafana + node_exporter + cAdvisor + NVIDIA GPU exporter |
 | Phase 7 — Hardening | ✅ Done | UFW (both nodes + DOCKER-USER chain), SSH hardening, restic backup → MinIO, cert rotation cron |
 | Phase 8 — Vector DB + RAG | ✅ Done | Qdrant v1.13 + RAG API (FastAPI) + Open WebUI v0.6.5 |
-| Phase 9 — Agents & Evals | ⏳ Planned | LangGraph agents, batch evaluation pipelines, model benchmarks |
+| Phase 9A — Data Governance | ✅ Done | OpenMetadata + Great Expectations — catalog, lineage, data quality DAGs |
+| Phase 9B — Agents & Evals | ✅ Done | LangGraph hybrid agent + RAGAS eval pipeline + model benchmark DAGs |
+| Phase 10 — CI/CD | ✅ Done | GitHub Actions — lint + tests (cloud) + build/push/deploy (self-hosted on master1) |
+| Sprint 2 — Portfolio Polish | 🔄 In Progress | Demo notebook · Architecture diagrams · Grafana alerting |
 
 ---
 
@@ -523,6 +610,9 @@ The script verifies:
 | ADR-004 | **OpenSearch security plugin disabled** | LAN-only lab — Traefik BasicAuth + whitelist is sufficient |
 | ADR-005 | **GPU via Generic Resources** | Swarm has no native `--gpus`. Generic Resources (`nvidia.com/gpu=1`) enables proper placement |
 | ADR-006 | **OpenSearch on master1** | At deploy time, master2 had 14/16 CPUs committed. OpenSearch is observability support, HDD sufficient |
+| ADR-007 | **OpenMetadata + Great Expectations** for governance | Catalog + validation in one cohesive layer; OM Python SDK enables Airflow-native pipelines |
+| ADR-008 | **LangGraph** for hybrid agent | Native DAG routing (RAG vs SQL vs Both), built-in async, easy RAGAS evaluation integration |
+| ADR-009 | **Qdrant** as primary vector store | Purpose-built ANN search (HNSW), payload filtering, Web UI; pgvector retained for metadata/audit |
 
 ---
 
