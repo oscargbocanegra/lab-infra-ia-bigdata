@@ -17,7 +17,7 @@ version: "3.9"
 #   - Qdrant:   primary vector store (semantic search)
 #   - Postgres/pgvector: metadata + relational filtering + hybrid search
 #   - MinIO:    raw document storage (S3-compatible)
-#   - Ollama:   embedding (nomic-embed-text, bge-m3) + LLM (qwen2.5:7b)
+#   - Ollama:   embedding (bge-m3, 1024 dims) + LLM (LAB_LLM_MODEL)
 #
 # Endpoints:
 #   POST /ingest          — upload and index a document
@@ -27,6 +27,11 @@ version: "3.9"
 #   GET  /health          — liveness probe
 #
 # Logs: json-file → Fluent Bit → OpenSearch index docker-logs-YYYY.MM.DD
+#
+# ── MODELO GLOBAL ────────────────────────────────────────────
+# LAB_LLM_MODEL y LAB_EMBED_MODEL se definen en /etc/lab/lab.env
+# Docker Swarm interpola ${VAR} del shell al hacer deploy.
+# Fallback hardcodeado si la variable no está presente.
 # ============================================================
 
 networks:
@@ -52,11 +57,14 @@ services:
     image: giovannotti/lab-rag-api:latest
 
     environment:
-      # Ollama — direct host port on master2 (GPU inference)
+      # ── Ollama — direct host port on master2 (GPU inference) ─
+      # LAB_LLM_MODEL se define en /etc/lab/lab.env (master1).
+      # Docker Swarm interpola ${VAR} del shell al hacer deploy.
+      # Fallback: gemma4:26b si la variable no está exportada.
       OLLAMA_BASE_URL: "http://192.168.80.200:11434"
-      EMBED_MODEL: "nomic-embed-text"
-      LLM_MODEL: "qwen2.5:7b"
-      EMBED_DIMS: "768"
+      EMBED_MODEL: "${LAB_EMBED_MODEL:-bge-m3}"
+      LLM_MODEL: "${LAB_LLM_MODEL:-gemma4:26b}"
+      EMBED_DIMS: "${LAB_EMBED_DIMS:-1024}"
 
       # Qdrant vector store
       QDRANT_URL: "http://qdrant:6333"

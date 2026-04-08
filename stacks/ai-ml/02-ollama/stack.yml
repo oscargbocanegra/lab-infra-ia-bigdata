@@ -7,6 +7,9 @@ version: "3.8"
 # Node: master2 (GPU RTX 2080 Ti)
 # Networks: internal (backend), public (Traefik ingress)
 # Security: LAN whitelist + BasicAuth
+#
+# UPGRADE HISTORY:
+#   0.19.0  → latest  (2026-04) Required for Gemma 4 support (412 error fix)
 # ============================================================
 
 secrets:
@@ -15,7 +18,7 @@ secrets:
 
 services:
   ollama:
-    image: ollama/ollama:0.19.0
+    image: ollama/ollama:latest
     hostname: ollama
     
     networks:

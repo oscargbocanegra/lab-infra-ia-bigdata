@@ -10,6 +10,15 @@ version: "3.9"
 #            https://jupyter-odavid.sexydad
 # Recursos:  reducidos a reservations realistas (lab compartido)
 #            limits = máximo consumo bajo carga real
+#
+# ── MODELO GLOBAL ────────────────────────────────────────────
+# JARVIS_MODEL se controla desde /etc/lab/lab.env en master1.
+# Docker Swarm interpola ${LAB_JARVIS_MODEL} al hacer deploy.
+# Fallback: gemma4:26b si la variable no está exportada.
+#
+# Para cambiar modelo SIN redeploy (opción rápida):
+#   Portainer → Services → jupyter_jupyter_ogiovanni
+#   → Environment → JARVIS_MODEL → Update
 # ============================================================
 
 configs:
@@ -56,9 +65,9 @@ services:
       # (OLLAMA_API_BASE era incorrecta — no la reconoce el provider de jupyter-ai)
       - OLLAMA_HOST=http://ollama:11434
       # JARVIS_MODEL: modelo usado por %%JARVIS y el chat panel
-      # Modificable desde Portainer sin redeploy del stack:
-      #   Services → jupyter_jupyter_ogiovanni → Environment → JARVIS_MODEL
-      - JARVIS_MODEL=ollama:qwen2.5-coder:7b
+      # Se interpola desde LAB_JARVIS_MODEL en /etc/lab/lab.env al hacer deploy.
+      # Para cambiar sin redeploy: Portainer → Services → Environment → JARVIS_MODEL
+      - JARVIS_MODEL=${LAB_JARVIS_MODEL:-ollama:gemma4:26b}
 
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
@@ -148,9 +157,9 @@ services:
       # (OLLAMA_API_BASE era incorrecta — no la reconoce el provider de jupyter-ai)
       - OLLAMA_HOST=http://ollama:11434
       # JARVIS_MODEL: modelo usado por %%JARVIS y el chat panel
-      # Modificable desde Portainer sin redeploy del stack:
-      #   Services → jupyter_jupyter_odavid → Environment → JARVIS_MODEL
-      - JARVIS_MODEL=ollama:qwen2.5-coder:7b
+      # Se interpola desde LAB_JARVIS_MODEL en /etc/lab/lab.env al hacer deploy.
+      # Para cambiar sin redeploy: Portainer → Services → Environment → JARVIS_MODEL
+      - JARVIS_MODEL=${LAB_JARVIS_MODEL:-ollama:gemma4:26b}
 
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work

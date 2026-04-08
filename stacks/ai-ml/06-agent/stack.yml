@@ -12,9 +12,8 @@ version: "3.9"
 #   - RAG Tool: semantic search in Qdrant (documents/policies)
 #   - Data Tool: natural language → SQL → Postgres (structured data)
 #
-#   Router (gemma3:4b) decides which tool(s) to invoke.
-#   Synthesizer (gemma3:4b) generates the final answer.
-#   SQL generation uses qwen2.5-coder:7b.
+#   Un solo modelo (LAB_LLM_MODEL) hace routing, synthesis y SQL.
+#   Native function calling + thinking mode via gemma4 / qwen3.
 #
 # Image is built and pushed automatically by CI/CD on every push to main.
 # Manual build (if needed): docker build -t giovannotti/lab-agent:latest .
@@ -24,6 +23,19 @@ version: "3.9"
 #
 # Logs: json-file → Fluent Bit → OpenSearch docker-logs-YYYY.MM.DD
 # Traces: OpenSearch agent-traces-YYYY.MM.DD (via app/tracing.py)
+#
+# ── MODELO GLOBAL ────────────────────────────────────────────
+# El modelo LLM se controla desde UN solo lugar:
+#   /etc/lab/lab.env  en master1 (sourced en ~/.bashrc)
+#
+# Para cambiar de modelo SIN redeploy de este stack:
+#   Portainer → Services → agent_agent → Environment
+#   → editar AGENT_MODEL y CODER_MODEL → Update
+#
+# Para cambiar con redeploy (propaga a todos los stacks a la vez):
+#   Editar LAB_LLM_MODEL en /etc/lab/lab.env
+#   source /etc/lab/lab.env
+#   docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent
 # ============================================================
 
 networks:
@@ -45,17 +57,21 @@ services:
     image: giovannotti/lab-agent:latest
 
     environment:
-      # Ollama — GPU inference on master2
+      # ── Ollama — GPU inference on master2 ───────────────────
+      # LAB_LLM_MODEL se define en /etc/lab/lab.env (master1).
+      # Docker Swarm interpola ${VAR} del shell al hacer deploy.
+      # Fallback: gemma4:26b si la variable no está exportada.
+      # Un solo modelo hace routing + synthesis + SQL (function calling nativo).
       OLLAMA_BASE_URL: "http://192.168.80.200:11434"
-      AGENT_MODEL: "gemma3:4b"
-      CODER_MODEL: "qwen2.5-coder:7b"
-      EMBED_MODEL: "nomic-embed-text"
-      EMBED_DIMS: "768"
+      AGENT_MODEL: "${LAB_LLM_MODEL:-gemma4:26b}"
+      CODER_MODEL: "${LAB_LLM_MODEL:-gemma4:26b}"
+      EMBED_MODEL: "${LAB_EMBED_MODEL:-bge-m3}"
+      EMBED_DIMS: "${LAB_EMBED_DIMS:-1024}"
 
       # Qdrant — internal overlay
       QDRANT_URL: "http://qdrant:6333"
       QDRANT_API_KEY_FILE: /run/secrets/qdrant_api_key
-      QDRANT_COLLECTION: "lab_documents_nomic"
+      QDRANT_COLLECTION: "lab_documents_bge"
 
       # Postgres — rag DB
       PG_HOST: "192.168.80.200"
