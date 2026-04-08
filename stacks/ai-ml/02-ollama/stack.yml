@@ -48,7 +48,10 @@ services:
       - OLLAMA_ORIGINS=*
       
       # GPU Optimization
-      - OLLAMA_NUM_PARALLEL=4              # Parallel requests (GPU can handle multiple)
+      # NUM_PARALLEL=1: single-user lab — no concurrent requests expected.
+      # With gemma4:26b at 93% VRAM, each parallel slot reserves KV cache.
+      # 4 slots → ~800MB wasted on idle slots. 1 slot → full VRAM for 1 request.
+      - OLLAMA_NUM_PARALLEL=${LAB_OLLAMA_NUM_PARALLEL:-1}
       - OLLAMA_MAX_LOADED_MODELS=2         # Keep 2 models in VRAM simultaneously
       - OLLAMA_FLASH_ATTENTION=1           # Enable Flash Attention for faster inference
       
@@ -59,7 +62,9 @@ services:
       
       # Memory Management (RTX 2080 Ti has 11GB VRAM)
       - OLLAMA_MAX_VRAM=10240              # Reserve 10GB for models (leave 1GB for system)
-      - OLLAMA_KV_CACHE_TYPE=f16           # Half-precision KV cache for memory efficiency
+      # KV_CACHE_TYPE=q8_0: frees ~400MB vs f16 with negligible quality loss.
+      # Gives gemma4:26b more headroom for longer context without VRAM eviction.
+      - OLLAMA_KV_CACHE_TYPE=${LAB_OLLAMA_KV_CACHE_TYPE:-q8_0}
       
       # Performance Tuning
       - OLLAMA_NUM_GPU=1                   # Number of GPUs to use
