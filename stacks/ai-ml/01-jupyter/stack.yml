@@ -14,7 +14,8 @@ version: "3.9"
 # ── MODELO GLOBAL ────────────────────────────────────────────
 # JARVIS_MODEL se controla desde /etc/lab/lab.env en master1.
 # Docker Swarm interpola ${LAB_JARVIS_MODEL} al hacer deploy.
-# Fallback: gemma4:26b si la variable no está exportada.
+# Fallback: qwen2.5-coder:14b — modelo especializado en código,
+# ~25-30 tok/s vs ~16 tok/s de gemma4:26b. Ideal para uso interactivo.
 #
 # Para cambiar modelo SIN redeploy (opción rápida):
 #   Portainer → Services → jupyter_jupyter_ogiovanni
@@ -67,7 +68,7 @@ services:
       # JARVIS_MODEL: modelo usado por %%JARVIS y el chat panel
       # Se interpola desde LAB_JARVIS_MODEL en /etc/lab/lab.env al hacer deploy.
       # Para cambiar sin redeploy: Portainer → Services → Environment → JARVIS_MODEL
-      - JARVIS_MODEL=${LAB_JARVIS_MODEL:-ollama:gemma4:26b}
+      - JARVIS_MODEL=${LAB_JARVIS_MODEL:-ollama:qwen2.5-coder:14b}
 
     volumes:
       - /srv/fastdata/jupyter/ogiovanni:/home/jovyan/work
@@ -159,7 +160,7 @@ services:
       # JARVIS_MODEL: modelo usado por %%JARVIS y el chat panel
       # Se interpola desde LAB_JARVIS_MODEL en /etc/lab/lab.env al hacer deploy.
       # Para cambiar sin redeploy: Portainer → Services → Environment → JARVIS_MODEL
-      - JARVIS_MODEL=${LAB_JARVIS_MODEL:-ollama:gemma4:26b}
+      - JARVIS_MODEL=${LAB_JARVIS_MODEL:-ollama:qwen2.5-coder:14b}
 
     volumes:
       - /srv/fastdata/jupyter/odavid:/home/jovyan/work
