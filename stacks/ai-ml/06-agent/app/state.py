@@ -5,8 +5,7 @@ The AgentState is the single source of truth that flows through every node.
 LangGraph passes it immutably — each node returns a dict with ONLY the fields it updates.
 """
 
-from typing import Annotated, TypedDict
-import operator
+from typing import TypedDict
 
 
 class AgentState(TypedDict):

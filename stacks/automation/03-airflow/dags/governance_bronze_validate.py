@@ -25,16 +25,16 @@ Dependencies (pip install in Airflow image or via requirements.txt):
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 
-import boto3
-import pandas as pd
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
+import boto3
+import pandas as pd
 
 log = logging.getLogger(__name__)
 

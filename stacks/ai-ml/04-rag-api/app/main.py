@@ -6,16 +6,17 @@ FastAPI application that orchestrates:
 - Collection management
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
-from app.routers import ingest, query, collections, health
-from app.db.qdrant import init_qdrant
-from app.db.postgres import init_postgres
 from app.db.minio import init_minio
+from app.db.postgres import init_postgres
+from app.db.qdrant import init_qdrant
+from app.routers import collections, health, ingest, query
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level),

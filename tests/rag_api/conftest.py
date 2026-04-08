@@ -12,12 +12,13 @@ All patches are applied at module level, before the app imports run,
 to prevent connection attempts at startup (lifespan).
 """
 
-import sys
 import os
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
+
+from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
 
 # ---------------------------------------------------------------------------
 # Ensure the rag-api app is importable from tests/

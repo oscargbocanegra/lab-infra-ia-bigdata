@@ -10,8 +10,10 @@ Safety: only SELECT statements are allowed — any other statement is rejected.
 """
 
 import logging
-import httpx
+
 import asyncpg
+import httpx
+
 from app.config import settings
 from app.state import AgentState
 

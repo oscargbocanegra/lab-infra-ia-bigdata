@@ -1,11 +1,12 @@
 """Collections management router — list, inspect and delete Qdrant collections."""
 
 import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.db.qdrant import get_qdrant
 from app.config import settings
+from app.db.qdrant import get_qdrant
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

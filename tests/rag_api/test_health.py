@@ -9,8 +9,9 @@ Tests the GET /health endpoint behavior:
 No real services needed — all backends are mocked via conftest.py fixtures.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 @pytest.mark.asyncio
@@ -41,7 +42,8 @@ async def test_health_degraded_when_qdrant_fails(mock_pg_session, mock_minio_cli
         patch("app.db.postgres.get_session", return_value=mock_pg_session),
         patch("app.db.minio.get_minio", return_value=mock_minio_client),
     ):
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
         async with AsyncClient(
@@ -76,7 +78,8 @@ async def test_health_degraded_when_postgres_fails(
         patch("app.db.postgres.get_session", return_value=broken_session_cm),
         patch("app.db.minio.get_minio", return_value=mock_minio_client),
     ):
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
         async with AsyncClient(

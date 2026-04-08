@@ -1,9 +1,10 @@
 """Health check router."""
 
 from fastapi import APIRouter
-from app.db.qdrant import get_qdrant
-from app.db.postgres import get_session
 from sqlalchemy import text
+
+from app.db.postgres import get_session
+from app.db.qdrant import get_qdrant
 
 router = APIRouter()
 

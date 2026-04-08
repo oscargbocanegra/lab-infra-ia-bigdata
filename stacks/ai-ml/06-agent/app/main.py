@@ -6,10 +6,11 @@ Endpoints:
   GET  /health        — liveness probe
 """
 
+from contextlib import asynccontextmanager
+import logging
 import time
 import uuid
-import logging
-from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

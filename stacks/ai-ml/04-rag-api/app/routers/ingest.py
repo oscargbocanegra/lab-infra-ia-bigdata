@@ -11,19 +11,20 @@ Flow:
 """
 
 import io
-import uuid
 import logging
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from pydantic import BaseModel
-import httpx
+import uuid
 
-from app.config import settings
-from app.db.qdrant import get_qdrant
-from app.db.postgres import get_session
-from app.db.minio import get_minio
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+import httpx
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pydantic import BaseModel
 from qdrant_client.models import PointStruct
 from sqlalchemy import text
+
+from app.config import settings
+from app.db.minio import get_minio
+from app.db.postgres import get_session
+from app.db.qdrant import get_qdrant
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -128,7 +129,7 @@ async def ingest_document(
                 "minio_path": minio_path,
             },
         )
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False))
     ]
     await qdrant.upsert(collection_name=qdrant_collection, points=points)
     logger.info(
@@ -139,7 +140,7 @@ async def ingest_document(
 
     # 6. Store metadata + chunks in Postgres
     async with get_session() as session:
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
             result = await session.execute(
                 text("""
                     INSERT INTO documents

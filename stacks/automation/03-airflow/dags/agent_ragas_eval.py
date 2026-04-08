@@ -22,17 +22,16 @@ Schedule: @weekly (Sundays 04:00 — runs 2h after synthetic_dataset)
 
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
+import io
 import json
 import logging
 import os
-import io
-from datetime import datetime, date, timedelta
-
-import boto3
-import httpx
 
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowFailException
+import boto3
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +187,7 @@ def agent_ragas_eval():
             question = record["question"]
             answer = record["answer"]
             contexts = record.get("contexts", [])
-            ground_truth = record.get("ground_truth", "")
+            record.get("ground_truth", "")
 
             if not answer:
                 logger.warning("Skipping record %d — empty agent answer", i)
@@ -322,7 +321,7 @@ def agent_ragas_eval():
     # ─── DAG wiring ───────────────────────────────────────────────────────────
     dataset = load_dataset()
     results = compute_metrics(dataset)
-    minio_path = save_results(results)
+    save_results(results)
     push_to_opensearch(results)
     assert_success(results)
 

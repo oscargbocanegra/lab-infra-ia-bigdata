@@ -25,18 +25,17 @@ Schedule: @weekly (Sundays 06:00)
 
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
+import io
 import json
 import logging
 import os
-import io
 import time
-from datetime import datetime, date, timedelta
-
-import boto3
-import httpx
 
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowFailException
+import boto3
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -401,7 +400,7 @@ def agent_model_benchmark():
     # ─── DAG wiring ───────────────────────────────────────────────────────────
     models = get_available_models()
     results = run_benchmarks(models)
-    minio_path = save_benchmark_results(results)
+    save_benchmark_results(results)
     push_leaderboard_to_opensearch(results)
 
 

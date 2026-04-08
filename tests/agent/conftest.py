@@ -11,12 +11,13 @@ Patches all external dependencies so tests run without a real cluster:
 The app is tested via ASGI transport (no real server needed).
 """
 
-import sys
 import os
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
+
+from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
 
 # ---------------------------------------------------------------------------
 # Ensure the agent app is importable from tests/

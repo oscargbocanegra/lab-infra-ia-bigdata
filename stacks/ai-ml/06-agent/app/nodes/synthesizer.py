@@ -8,7 +8,9 @@ This is the last LLM call before the answer is returned to the user.
 """
 
 import logging
+
 import httpx
+
 from app.config import settings
 from app.state import AgentState
 

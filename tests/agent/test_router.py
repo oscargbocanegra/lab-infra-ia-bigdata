@@ -14,10 +14,11 @@ The router_node makes HTTP calls to Ollama. We test:
 No LangGraph graph compilation needed — we test nodes in isolation.
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Ensure agent app is importable
 AGENT_PATH = os.path.abspath(

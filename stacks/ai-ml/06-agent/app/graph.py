@@ -9,13 +9,14 @@ For "both" route, RAG and Data nodes run in parallel (LangGraph fan-out).
 
 import asyncio
 import logging
-from langgraph.graph import StateGraph, START, END
 
-from app.state import AgentState
-from app.nodes.router import router_node, route_condition
-from app.nodes.rag import rag_node
+from langgraph.graph import END, START, StateGraph
+
 from app.nodes.data import data_node
+from app.nodes.rag import rag_node
+from app.nodes.router import route_condition, router_node
 from app.nodes.synthesizer import synthesizer_node
+from app.state import AgentState
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,9 @@
 """MinIO client initialization — document raw storage."""
 
 import logging
+
 from minio import Minio
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)

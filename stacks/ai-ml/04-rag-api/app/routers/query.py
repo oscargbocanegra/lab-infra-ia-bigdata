@@ -8,12 +8,13 @@ Flow:
   4. Generate answer via Ollama LLM (streaming supported)
 """
 
+import json
 import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 import httpx
-import json
+from pydantic import BaseModel
 
 from app.config import settings
 from app.db.qdrant import get_qdrant

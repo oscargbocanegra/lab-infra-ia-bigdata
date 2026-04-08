@@ -19,17 +19,17 @@ Parameters:
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Any
 
-import boto3
-import pandas as pd
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
+import boto3
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ def governance_silver_validate():
         schema = SILVER_SCHEMAS[schema_key]
         issues = []
 
-        for col, expected_type in schema["required_columns"].items():
+        for col, _expected_type in schema["required_columns"].items():
             if col not in partition_info["columns"]:
                 issues.append(f"Missing column: {col}")
             # Type check — loose match (e.g. object == string)

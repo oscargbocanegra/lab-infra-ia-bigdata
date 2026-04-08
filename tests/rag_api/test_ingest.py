@@ -15,10 +15,9 @@ Strategy:
   - Ollama embed is mocked via patch on httpx.AsyncClient
 """
 
-import io
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Unit tests — pure functions (no network, no fixtures needed)
@@ -28,8 +27,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 def test_extract_text_from_plain_text():
     """_extract_text correctly decodes plain text files."""
     # Import the function directly — no app startup needed
-    import sys
     import os
+    import sys
 
     sys.path.insert(
         0,
@@ -118,9 +117,6 @@ async def test_ingest_text_file_success(
     Ollama embed is mocked to return a fake 768-dim vector.
     """
     fake_embedding = [0.1] * 768
-    fake_embed_response = {
-        "embeddings": [fake_embedding, fake_embedding]  # 2 chunks
-    }
 
     with patch(
         "app.routers.ingest._embed",

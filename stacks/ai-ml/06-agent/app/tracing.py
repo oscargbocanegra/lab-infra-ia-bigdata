@@ -8,10 +8,12 @@ Document schema:
   answer, latency_ms, model, chunks_retrieved, sql_query, sources
 """
 
+from datetime import UTC, datetime
 import logging
 import uuid
-from datetime import datetime, timezone
+
 from opensearchpy import OpenSearch
+
 from app.config import settings
 from app.state import AgentState
 
@@ -40,11 +42,11 @@ def write_trace(state: AgentState, latency_ms: float) -> str:
     Non-blocking: errors are logged but never raised.
     """
     trace_id = str(uuid.uuid4())
-    today = datetime.now(timezone.utc).strftime("%Y.%m.%d")
+    today = datetime.now(UTC).strftime("%Y.%m.%d")
     index_name = f"{settings.opensearch_traces_index}-{today}"
 
     doc = {
-        "@timestamp": datetime.now(timezone.utc).isoformat(),
+        "@timestamp": datetime.now(UTC).isoformat(),
         "trace_id": trace_id,
         "session_id": state.get("session_id", "unknown"),
         "question": state.get("question", ""),

@@ -23,19 +23,18 @@ Schedule: @weekly (Sundays 02:00)
 
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
+import io
 import json
 import logging
 import os
-import io
-from datetime import datetime, date, timedelta
 
+from airflow.decorators import dag, task
+from airflow.exceptions import AirflowFailException
 import boto3
 import httpx
 import psycopg2
 import psycopg2.extras
-
-from airflow.decorators import dag, task
-from airflow.exceptions import AirflowFailException
 
 logger = logging.getLogger(__name__)
 

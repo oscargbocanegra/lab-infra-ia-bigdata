@@ -1,7 +1,8 @@
 """Configuration — reads from environment variables and Docker secret files."""
 
-from pydantic_settings import BaseSettings
 from pathlib import Path
+
+from pydantic_settings import BaseSettings
 
 
 def _read_secret(path: str) -> str:

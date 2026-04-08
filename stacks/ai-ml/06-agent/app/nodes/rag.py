@@ -8,8 +8,10 @@ Flow:
 """
 
 import logging
+
 import httpx
 from qdrant_client import AsyncQdrantClient
+
 from app.config import settings
 from app.state import AgentState
 

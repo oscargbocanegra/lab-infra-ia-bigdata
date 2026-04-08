@@ -8,7 +8,9 @@ Uses gemma3:4b with a structured prompt to classify the question:
 """
 
 import logging
+
 import httpx
+
 from app.config import settings
 from app.state import AgentState
 
