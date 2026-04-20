@@ -705,7 +705,9 @@ try:
             t for t in _ip_shell.input_transformers_cleanup
             if getattr(t, '__name__', '') != '_jarvis_cell_transformer'
         ]
-        _ip_shell.input_transformers_cleanup.append(_jarvis_cell_transformer)
+        # CRÍTICO: insert(0) para correr ANTES de EscapedCommand (built-in de IPython)
+        # que convierte `/jarvis msg` → `jarvis(msg)` si se registra al final.
+        _ip_shell.input_transformers_cleanup.insert(0, _jarvis_cell_transformer)
 except Exception:
     pass  # Silencioso — no rompe nada si falla
 WIDGET_EOF
