@@ -569,7 +569,16 @@ def _jv_run_modifying(prompt, original_code):
     for out in output_area.outputs:
         if out.get('output_type') == 'display_data':
             data = out.get('data', {})
-            raw_text += data.get('text/markdown', '') or data.get('text/plain', '')
+            # jupyter-ai puede renderizar como text/html (Markdown → HTML)
+            # Intentamos primero markdown/plain; si no hay, stripear tags del HTML
+            md_or_plain = data.get('text/markdown', '') or data.get('text/plain', '')
+            if md_or_plain:
+                raw_text += md_or_plain
+            else:
+                html = data.get('text/html', '')
+                if html:
+                    import re as _re_html
+                    raw_text += _re_html.sub(r'<[^>]+>', '', html)
         elif out.get('output_type') == 'stream':
             raw_text += out.get('text', '')
 
@@ -688,7 +697,10 @@ def _jarvis_cell_transformer(lines):
     else:
         return [
             f"_jv_inline_prompt = {repr(full_prompt)}\n",
-            "get_ipython().run_cell_magic('JARVIS', '', _jv_inline_prompt)\n",
+            # Escapar llaves para que format_map de jupyter-ai no intente interpolar
+            # variables como {sys.executable} que están en el código adjunto al prompt
+            "_jv_safe_prompt = _jv_inline_prompt.replace('{', '{{').replace('}', '}}')\n",
+            "get_ipython().run_cell_magic('JARVIS', '', _jv_safe_prompt)\n",
         ]
 
 
