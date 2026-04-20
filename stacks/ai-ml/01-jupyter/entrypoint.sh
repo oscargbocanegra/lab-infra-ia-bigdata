@@ -476,8 +476,88 @@ class _JARVISProxy:
         return ""
 
 jarvis = _JARVISProxy()
+
+
+# ── /jarvis inline cell transformer ──────────────────────────────────────────
+# Permite usar `/jarvis <mensaje>` como primera línea de cualquier celda.
+# El resto de la celda se envía como contexto de código — NO se ejecuta.
+#
+# Ejemplos:
+#   /jarvis analizá este código
+#   <cualquier código...>
+#
+#   /jarvis /explain       ← slash commands también funcionan aquí
+#   <código...>
+#
+#   /jarvis fix the bug
+#   def foo(): pass
+#
+# El transformer expande slash commands igual que el widget:
+#   /explain → "Explain this code in detail, step by step"
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _jarvis_cell_transformer(lines):
+    """
+    IPython input transformer: intercepta celdas que empiecen con /jarvis.
+    Transforma la celda en una llamada a %%JARVIS con el código como contexto.
+    El código original NO se ejecuta (solo se usa como contexto del prompt).
+    """
+    if not lines:
+        return lines
+
+    first = lines[0].rstrip('\n').strip()
+
+    # Solo actúa si la primera línea empieza con /jarvis (case-insensitive)
+    if not first.lower().startswith('/jarvis'):
+        return lines
+
+    # Extraer el mensaje (lo que viene después de /jarvis)
+    msg = first[len('/jarvis'):].strip()
+
+    # Expandir slash commands si el mensaje empieza con /
+    for cmd, _, expansion in _JARVIS_SLASH_COMMANDS:
+        if msg.startswith(cmd):
+            suffix = msg[len(cmd):].strip()
+            msg = expansion + (f". Context: {suffix}" if suffix else "")
+            break
+
+    # Si no hay mensaje, usar default
+    if not msg:
+        msg = "Analyze and explain this code"
+
+    # El resto de las líneas es el código de contexto
+    code_lines = lines[1:]
+    code = "".join(code_lines).strip()
+
+    # Construir el prompt completo
+    if code:
+        full_prompt = f"{msg}\n\n```python\n{code}\n```"
+    else:
+        full_prompt = msg
+
+    # Transformar la celda en una llamada a run_cell_magic
+    # repr() escapa correctamente strings con comillas, backslashes, etc.
+    return [
+        f"_jv_inline_prompt = {repr(full_prompt)}\n",
+        "get_ipython().run_cell_magic('JARVIS', '', _jv_inline_prompt)\n",
+    ]
+
+
+# Registrar el transformer en IPython
+try:
+    import IPython as _ipython_mod
+    _ip_shell = _ipython_mod.get_ipython()
+    if _ip_shell is not None:
+        # Evitar duplicados si el startup se carga múltiples veces
+        _ip_shell.input_transformers_post = [
+            t for t in _ip_shell.input_transformers_post
+            if getattr(t, '__name__', '') != '_jarvis_cell_transformer'
+        ]
+        _ip_shell.input_transformers_post.append(_jarvis_cell_transformer)
+except Exception:
+    pass  # Silencioso — no rompe nada si falla
 WIDGET_EOF
-echo "==> [jarvis] Widget Iron Man Copilot (v4 — tema adaptativo, layout compacto) configurado ✓"
+echo "==> [jarvis] Widget Iron Man Copilot (v5 — /jarvis inline transformer) configurado ✓"
 
 # ── Data Wrangler: display() inteligente estilo Fabric ────────
 # Archivo de startup 02-data-wrangler.py:

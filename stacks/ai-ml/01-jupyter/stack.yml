@@ -23,9 +23,9 @@ version: "3.9"
 # ============================================================
 
 configs:
-  init_kernels_v5:
+  init_kernels_v6:
     file: ./init-kernels.sh
-  entrypoint_v5:
+  entrypoint_v6:
     file: ./entrypoint.sh
 
 networks:
@@ -80,10 +80,10 @@ services:
       - /srv/datalake/artifacts:/home/jovyan/artifacts
 
     configs:
-      - source: init_kernels_v5
+      - source: init_kernels_v6
         target: /tmp/init-kernels.sh
         mode: 0755
-      - source: entrypoint_v5
+      - source: entrypoint_v6
         target: /tmp/entrypoint.sh
         mode: 0755
 
@@ -167,10 +167,10 @@ services:
       - /srv/datalake/artifacts:/home/jovyan/artifacts
 
     configs:
-      - source: init_kernels_v5
+      - source: init_kernels_v6
         target: /tmp/init-kernels.sh
         mode: 0755
-      - source: entrypoint_v5
+      - source: entrypoint_v6
         target: /tmp/entrypoint.sh
         mode: 0755
 
