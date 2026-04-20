@@ -48,7 +48,7 @@ Every component is production-grade: secrets management via Docker Swarm Secrets
 | 🤖 **Local LLM inference** | Ollama latest on RTX 2080 Ti (11 GB VRAM), gemma4:26b MoE — function calling + thinking mode |
 | 💬 **Chat UI + RAG** | Open WebUI v0.6.5 — multi-model chat with document knowledge bases |
 | 🔍 **Vector search** | Qdrant v1.13 — semantic embeddings + ANN search for RAG pipelines |
-| 🧪 **AI-powered notebooks** | JupyterLab with `%%JARVIS` magic + chat panel via `jupyter-ai` → Ollama |
+| 🧪 **AI-powered notebooks** | JupyterLab with JARVIS Copilot: `/jarvis` inline transformer + `%%JARVIS` magic + Iron Man widget + Data Wrangler |
 | ⚡ **Distributed processing** | Apache Spark 3.5 cluster (Master + Worker, 10 CPUs / 14 GB RAM) |
 | 🏅 **Medallion data pipeline** | Bronze (raw) → Silver (Delta Lake ACID) → Gold (Delta Lake KPIs) |
 | 🔒 **Security by default** | Docker Swarm Secrets + BasicAuth + LAN-only whitelist + TLS |
@@ -324,7 +324,7 @@ Data Sources (CSV, JSON, APIs, DB exports)
 
 ## 🤖 AI Features in JupyterLab
 
-Each JupyterLab instance ships with three specialized kernels and full AI integration:
+Each JupyterLab instance ships with three specialized kernels and a full **JARVIS AI Copilot** backed by a local Ollama model (`qwen2.5-coder:14b` by default — ~25-30 tok/s, 100% LAN, zero cloud).
 
 ### Kernels
 
@@ -334,23 +334,40 @@ Each JupyterLab instance ships with three specialized kernels and full AI integr
 | **Python — AI/ML** | ML training, computer vision, CUDA | `torch`, `torchvision`, `scikit-learn`, `tensorflow` |
 | **Python — BigData** | Pipeline development, Delta Lake | `pyspark`, `delta-spark`, `s3fs`, `pyarrow` |
 
-### `%%JARVIS` Magic — AI in any cell
+### `/jarvis` — Inline cell transformer
 
-Run natural language prompts directly inside notebooks using the local Ollama LLM (no cloud, no API key):
+Write `/jarvis <prompt>` as the first line of any cell, with optional code below:
 
 ```python
-# Load the extension once per session (or auto-loaded via startup)
-%load_ext jupyter_ai_magics
+/jarvis refactor this code
 
-# Ask Ollama directly from any cell
+import plotly.graph_objects as go
+fig = go.Figure(go.Scatter(x=[1,2,3], y=[1,4,9], mode="markers"))
+fig.show()
+```
+
+- **Read-only** (`/explain`, describe, analyze) → response rendered in cell output
+- **Modifying** (`/fix`, `/refactor`, `/optimize`, `/test`, `/comments`, `/document`) → shows preview panel with **✅ Insert cell** / **✕ Discard** before applying
+
+### `%%JARVIS` — Cell magic
+
+```python
 %%JARVIS
 Write a PySpark function to read a Delta Lake table from MinIO and
 calculate the daily sales total, partitioned by product category.
 ```
 
-### Chat Panel
+### JARVIS Widget — Iron Man Copilot Panel
 
-A persistent sidebar chat powered by `jupyter-ai` connects to Ollama (`qwen2.5-coder:7b`) for real-time code assistance — 100% local, 100% LAN, zero data leaves the cluster.
+Run `jarvis` in any cell to open the interactive panel with slash command chips, live streaming response, and follow-up support.
+
+### Data Wrangler (Fabric-style)
+
+```python
+panel_inspect(df)   # Interactive table + per-column stats sidebar (like Fabric Data Wrangler)
+profile(df)         # Full ydata-profiling report embedded inline
+display(df)         # Overrides default display — uses itables for all DataFrames
+```
 
 ---
 
