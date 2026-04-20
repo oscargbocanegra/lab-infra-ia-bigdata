@@ -172,13 +172,18 @@ jobs:
           LAB_JARVIS_MODEL: ${{ vars.LAB_JARVIS_MODEL }}
         run: |
           SHA_TAG="giovannotti/lab-jupyter:sha-${{ steps.tags.outputs.short_sha }}"
+          # Write temp file next to the original stack.yml so that relative
+          # config paths (./entrypoint.sh, ./init-kernels.sh) still resolve
+          STACK_DIR="stacks/ai-ml/01-jupyter"
+          TMPFILE="${STACK_DIR}/stack-deploy.yml"
           sed "s|giovannotti/lab-jupyter:latest|${SHA_TAG}|g" \
-            stacks/ai-ml/01-jupyter/stack.yml | \
-            docker stack deploy \
-              --with-registry-auth \
-              --prune \
-              -c - \
-              jupyter
+            "${STACK_DIR}/stack.yml" > "$TMPFILE"
+          docker stack deploy \
+            --with-registry-auth \
+            --prune \
+            -c "$TMPFILE" \
+            jupyter
+          rm -f "$TMPFILE"
 
       # -----------------------------------------------------------------------
       # 6. Wait for all services to converge
