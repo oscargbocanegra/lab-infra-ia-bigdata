@@ -70,6 +70,7 @@ if ! kernel_exists "llm"; then
 
     pip install --no-cache-dir \
         ipykernel \
+        ipywidgets \
         transformers \
         accelerate \
         bitsandbytes \
@@ -100,6 +101,10 @@ else
             "jupyter-ai>=2.20.0,<3.0" \
             "langchain-ollama>=0.2.0,<1.0"
     fi
+    if ! "$VENV_BASE/llm/bin/pip" show ipywidgets > /dev/null 2>&1; then
+        echo "==> [kernel:llm] Instalando ipywidgets en venv existente..."
+        "$VENV_BASE/llm/bin/pip" install --no-cache-dir --quiet ipywidgets
+    fi
     echo "==> [kernel:llm] Ya existe, saltando."
 fi
 
@@ -117,6 +122,7 @@ if ! kernel_exists "ia"; then
 
     pip install --no-cache-dir \
         ipykernel \
+        ipywidgets \
         numpy \
         pandas \
         matplotlib \
@@ -149,6 +155,10 @@ else
             "jupyter-ai>=2.20.0,<3.0" \
             "langchain-ollama>=0.2.0,<1.0"
     fi
+    if ! "$VENV_BASE/ia/bin/pip" show ipywidgets > /dev/null 2>&1; then
+        echo "==> [kernel:ia] Instalando ipywidgets en venv existente..."
+        "$VENV_BASE/ia/bin/pip" install --no-cache-dir --quiet ipywidgets
+    fi
     echo "==> [kernel:ia] Ya existe, saltando."
 fi
 
@@ -163,6 +173,7 @@ if ! kernel_exists "bigdata"; then
     # PySpark 3.5.x — compatible con la imagen bitnami/spark:3.5
     pip install --no-cache-dir \
         ipykernel \
+        ipywidgets \
         pyspark==3.5.3 \
         delta-spark==3.2.1 \
         pandas \
@@ -190,6 +201,10 @@ else
         "$VENV_BASE/bigdata/bin/pip" install --no-cache-dir --quiet \
             "jupyter-ai>=2.20.0,<3.0" \
             "langchain-ollama>=0.2.0,<1.0"
+    fi
+    if ! "$VENV_BASE/bigdata/bin/pip" show ipywidgets > /dev/null 2>&1; then
+        echo "==> [kernel:bigdata] Instalando ipywidgets en venv existente..."
+        "$VENV_BASE/bigdata/bin/pip" install --no-cache-dir --quiet ipywidgets
     fi
     echo "==> [kernel:bigdata] Ya existe, saltando."
 fi

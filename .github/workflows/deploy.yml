@@ -139,6 +139,19 @@ jobs:
             -c stacks/ai-ml/06-agent/stack.yml \
             agent
 
+      # Jupyter uses Docker configs (entrypoint.sh + init-kernels.sh) — no custom
+      # image to build, but stack deploy is required to update the config objects
+      # and trigger a service restart so the new scripts are picked up.
+      - name: Deploy jupyter stack
+        env:
+          LAB_JARVIS_MODEL: ${{ vars.LAB_JARVIS_MODEL }}
+        run: |
+          docker stack deploy \
+            --with-registry-auth \
+            --prune \
+            -c stacks/ai-ml/01-jupyter/stack.yml \
+            jupyter
+
       # -----------------------------------------------------------------------
       # 6. Wait for services to stabilize + health check
       #    Swarm rolling updates take a few seconds
