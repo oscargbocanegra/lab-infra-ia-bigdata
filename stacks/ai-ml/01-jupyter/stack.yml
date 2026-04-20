@@ -22,18 +22,10 @@ version: "3.9"
 #   → Environment → JARVIS_MODEL → Update
 # ============================================================
 
-# ── CONFIG VERSIONING NOTE ───────────────────────────────────
-# Docker Swarm configs are IMMUTABLE — content cannot be updated,
-# only Labels can change. To deploy new script content, bump the
-# version suffix (v2 → v3, etc.) in ALL three places below:
-#   1. configs: section (top-level)
-#   2. configs: block inside jupyter_ogiovanni service
-#   3. configs: block inside jupyter_odavid service
-# ─────────────────────────────────────────────────────────────
 configs:
-  init_kernels_v2:
+  init_kernels_v3:
     file: ./init-kernels.sh
-  entrypoint_v2:
+  entrypoint_v3:
     file: ./entrypoint.sh
 
 networks:
@@ -52,7 +44,7 @@ services:
 
   # ── ogiovanni ────────────────────────────────────────────────
   jupyter_ogiovanni:
-    image: jupyter/datascience-notebook:python-3.11
+    image: giovannotti/lab-jupyter:latest
     hostname: jupyter-ogiovanni
     healthcheck:
       disable: true
@@ -88,10 +80,10 @@ services:
       - /srv/datalake/artifacts:/home/jovyan/artifacts
 
     configs:
-      - source: init_kernels_v2
+      - source: init_kernels_v3
         target: /tmp/init-kernels.sh
         mode: 0755
-      - source: entrypoint_v2
+      - source: entrypoint_v3
         target: /tmp/entrypoint.sh
         mode: 0755
 
@@ -122,10 +114,6 @@ services:
           cpus: '8.0'
           memory: 12G
         reservations:
-          # Bajado de 4.0→2.0 CPUs y 8G→4G:
-          # - reservations son garantías para Swarm scheduler
-          # - en lab compartido, no ambos usuarios al 100% simultáneo
-          # - libera headroom para Spark Worker + Airflow Worker
           cpus: '2.0'
           memory: 4G
       restart_policy:
@@ -144,7 +132,7 @@ services:
 
   # ── odavid ───────────────────────────────────────────────────
   jupyter_odavid:
-    image: jupyter/datascience-notebook:python-3.11
+    image: giovannotti/lab-jupyter:latest
     hostname: jupyter-odavid
     healthcheck:
       disable: true
@@ -179,10 +167,10 @@ services:
       - /srv/datalake/artifacts:/home/jovyan/artifacts
 
     configs:
-      - source: init_kernels_v2
+      - source: init_kernels_v3
         target: /tmp/init-kernels.sh
         mode: 0755
-      - source: entrypoint_v2
+      - source: entrypoint_v3
         target: /tmp/entrypoint.sh
         mode: 0755
 

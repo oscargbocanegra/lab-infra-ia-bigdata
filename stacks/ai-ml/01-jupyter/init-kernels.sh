@@ -26,34 +26,15 @@ kernel_exists() {
     [ -d "$KERNEL_DIR/$1" ]
 }
 
-# ── Extensiones de servidor (Python base del container) ──────
-# Se instalan en CADA arranque del container porque /opt/conda es
-# efímero (capa del container, no persistida en NVMe).
-# jupyter-lsp + jupyterlab-lsp + jedi: intellisense clásico
-# jupyter-ai + langchain: chat IA y %%ai magic vía Ollama (LAN)
-#
-# La imagen base trae JupyterLab 4.0.7. jupyter-ai 2.x requiere >=4.2.
-# Actualizamos jupyterlab a 4.2.x antes de instalar las extensiones.
-# ─────────────────────────────────────────────────────────────
-echo "==> [server-ext] Actualizando JupyterLab a 4.2.x..."
-pip install --no-cache-dir --quiet \
-    "jupyterlab>=4.2.0,<4.3.0" \
-    "jupyterlab-server>=2.27.0"
-
-echo "==> [server-ext] Instalando extensiones jupyter-lsp y jupyter-ai..."
-pip install --no-cache-dir --quiet \
-    "jupyter-lsp>=2.2.0,<3.0" \
-    "jupyterlab-lsp>=5.0.0,<6.0" \
-    "jedi-language-server>=0.41.0" \
-    "jupyter-ai>=2.20.0,<3.0" \
-    "langchain-community>=0.3.0,<0.4.0" \
-    "langchain-ollama>=0.2.0,<1.0"
-
-# Habilitar las extensiones en el servidor (idempotente)
-jupyter server extension enable --user jupyter_lsp
-jupyter server extension enable --user jupyter_ai
-
-echo "==> [server-ext] Extensiones instaladas y habilitadas ✓"
+# ── Extensiones de servidor ───────────────────────────────────
+# Los paquetes (jupyterlab, jupyter-lsp, jupyter-ai, itables, etc.)
+# están baked en la imagen custom giovannotti/lab-jupyter.
+# Solo habilitamos las extensiones en el home del usuario (--user),
+# que es necesario en cada arranque porque el home está en volumen NVMe.
+echo "==> [server-ext] Habilitando extensiones en el home del usuario..."
+jupyter server extension enable --user jupyter_lsp 2>/dev/null || true
+jupyter server extension enable --user jupyter_ai  2>/dev/null || true
+echo "==> [server-ext] Extensiones habilitadas ✓"
 
 # ── Kernel: LLM ──────────────────────────────────────────────
 if ! kernel_exists "llm"; then
