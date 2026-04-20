@@ -170,6 +170,10 @@ jobs:
             --prune \
             -c stacks/ai-ml/01-jupyter/stack.yml \
             jupyter
+          # Force image pull on both jupyter services so the new :latest is used.
+          # docker stack deploy alone won't re-pull if the tag name hasn't changed.
+          docker service update --force --image giovannotti/lab-jupyter:latest jupyter_jupyter_ogiovanni || true
+          docker service update --force --image giovannotti/lab-jupyter:latest jupyter_jupyter_odavid   || true
 
       # -----------------------------------------------------------------------
       # 6. Wait for services to stabilize + health check
