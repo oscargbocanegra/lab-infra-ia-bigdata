@@ -482,78 +482,230 @@ jarvis = _JARVISProxy()
 # Permite usar `/jarvis <mensaje>` como primera línea de cualquier celda.
 # El resto de la celda se envía como contexto de código — NO se ejecuta.
 #
-# Ejemplos:
+# Ejemplos (read-only):
 #   /jarvis analizá este código
-#   <cualquier código...>
-#
-#   /jarvis /explain       ← slash commands también funcionan aquí
+#   /jarvis /explain
 #   <código...>
 #
+# Ejemplos (modifying — muestra preview con OK / ✕):
 #   /jarvis fix the bug
+#   /jarvis /fix
+#   /jarvis /refactor
 #   def foo(): pass
 #
-# El transformer expande slash commands igual que el widget:
-#   /explain → "Explain this code in detail, step by step"
+# ⚠️  Registrado en input_transformers_CLEANUP (no _post) para correr
+#     ANTES del autocall de IPython — evita que `/jarvis msg` se convierta
+#     en `jarvis(msg)` antes de que el transformer lo intercepte.
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Comandos que modifican código → flujo preview con OK / ✕
+_JARVIS_MODIFYING_CMDS = {'/fix', '/refactor', '/optimize', '/test', '/comments', '/document'}
+
+# Keywords en texto libre que implican modificación
+_JARVIS_MODIFYING_KEYWORDS = {
+    'fix', 'create', 'write', 'refactor', 'optimize', 'rewrite',
+    'generate', 'add', 'implement', 'update', 'change', 'modify',
+    'rename', 'delete', 'remove', 'replace',
+}
+
+def _jv_is_modifying(raw_msg):
+    """True si el mensaje implica modificación de código."""
+    msg_lower = raw_msg.lower().strip()
+    # Slash command explícito
+    for cmd in _JARVIS_MODIFYING_CMDS:
+        if msg_lower.startswith(cmd):
+            return True
+    # Primera palabra del texto libre
+    words = msg_lower.split()
+    if words and words[0] in _JARVIS_MODIFYING_KEYWORDS:
+        return True
+    return False
+
+
+def _jv_run_modifying(prompt, original_code):
+    """
+    Flujo para comandos modifying:
+      1. Corre %%JARVIS en un Output widget (captura la respuesta)
+      2. Extrae el primer bloque de código de la respuesta
+      3. Muestra preview con botones:
+           ✅ Insert cell  → inserta nueva celda debajo con el código
+           ✕  Discard      → descarta el preview
+    """
+    import re
+    import IPython
+    import ipywidgets as widgets
+    from IPython.display import display as _display, Javascript
+
+    _ip = IPython.get_ipython()
+
+    # ── Correr JARVIS y capturar output ──────────────────────────────────
+    output_area = widgets.Output(
+        layout=widgets.Layout(
+            border='1px solid var(--jp-border-color1, rgba(128,128,128,0.3))',
+            border_radius='6px',
+            padding='8px',
+            max_height='400px',
+            overflow_y='auto',
+            margin='4px 0',
+        )
+    )
+    status = widgets.HTML(
+        value='<span style="color:var(--jp-brand-color1,#4a90e2)">⚡ Processing...</span>'
+    )
+    container = widgets.VBox([status, output_area])
+    _display(container)
+
+    with output_area:
+        try:
+            _ip.run_cell_magic('JARVIS', '', prompt)
+        except Exception as e:
+            from IPython.display import HTML as _H, display as _d
+            _d(_H(f'<span style="color:var(--jp-error-color1,#e74c3c)">❌ {e}</span>'))
+            status.value = ''
+            return
+
+    # ── Extraer bloque de código de la respuesta ──────────────────────────
+    raw_text = ''
+    for out in output_area.outputs:
+        if out.get('output_type') == 'display_data':
+            data = out.get('data', {})
+            raw_text += data.get('text/markdown', '') or data.get('text/plain', '')
+        elif out.get('output_type') == 'stream':
+            raw_text += out.get('text', '')
+
+    # Buscar bloque ```python ... ``` o ``` ... ```
+    matches = re.findall(r'```(?:python)?\n(.*?)```', raw_text, re.DOTALL)
+    extracted_code = matches[0].strip() if matches else None
+
+    status.value = '<span style="color:var(--jp-success-color1,#27ae60)">✅ Done</span>'
+
+    if not extracted_code:
+        # No encontró código limpio — solo mostrar la respuesta, sin preview
+        return
+
+    # ── Preview con OK / ✕ ───────────────────────────────────────────────
+    preview_label = widgets.HTML(
+        value='<b style="font-size:12px;color:var(--jp-ui-font-color1,inherit)">'
+              '📋 Suggested code — insert as new cell?</b>'
+    )
+    code_preview = widgets.Textarea(
+        value=extracted_code,
+        layout=widgets.Layout(width='100%', height='160px'),
+    )
+    ok_btn = widgets.Button(
+        description='✅ Insert cell',
+        button_style='success',
+        layout=widgets.Layout(width='140px', height='32px'),
+    )
+    cancel_btn = widgets.Button(
+        description='✕ Discard',
+        button_style='danger',
+        layout=widgets.Layout(width='110px', height='32px'),
+    )
+    btn_row = widgets.HBox([ok_btn, cancel_btn], layout=widgets.Layout(gap='8px'))
+    preview_box = widgets.VBox(
+        [preview_label, code_preview, btn_row],
+        layout=widgets.Layout(
+            border='1px solid var(--jp-brand-color2, #4a90e2)',
+            border_radius='6px',
+            padding='10px',
+            margin='6px 0 0 0',
+        )
+    )
+    container.children = list(container.children) + [preview_box]
+
+    def _on_insert(_):
+        code_to_insert = code_preview.value
+        # Escapar para embeber en template literal JS
+        escaped = (
+            code_to_insert
+            .replace('\\', '\\\\')
+            .replace('`', '\\`')
+            .replace('$', '\\$')
+        )
+        _display(Javascript(f"""
+        (function() {{
+            var app = window.jupyterapp || window.app;
+            if (!app) return;
+            app.commands.execute('notebook:insert-cell-below').then(function() {{
+                var nb = app.shell.currentWidget;
+                if (nb && nb.content && nb.content.activeCell) {{
+                    nb.content.activeCell.model.sharedModel.source = `{escaped}`;
+                }}
+            }});
+        }})();
+        """))
+        preview_box.layout.display = 'none'
+
+    def _on_discard(_):
+        preview_box.layout.display = 'none'
+
+    ok_btn.on_click(_on_insert)
+    cancel_btn.on_click(_on_discard)
+
 
 def _jarvis_cell_transformer(lines):
     """
     IPython input transformer: intercepta celdas que empiecen con /jarvis.
-    Transforma la celda en una llamada a %%JARVIS con el código como contexto.
-    El código original NO se ejecuta (solo se usa como contexto del prompt).
+    - Read-only  → ejecuta %%JARVIS directamente
+    - Modifying  → llama _jv_run_modifying() que muestra preview con OK/✕
     """
     if not lines:
         return lines
 
     first = lines[0].rstrip('\n').strip()
-
-    # Solo actúa si la primera línea empieza con /jarvis (case-insensitive)
     if not first.lower().startswith('/jarvis'):
         return lines
 
     # Extraer el mensaje (lo que viene después de /jarvis)
-    msg = first[len('/jarvis'):].strip()
+    raw_msg = first[len('/jarvis'):].strip()
 
     # Expandir slash commands si el mensaje empieza con /
+    msg = raw_msg
     for cmd, _, expansion in _JARVIS_SLASH_COMMANDS:
-        if msg.startswith(cmd):
-            suffix = msg[len(cmd):].strip()
+        if raw_msg.lower().startswith(cmd):
+            suffix = raw_msg[len(cmd):].strip()
             msg = expansion + (f". Context: {suffix}" if suffix else "")
             break
 
-    # Si no hay mensaje, usar default
     if not msg:
         msg = "Analyze and explain this code"
 
-    # El resto de las líneas es el código de contexto
-    code_lines = lines[1:]
-    code = "".join(code_lines).strip()
+    # Código de contexto (resto de la celda — NO se ejecuta)
+    code = "".join(lines[1:]).strip()
 
-    # Construir el prompt completo
     if code:
         full_prompt = f"{msg}\n\n```python\n{code}\n```"
     else:
         full_prompt = msg
 
-    # Transformar la celda en una llamada a run_cell_magic
-    # repr() escapa correctamente strings con comillas, backslashes, etc.
-    return [
-        f"_jv_inline_prompt = {repr(full_prompt)}\n",
-        "get_ipython().run_cell_magic('JARVIS', '', _jv_inline_prompt)\n",
-    ]
+    if _jv_is_modifying(raw_msg):
+        return [
+            f"_jv_prompt = {repr(full_prompt)}\n",
+            f"_jv_orig   = {repr(code)}\n",
+            "_jv_run_modifying(_jv_prompt, _jv_orig)\n",
+        ]
+    else:
+        return [
+            f"_jv_inline_prompt = {repr(full_prompt)}\n",
+            "get_ipython().run_cell_magic('JARVIS', '', _jv_inline_prompt)\n",
+        ]
 
 
-# Registrar el transformer en IPython
+# ── Registrar en input_transformers_CLEANUP ───────────────────────────────────
+# CRÍTICO: cleanup corre ANTES del autocall de IPython.
+# Si se registra en input_transformers_post, el autocall convierte
+# `/jarvis msg` en `jarvis(msg)` antes de que este transformer lo vea.
 try:
     import IPython as _ipython_mod
     _ip_shell = _ipython_mod.get_ipython()
     if _ip_shell is not None:
         # Evitar duplicados si el startup se carga múltiples veces
-        _ip_shell.input_transformers_post = [
-            t for t in _ip_shell.input_transformers_post
+        _ip_shell.input_transformers_cleanup = [
+            t for t in _ip_shell.input_transformers_cleanup
             if getattr(t, '__name__', '') != '_jarvis_cell_transformer'
         ]
-        _ip_shell.input_transformers_post.append(_jarvis_cell_transformer)
+        _ip_shell.input_transformers_cleanup.append(_jarvis_cell_transformer)
 except Exception:
     pass  # Silencioso — no rompe nada si falla
 WIDGET_EOF
