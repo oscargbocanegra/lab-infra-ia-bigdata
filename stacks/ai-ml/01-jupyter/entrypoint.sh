@@ -388,6 +388,282 @@ jarvis = jarvis_panel
 WIDGET_EOF
 echo "==> [jarvis] Widget Iron Man Copilot configurado ✓"
 
+# ── Data Wrangler: display() inteligente estilo Fabric ────────
+# Archivo de startup 02-data-wrangler.py:
+#   - Sobrescribe display() para DataFrames: tabla itables + panel Inspect
+#   - panel_inspect(df) → stats por columna al estilo sidebar de Fabric
+#   - profile(df)       → reporte completo ydata-profiling embebido
+#   - Siempre sobreescribir (idempotente, no depende de estado previo)
+DW_STARTUP="$IPYTHON_STARTUP/02-data-wrangler.py"
+cat > "$DW_STARTUP" << 'DW_EOF'
+# ── Data Wrangler — display inteligente estilo Fabric ────────────────────────
+# Funciones disponibles en todos los kernels:
+#
+#   display(df)          → tabla interactiva itables (reemplaza al default)
+#   panel_inspect(df)    → tabla + sidebar stats (Missing/Unique/histograma)
+#   profile(df)          → reporte completo ydata-profiling embebido
+#   dw(df)               → alias corto de panel_inspect
+# ─────────────────────────────────────────────────────────────────────────────
+
+def panel_inspect(df, max_rows=500, title=None):
+    """
+    Muestra un DataFrame con tabla interactiva + panel Inspect lateral,
+    igual al Data Wrangler de Microsoft Fabric.
+
+    Uso:
+        panel_inspect(df)
+        dw(df)           # alias corto
+    """
+    try:
+        import pandas as pd
+        import numpy as np
+        import ipywidgets as widgets
+        from IPython.display import display as _display, HTML
+        import math
+
+        if not isinstance(df, pd.DataFrame):
+            try:
+                df = pd.DataFrame(df)
+            except Exception:
+                _display(df)
+                return
+
+        nrows, ncols = df.shape
+
+        # ── Tabla interactiva (itables) ────────────────────────────────────
+        try:
+            from itables import to_html_datatable
+            table_html = to_html_datatable(
+                df.head(max_rows),
+                style="width:100%;font-size:13px",
+                classes="display compact",
+                lengthMenu=[10, 25, 50],
+                pageLength=10,
+            )
+            table_widget = widgets.HTML(value=f"""
+            <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+            {table_html}
+            </div>
+            """)
+        except ImportError:
+            # fallback: tabla HTML estática si itables no disponible
+            table_widget = widgets.HTML(
+                value=df.head(max_rows).to_html(
+                    classes="dataframe",
+                    border=0,
+                    max_rows=50
+                )
+            )
+
+        # ── Panel Inspect (sidebar derecho) ────────────────────────────────
+        col_widgets = []
+
+        for col in df.columns:
+            series = df[col]
+            dtype  = str(series.dtype)
+            n      = len(series)
+
+            missing  = int(series.isna().sum())
+            unique   = int(series.nunique())
+            miss_pct = f"{missing/n*100:.0f}%" if n > 0 else "0%"
+            uniq_pct = f"{unique/n*100:.0f}%"  if n > 0 else "0%"
+
+            # Tipo label con color
+            type_color = {
+                'object': '#f0b429', 'string': '#f0b429',
+                'int64': '#4fc3f7',  'int32': '#4fc3f7',
+                'float64': '#81c784','float32': '#81c784',
+                'bool': '#ce93d8',   'datetime': '#ffb74d',
+            }.get(dtype.split('[')[0], '#aaaaaa')
+
+            # Mini barra de completitud
+            fill_pct = max(0, 100 - (missing/n*100 if n>0 else 0))
+            bar_filled = f'width:{fill_pct:.0f}%;background:#27ae60'
+            bar_empty  = f'width:{100-fill_pct:.0f}%;background:#c0392b'
+
+            # Rango numérico o top valores
+            extra_html = ''
+            if pd.api.types.is_numeric_dtype(series):
+                valid = series.dropna()
+                if len(valid) > 0:
+                    mn, mx = valid.min(), valid.max()
+                    mn_s = f"{mn:.2f}" if isinstance(mn, float) else str(mn)
+                    mx_s = f"{mx:.2f}" if isinstance(mx, float) else str(mx)
+                    extra_html = f"""
+                    <div style="display:flex;justify-content:space-between;
+                                font-size:11px;color:#aaa;margin-top:3px">
+                        <span>Min {mn_s}</span><span>Max {mx_s}</span>
+                    </div>"""
+            elif dtype == 'object' or dtype == 'string':
+                top = series.value_counts().head(3)
+                if len(top) > 0:
+                    items = ' · '.join(str(v) for v in top.index)
+                    extra_html = f"""
+                    <div style="font-size:11px;color:#aaa;margin-top:3px;
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                         title="{items}">↑ {items}</div>"""
+
+            col_html = f"""
+            <div style="border-bottom:1px solid #2d2d2d;padding:8px 0;min-width:180px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <span style="background:{type_color};color:#000;font-size:10px;
+                             padding:1px 5px;border-radius:3px;font-weight:bold">
+                    {dtype[:6]}
+                </span>
+                <span style="font-weight:600;font-size:13px;color:#eee">{col}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:#ccc">
+                <span>Missing: <b>{missing} ({miss_pct})</b></span>
+                <span>Unique: <b>{unique} ({uniq_pct})</b></span>
+              </div>
+              <div style="display:flex;height:6px;border-radius:3px;
+                          overflow:hidden;margin-top:4px;background:#333">
+                <div style="{bar_filled}"></div>
+                <div style="{bar_empty}"></div>
+              </div>
+              {extra_html}
+            </div>"""
+            col_widgets.append(col_html)
+
+        header_title = title or f"Table view"
+        inspect_html = f"""
+        <div style="font-weight:700;font-size:14px;color:#eee;
+                    padding:8px 0 4px;border-bottom:2px solid #c0392b;
+                    margin-bottom:6px">
+            🔍 Inspect
+        </div>
+        {''.join(col_widgets)}
+        """
+
+        inspect_panel = widgets.HTML(
+            value=f"""
+            <div style="background:#1a1a2e;padding:10px;border-radius:8px;
+                        height:420px;overflow-y:auto;min-width:220px">
+                {inspect_html}
+            </div>
+            """
+        )
+
+        # ── Header con metadata ────────────────────────────────────────────
+        header_html = widgets.HTML(value=f"""
+        <div style="display:flex;align-items:center;gap:12px;
+                    background:#1a1a2e;padding:6px 10px;border-radius:6px;
+                    border-left:3px solid #c0392b;margin-bottom:6px">
+            <span style="font-weight:700;color:#eee">{header_title}</span>
+            <span style="background:#2d2d3a;color:#aaa;font-size:12px;
+                         padding:2px 8px;border-radius:10px">
+                {nrows:,} rows × {ncols} cols
+            </span>
+            <span style="color:#666;font-size:11px">
+                💡 <code>profile(df)</code> para reporte completo
+            </span>
+        </div>
+        """)
+
+        # ── Layout final: tabla izquierda + inspect derecha ───────────────
+        main_row = widgets.HBox(
+            [
+                widgets.Box(
+                    [table_widget],
+                    layout=widgets.Layout(flex='1 1 auto', overflow='hidden')
+                ),
+                inspect_panel,
+            ],
+            layout=widgets.Layout(gap='10px', align_items='flex-start', width='100%')
+        )
+
+        full_view = widgets.VBox(
+            [header_html, main_row],
+            layout=widgets.Layout(
+                border='1px solid #2d2d2d',
+                border_radius='10px',
+                padding='10px',
+                background_color='#0d0d1a',
+                width='100%'
+            )
+        )
+
+        _display(full_view)
+
+    except ImportError as e:
+        # Fallback limpio si ipywidgets no disponible
+        from IPython.display import display as _display
+        _display(df)
+        print(f"💡 Instalá ipywidgets para el panel completo: {e}")
+    except Exception as exc:
+        from IPython.display import display as _display
+        _display(df)
+        print(f"⚠️  panel_inspect error: {exc}")
+
+
+def profile(df, title="DataFrame Profile", minimal=False):
+    """
+    Genera un reporte completo con ydata-profiling embebido en el notebook.
+    Equivalente al análisis detallado de Fabric Data Wrangler.
+
+    Args:
+        df       : pandas DataFrame
+        title    : título del reporte
+        minimal  : True = reporte rápido (sin correlaciones ni interacciones)
+
+    Uso:
+        profile(df)
+        profile(df, minimal=True)   # más rápido para DataFrames grandes
+    """
+    try:
+        from ydata_profiling import ProfileReport
+        from IPython.display import display as _display
+
+        report = ProfileReport(
+            df,
+            title=title,
+            minimal=minimal,
+            explorative=not minimal,
+            progress_bar=False,
+        )
+        _display(report.to_widgets())
+
+    except ImportError:
+        print("⚠️  ydata-profiling no disponible en este kernel.")
+        print("     Alternativa rápida: panel_inspect(df)")
+    except Exception as exc:
+        print(f"⚠️  profile() error: {exc}")
+        print("     Alternativa rápida: panel_inspect(df)")
+
+
+# ── Alias cortos ──────────────────────────────────────────────────────────────
+dw = panel_inspect
+
+# ── Override display() para DataFrames ───────────────────────────────────────
+# Cuando el usuario hace display(df) o pone df al final de una celda,
+# se usa panel_inspect automáticamente.
+# Se guarda el display original para tipos no-DataFrame.
+try:
+    import builtins
+    import pandas as pd
+    from IPython.display import display as _ipython_display
+
+    _original_display = _ipython_display
+
+    def display(*args, **kwargs):
+        """
+        display() mejorado: DataFrames → panel_inspect (itables + Inspect sidebar).
+        Otros tipos → display original de IPython.
+        """
+        for obj in args:
+            if isinstance(obj, pd.DataFrame):
+                panel_inspect(obj)
+            else:
+                _original_display(obj, **kwargs)
+
+    # Inyectar en builtins para que funcione sin importar
+    builtins.display = display
+
+except Exception:
+    pass  # Silencioso — el display original sigue funcionando
+DW_EOF
+echo "==> [data-wrangler] panel_inspect + profile + display() override configurados ✓"
+
 echo "==> Iniciando Jupyter Lab..."
 
 # Ejecutar el comando original de Jupyter

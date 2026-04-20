@@ -71,6 +71,8 @@ if ! kernel_exists "llm"; then
     pip install --no-cache-dir \
         ipykernel \
         ipywidgets \
+        itables \
+        "ydata-profiling>=4.6.0" \
         transformers \
         accelerate \
         bitsandbytes \
@@ -105,6 +107,11 @@ else
         echo "==> [kernel:llm] Instalando ipywidgets en venv existente..."
         "$VENV_BASE/llm/bin/pip" install --no-cache-dir --quiet ipywidgets
     fi
+    if ! "$VENV_BASE/llm/bin/pip" show itables > /dev/null 2>&1; then
+        echo "==> [kernel:llm] Instalando itables + ydata-profiling en venv existente..."
+        "$VENV_BASE/llm/bin/pip" install --no-cache-dir --quiet \
+            itables "ydata-profiling>=4.6.0"
+    fi
     echo "==> [kernel:llm] Ya existe, saltando."
 fi
 
@@ -123,6 +130,8 @@ if ! kernel_exists "ia"; then
     pip install --no-cache-dir \
         ipykernel \
         ipywidgets \
+        itables \
+        "ydata-profiling>=4.6.0" \
         numpy \
         pandas \
         matplotlib \
@@ -159,6 +168,11 @@ else
         echo "==> [kernel:ia] Instalando ipywidgets en venv existente..."
         "$VENV_BASE/ia/bin/pip" install --no-cache-dir --quiet ipywidgets
     fi
+    if ! "$VENV_BASE/ia/bin/pip" show itables > /dev/null 2>&1; then
+        echo "==> [kernel:ia] Instalando itables + ydata-profiling en venv existente..."
+        "$VENV_BASE/ia/bin/pip" install --no-cache-dir --quiet \
+            itables "ydata-profiling>=4.6.0"
+    fi
     echo "==> [kernel:ia] Ya existe, saltando."
 fi
 
@@ -174,6 +188,8 @@ if ! kernel_exists "bigdata"; then
     pip install --no-cache-dir \
         ipykernel \
         ipywidgets \
+        itables \
+        "ydata-profiling>=4.6.0" \
         pyspark==3.5.3 \
         delta-spark==3.2.1 \
         pandas \
@@ -205,6 +221,11 @@ else
     if ! "$VENV_BASE/bigdata/bin/pip" show ipywidgets > /dev/null 2>&1; then
         echo "==> [kernel:bigdata] Instalando ipywidgets en venv existente..."
         "$VENV_BASE/bigdata/bin/pip" install --no-cache-dir --quiet ipywidgets
+    fi
+    if ! "$VENV_BASE/bigdata/bin/pip" show itables > /dev/null 2>&1; then
+        echo "==> [kernel:bigdata] Instalando itables + ydata-profiling en venv existente..."
+        "$VENV_BASE/bigdata/bin/pip" install --no-cache-dir --quiet \
+            itables "ydata-profiling>=4.6.0"
     fi
     echo "==> [kernel:bigdata] Ya existe, saltando."
 fi
