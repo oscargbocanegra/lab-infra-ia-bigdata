@@ -566,25 +566,40 @@ def _jv_run_modifying(prompt, original_code):
 
     # ── Extraer bloque de código de la respuesta ──────────────────────────
     raw_text = ''
+    extracted_code = None
+
     for out in output_area.outputs:
         if out.get('output_type') == 'display_data':
             data = out.get('data', {})
-            # jupyter-ai puede renderizar como text/html (Markdown → HTML)
-            # Intentamos primero markdown/plain; si no hay, stripear tags del HTML
             md_or_plain = data.get('text/markdown', '') or data.get('text/plain', '')
             if md_or_plain:
                 raw_text += md_or_plain
-            else:
-                html = data.get('text/html', '')
-                if html:
-                    import re as _re_html
-                    raw_text += _re_html.sub(r'<[^>]+>', '', html)
+            elif data.get('text/html', ''):
+                # jupyter-ai renderiza la respuesta como HTML; extraer el primer
+                # bloque <code> directamente en vez de stripear tags (el HTML
+                # no tiene backtick-fences, el regex no funcionaría sobre texto plano)
+                html = data['text/html']
+                code_blocks = re.findall(
+                    r'<code[^>]*>(.*?)</code>', html, re.DOTALL
+                )
+                if code_blocks:
+                    # Tomar el bloque más largo (suele ser el código completo)
+                    raw_code = max(code_blocks, key=len)
+                    raw_code = (
+                        raw_code
+                        .replace('&lt;', '<').replace('&gt;', '>')
+                        .replace('&amp;', '&').replace('&#39;', "'")
+                        .replace('&quot;', '"')
+                    )
+                    extracted_code = raw_code.strip()
         elif out.get('output_type') == 'stream':
             raw_text += out.get('text', '')
 
-    # Buscar bloque ```python ... ``` o ``` ... ```
-    matches = re.findall(r'```(?:python)?\n(.*?)```', raw_text, re.DOTALL)
-    extracted_code = matches[0].strip() if matches else None
+    # Extraer bloque ```python ... ``` de raw_text (cuando la respuesta llega
+    # como text/markdown o text/plain, no como HTML)
+    if not extracted_code and raw_text:
+        matches = re.findall(r'```(?:python)?\n(.*?)```', raw_text, re.DOTALL)
+        extracted_code = matches[0].strip() if matches else None
 
     status.value = '<span style="color:var(--jp-success-color1,#27ae60)">✅ Done</span>'
 
@@ -592,33 +607,47 @@ def _jv_run_modifying(prompt, original_code):
         # No encontró código limpio — solo mostrar la respuesta, sin preview
         return
 
-    # ── Preview con OK / ✕ ───────────────────────────────────────────────
-    preview_label = widgets.HTML(
-        value='<b style="font-size:12px;color:var(--jp-ui-font-color1,inherit)">'
-              '📋 Suggested code — insert as new cell?</b>'
+    # ── Preview estilo J.A.R.V.I.S — header + código + botones ─────────────
+    header = widgets.HTML(
+        value=(
+            '<div style="display:flex;align-items:center;justify-content:space-between;'
+            'background:var(--jp-layout-color2,#f5f5f5);'
+            'border-bottom:1px solid var(--jp-border-color2,#e0e0e0);'
+            'border-radius:6px 6px 0 0;padding:6px 10px;">'
+            '<span style="font-weight:700;font-size:12px;letter-spacing:.05em;'
+            'color:var(--jp-brand-color1,#4a90e2)">J.A.R.V.I.S</span>'
+            '<span style="font-size:11px;color:var(--jp-ui-font-color2,#888)">'
+            '📋 Suggested refactor — accept or discard</span>'
+            '</div>'
+        )
     )
     code_preview = widgets.Textarea(
         value=extracted_code,
-        layout=widgets.Layout(width='100%', height='160px'),
+        layout=widgets.Layout(width='100%', height='180px', border='none'),
     )
     ok_btn = widgets.Button(
-        description='✅ Insert cell',
+        description='✓',
         button_style='success',
-        layout=widgets.Layout(width='140px', height='32px'),
+        tooltip='Insert as new cell',
+        layout=widgets.Layout(width='36px', height='28px', min_width='36px'),
     )
     cancel_btn = widgets.Button(
-        description='✕ Discard',
+        description='✕',
         button_style='danger',
-        layout=widgets.Layout(width='110px', height='32px'),
+        tooltip='Discard suggestion',
+        layout=widgets.Layout(width='36px', height='28px', min_width='36px'),
     )
-    btn_row = widgets.HBox([ok_btn, cancel_btn], layout=widgets.Layout(gap='8px'))
+    btn_row = widgets.HBox(
+        [ok_btn, cancel_btn],
+        layout=widgets.Layout(gap='6px', padding='6px 10px'),
+    )
     preview_box = widgets.VBox(
-        [preview_label, code_preview, btn_row],
+        [header, code_preview, btn_row],
         layout=widgets.Layout(
-            border='1px solid var(--jp-brand-color2, #4a90e2)',
+            border='1px solid var(--jp-brand-color2,#4a90e2)',
             border_radius='6px',
-            padding='10px',
             margin='6px 0 0 0',
+            overflow='hidden',
         )
     )
     container.children = list(container.children) + [preview_box]
