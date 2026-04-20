@@ -22,10 +22,18 @@ version: "3.9"
 #   → Environment → JARVIS_MODEL → Update
 # ============================================================
 
+# ── CONFIG VERSIONING NOTE ───────────────────────────────────
+# Docker Swarm configs are IMMUTABLE — content cannot be updated,
+# only Labels can change. To deploy new script content, bump the
+# version suffix (v2 → v3, etc.) in ALL three places below:
+#   1. configs: section (top-level)
+#   2. configs: block inside jupyter_ogiovanni service
+#   3. configs: block inside jupyter_odavid service
+# ─────────────────────────────────────────────────────────────
 configs:
-  init_kernels:
+  init_kernels_v2:
     file: ./init-kernels.sh
-  entrypoint:
+  entrypoint_v2:
     file: ./entrypoint.sh
 
 networks:
@@ -80,10 +88,10 @@ services:
       - /srv/datalake/artifacts:/home/jovyan/artifacts
 
     configs:
-      - source: init_kernels
+      - source: init_kernels_v2
         target: /tmp/init-kernels.sh
         mode: 0755
-      - source: entrypoint
+      - source: entrypoint_v2
         target: /tmp/entrypoint.sh
         mode: 0755
 
@@ -171,10 +179,10 @@ services:
       - /srv/datalake/artifacts:/home/jovyan/artifacts
 
     configs:
-      - source: init_kernels
+      - source: init_kernels_v2
         target: /tmp/init-kernels.sh
         mode: 0755
-      - source: entrypoint
+      - source: entrypoint_v2
         target: /tmp/entrypoint.sh
         mode: 0755
 
