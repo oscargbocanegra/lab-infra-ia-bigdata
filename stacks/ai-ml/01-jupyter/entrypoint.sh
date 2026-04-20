@@ -692,22 +692,63 @@ def _jarvis_cell_transformer(lines):
         ]
 
 
-# ── Registrar en input_transformers_CLEANUP ───────────────────────────────────
-# CRÍTICO: cleanup corre ANTES del autocall de IPython.
-# Si se registra en input_transformers_post, el autocall convierte
-# `/jarvis msg` en `jarvis(msg)` antes de que este transformer lo vea.
+# ── Interceptar ANTES de los token transformers de IPython ────────────────────
+# RAÍZ DEL PROBLEMA: EscapedCommand es un *token transformer* que corre dentro
+# de input_transformer_manager.transform_cell() — ANTES de input_transformers_cleanup.
+# Por eso insert(0) en cleanup no sirve: la celda ya llega destruida.
+#
+# Solución: parchear input_transformer_manager.transform_cell directamente.
+# Ahí interceptamos /jarvis ANTES de que EscapedCommand la vea.
 try:
     import IPython as _ipython_mod
     _ip_shell = _ipython_mod.get_ipython()
     if _ip_shell is not None:
-        # Evitar duplicados si el startup se carga múltiples veces
-        _ip_shell.input_transformers_cleanup = [
-            t for t in _ip_shell.input_transformers_cleanup
-            if getattr(t, '__name__', '') != '_jarvis_cell_transformer'
-        ]
-        # CRÍTICO: insert(0) para correr ANTES de EscapedCommand (built-in de IPython)
-        # que convierte `/jarvis msg` → `jarvis(msg)` si se registra al final.
-        _ip_shell.input_transformers_cleanup.insert(0, _jarvis_cell_transformer)
+        _orig_transform_cell = _ip_shell.input_transformer_manager.transform_cell
+
+        def _jarvis_transform_cell_patch(cell):
+            stripped = cell.lstrip()
+            if stripped.lower().startswith('/jarvis'):
+                lines = cell.splitlines()
+                first = lines[0].strip()
+                raw_msg = first[len('/jarvis'):].strip()
+
+                # Expandir slash commands
+                msg = raw_msg
+                for cmd, _, expansion in _JARVIS_SLASH_COMMANDS:
+                    if raw_msg.lower().startswith(cmd):
+                        suffix = raw_msg[len(cmd):].strip()
+                        msg = expansion + (f". Context: {suffix}" if suffix else "")
+                        break
+
+                if not msg:
+                    msg = "Analyze and explain this code"
+
+                code = "\n".join(lines[1:]).strip()
+                if code:
+                    full_prompt = f"{msg}\n\n```python\n{code}\n```"
+                else:
+                    full_prompt = msg
+
+                if _jv_is_modifying(raw_msg):
+                    return (
+                        f"_jv_prompt = {repr(full_prompt)}\n"
+                        f"_jv_orig   = {repr(code)}\n"
+                        "_jv_run_modifying(_jv_prompt, _jv_orig)\n"
+                    )
+                else:
+                    return (
+                        f"_jv_inline_prompt = {repr(full_prompt)}\n"
+                        "get_ipython().run_cell_magic('JARVIS', '', _jv_inline_prompt)\n"
+                    )
+            return _orig_transform_cell(cell)
+
+        # Evitar duplicados si el startup se recarga
+        _jarvis_transform_cell_patch._is_jarvis_patch = True
+        if not getattr(
+            _ip_shell.input_transformer_manager.transform_cell,
+            '_is_jarvis_patch', False
+        ):
+            _ip_shell.input_transformer_manager.transform_cell = _jarvis_transform_cell_patch
 except Exception:
     pass  # Silencioso — no rompe nada si falla
 WIDGET_EOF
