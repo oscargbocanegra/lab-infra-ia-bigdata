@@ -163,79 +163,111 @@ WIDGET_STARTUP="$IPYTHON_STARTUP/01-jarvis-widget.py"
 cat > "$WIDGET_STARTUP" << 'WIDGET_EOF'
 # ── JARVIS Widget — neon Iron Man, estilo Fabric Copilot ─────────────────────
 # Uso:
-#   jarvis()         → muestra el panel
-#   jarvis_panel()   → alias largo
+#   jarvis            → muestra el panel (sin paréntesis)
+#   jarvis()          → también funciona
 #
 # Slash commands disponibles (tipear "/" para ver sugerencias):
 #   /explain   /fix   /comments   /optimize   /test   /refactor   /document
-# El input es editable — podés sobreescribir el comando con texto libre.
+# El panel abre con el input listo — sin click previo.
 # ─────────────────────────────────────────────────────────────────────────────
 
+import warnings as _warnings
+
 _JARVIS_SLASH_COMMANDS = [
-    ("/explain",   "Explain code",          "Explain this code in detail, step by step"),
-    ("/fix",       "Fix errors",            "Find and fix all bugs and errors in this code"),
-    ("/comments",  "Add comments",          "Add clear docstrings and inline comments to this code"),
-    ("/optimize",  "Optimize",              "Optimize this code for performance and readability"),
-    ("/test",      "Write tests",           "Write comprehensive unit tests for this code using pytest"),
-    ("/refactor",  "Refactor",              "Refactor this code following SOLID and clean code principles"),
-    ("/document",  "Document",              "Write complete API documentation for this function or class"),
+    ("/explain",   "Explain code",    "Explain this code in detail, step by step"),
+    ("/fix",       "Fix errors",      "Find and fix all bugs and errors in this code"),
+    ("/comments",  "Add comments",    "Add clear docstrings and inline comments to this code"),
+    ("/optimize",  "Optimize",        "Optimize this code for performance and readability"),
+    ("/test",      "Write tests",     "Write comprehensive unit tests for this code using pytest"),
+    ("/refactor",  "Refactor",        "Refactor this code following SOLID and clean code principles"),
+    ("/document",  "Document",        "Write complete API documentation for this function or class"),
 ]
 
+# ── Iron Man helmet SVG ───────────────────────────────────────────────────────
+# Casco Mark XLVI: forma trapezoidal, faceplate con mentón,
+# ojos triangulares dorados, reactor arc en el centro.
 _JARVIS_IRON_MAN_SVG = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="36" height="36">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="52" height="52">
   <defs>
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#0a1628;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#020810;stop-opacity:1"/>
+    <radialGradient id="jBg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1a0505"/>
+      <stop offset="100%" stop-color="#0a0000"/>
     </radialGradient>
-    <filter id="neonGlow">
-      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+    <radialGradient id="jFace" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c0392b"/>
+      <stop offset="100%" stop-color="#7b0f0f"/>
+    </radialGradient>
+    <filter id="jGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="jGoldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-  <!-- fondo circular -->
-  <circle cx="40" cy="40" r="38" fill="url(#bgGrad)" stroke="#00d4ff" stroke-width="1.5"/>
-  <!-- casco exterior -->
-  <path d="M40 8 C24 8 16 20 16 32 L16 50 C16 62 26 72 40 72
-           C54 72 64 62 64 50 L64 32 C64 20 56 8 40 8Z"
-        fill="#0d2040" stroke="#00d4ff" stroke-width="1.2" filter="url(#neonGlow)"/>
-  <!-- placa frontal -->
-  <path d="M27 34 L27 50 C27 57 33 64 40 64 C47 64 53 57 53 50 L53 34Z"
-        fill="#071830" stroke="#00aaff" stroke-width="0.8"/>
-  <!-- visor izquierdo -->
-  <path d="M18 30 L28 28 L28 38 L18 40Z"
-        fill="#00d4ff" opacity="0.85" filter="url(#neonGlow)"/>
-  <!-- visor derecho -->
-  <path d="M62 30 L52 28 L52 38 L62 40Z"
-        fill="#00d4ff" opacity="0.85" filter="url(#neonGlow)"/>
-  <!-- brillo visor izq -->
-  <path d="M19 31 L26 30 L26 32 L19 33Z" fill="white" opacity="0.5"/>
-  <!-- brillo visor der -->
-  <path d="M61 31 L54 30 L54 32 L61 33Z" fill="white" opacity="0.5"/>
-  <!-- reactor pecho (círculo central neon) -->
-  <circle cx="40" cy="54" r="5" fill="none" stroke="#00d4ff" stroke-width="1.2"
-          filter="url(#neonGlow)"/>
-  <circle cx="40" cy="54" r="2.5" fill="#00d4ff" opacity="0.9"/>
-  <!-- líneas HUD decorativas -->
-  <line x1="28" y1="46" x2="28" y2="50" stroke="#00d4ff" stroke-width="0.7" opacity="0.6"/>
-  <line x1="52" y1="46" x2="52" y2="50" stroke="#00d4ff" stroke-width="0.7" opacity="0.6"/>
+
+  <!-- fondo circular oscuro -->
+  <circle cx="50" cy="50" r="48" fill="url(#jBg)" stroke="#8b0000" stroke-width="1"/>
+
+  <!-- casco completo: forma trapezoidal tope ancho, mentón estrecho -->
+  <path d="M22 18 L78 18 L84 38 L84 62 L72 80 L50 86 L28 80 L16 62 L16 38 Z"
+        fill="url(#jFace)" stroke="#600000" stroke-width="1.2"/>
+
+  <!-- placa frente / franja central dorada vertical -->
+  <path d="M44 18 L56 18 L58 44 L50 46 L42 44 Z"
+        fill="#c8860a" stroke="#f0a020" stroke-width="0.6"/>
+
+  <!-- mejilla izquierda (más oscura) -->
+  <path d="M22 18 L44 18 L42 44 L30 52 L16 44 L16 38 Z"
+        fill="#9b1e1e" stroke="#600000" stroke-width="0.8"/>
+
+  <!-- mejilla derecha -->
+  <path d="M56 18 L78 18 L84 38 L84 44 L70 52 L58 44 Z"
+        fill="#9b1e1e" stroke="#600000" stroke-width="0.8"/>
+
+  <!-- ojo izquierdo — trapecio dorado brillante -->
+  <path d="M20 30 L40 26 L40 40 L20 44 Z"
+        fill="#f0c030" filter="url(#jGoldGlow)" opacity="0.95"/>
+  <!-- brillo interior ojo izq -->
+  <path d="M22 32 L38 28 L38 34 L22 38 Z"
+        fill="white" opacity="0.35"/>
+
+  <!-- ojo derecho -->
+  <path d="M80 30 L60 26 L60 40 L80 44 Z"
+        fill="#f0c030" filter="url(#jGoldGlow)" opacity="0.95"/>
+  <!-- brillo interior ojo der -->
+  <path d="M78 32 L62 28 L62 34 L78 38 Z"
+        fill="white" opacity="0.35"/>
+
+  <!-- faceplate inferior / mentón -->
+  <path d="M30 52 L50 46 L70 52 L72 80 L50 86 L28 80 Z"
+        fill="#871515" stroke="#600000" stroke-width="0.8"/>
+
+  <!-- línea de separación faceplate (ranura horizontal) -->
+  <line x1="22" y1="52" x2="78" y2="52" stroke="#600000" stroke-width="1.5"/>
+
+  <!-- reactor arc en el mentón -->
+  <circle cx="50" cy="67" r="6" fill="none" stroke="#00d4ff" stroke-width="1.5"
+          filter="url(#jGlow)"/>
+  <circle cx="50" cy="67" r="3" fill="#00d4ff" opacity="0.9" filter="url(#jGlow)"/>
+
+  <!-- pequeños detalles laterales (ventilaciones) -->
+  <rect x="17" y="56" width="8" height="2" rx="1" fill="#600000"/>
+  <rect x="17" y="60" width="6" height="2" rx="1" fill="#600000"/>
+  <rect x="75" y="56" width="8" height="2" rx="1" fill="#600000"/>
+  <rect x="77" y="60" width="6" height="2" rx="1" fill="#600000"/>
 </svg>
 """
 
-def jarvis_panel():
+def _jarvis_show():
     """
-    Panel JARVIS estilo Iron Man / Fabric Copilot.
-
-    Click en el botón neon → abre el input.
-    Tipear '/' → muestra slash commands seleccionables.
-    El input es editable — sobreescribí el comando con tu propio texto.
-    Enter o [Send] → ejecuta.
-
-    Slash commands: /explain /fix /comments /optimize /test /refactor /document
+    Muestra el panel JARVIS. El panel abre directamente con el input visible.
+    Tipear '/' → slash commands. Enter o [Send ↵] → ejecuta.
     """
     try:
         import ipywidgets as widgets
-        from IPython.display import display as _display
+        from IPython.display import display as _display, HTML as _HTML
         import IPython
 
         _ip = IPython.get_ipython()
@@ -243,69 +275,67 @@ def jarvis_panel():
             print("Requires an IPython kernel.")
             return
 
-        # ── Toggle button: neon SVG + widgets.Button superpuesto ─────────
-        # widgets.HTML para el visual, widgets.Button (oculto pero clickeable)
-        # montados en un Stack — el Button captura el click, el SVG es decorativo.
-        # PERO: widgets.HTML no dispara eventos Python.
-        # Solución limpia: widgets.Button con icon vacío + HTML del SVG como
-        # descripción via layout trick. Usamos widgets.Button nativo.
+        # ── CSS: texto blanco/cyan en los chips ──────────────────────────
+        _display(_HTML("""
+        <style>
+          .jarvis-chip .widget-label { color: #00d4ff !important; font-size: 13px !important; }
+          .jarvis-chip button { text-align: left !important; }
+        </style>
+        """))
 
-        toggle_btn = widgets.Button(
-            description="",
-            tooltip="Ask JARVIS",
-            layout=widgets.Layout(
-                width="60px", height="60px",
-                border="2px solid #00d4ff",
-                border_radius="50%",
-                padding="0",
-            ),
-        )
-        toggle_btn.style.button_color = "#050520"
-
-        # Overlay el SVG encima del botón vía HTML widget al lado
+        # ── Icono (HTML decorativo, no botón) ────────────────────────────
         icon_html = widgets.HTML(
-            value=f'<div style="pointer-events:none;margin-left:-66px;margin-top:2px">'
-                  f'{_JARVIS_IRON_MAN_SVG}</div>'
+            value=f'<div style="line-height:0">{_JARVIS_IRON_MAN_SVG}</div>',
+            layout=widgets.Layout(width="58px", flex="0 0 58px"),
         )
 
-        # ── Placeholder "Ask JARVIS..." con hint de slash ─────────────────
-        hint_html = widgets.HTML(
-            value='<span style="color:#4a9eff;font-size:13px;margin-left:6px">'
-                  'Ask JARVIS... or type <b style="color:#00d4ff">/</b> for commands</span>',
-            layout=widgets.Layout(display="none"),
+        # ── Label título ─────────────────────────────────────────────────
+        title_html = widgets.HTML(
+            value='<span style="color:#00d4ff;font-size:15px;font-weight:600;'
+                  'letter-spacing:2px;font-family:monospace">J.A.R.V.I.S</span>'
+                  '<span style="color:#4a7a9b;font-size:11px;margin-left:8px">'
+                  'type / for commands · Enter to send</span>',
         )
 
-        # ── Input de texto ────────────────────────────────────────────────
+        # ── Botón cerrar (top-right) ──────────────────────────────────────
+        close_btn = widgets.Button(
+            description="✕",
+            layout=widgets.Layout(width="30px", height="30px", border_radius="4px"),
+        )
+        close_btn.style.button_color = "#2a0a0a"
+
+        # ── Input de texto — visible desde el inicio ──────────────────────
         prompt_input = widgets.Text(
             placeholder='Ask JARVIS... (type "/" for commands)',
-            layout=widgets.Layout(
-                width="100%", height="36px", display="none",
-            ),
+            layout=widgets.Layout(flex="1 1 auto", height="36px"),
         )
+
+        # ── Send button ──────────────────────────────────────────────────
+        send_btn = widgets.Button(
+            description="Send ↵",
+            layout=widgets.Layout(width="80px", height="36px", border_radius="6px"),
+        )
+        send_btn.style.button_color = "#003d5c"
 
         # ── Slash command chips ───────────────────────────────────────────
         cmd_chips = []
-        for cmd, label, _ in _JARVIS_SLASH_COMMANDS:
+        for cmd, label, expansion in _JARVIS_SLASH_COMMANDS:
             chip = widgets.Button(
                 description=f"{cmd}  —  {label}",
                 layout=widgets.Layout(
-                    width="100%", height="30px",
+                    width="100%", height="34px",
                     border_radius="0px",
-                    border="none",
-                    border_bottom="1px solid #0a2040",
-                    text_align="left",
-                    padding="0 12px",
+                    padding="0 14px",
                 ),
             )
-            chip.style.button_color = "#071828"
+            chip.style.button_color = "#0a1a2e"
+            chip.add_class("jarvis-chip")
             chip._jarvis_cmd = cmd
-            chip._jarvis_full = _  # full prompt expansion
 
             def _make_cmd_click(c):
                 def _on_cmd(b):
                     prompt_input.value = c._jarvis_cmd + " "
-                    _set_cmd_box_visible(False)
-                    prompt_input.focus()
+                    cmd_box.layout.display = "none"
                 return _on_cmd
 
             chip.on_click(_make_cmd_click(chip))
@@ -315,46 +345,25 @@ def jarvis_panel():
             cmd_chips,
             layout=widgets.Layout(
                 display="none",
-                border="1px solid #00d4ff",
+                border="1px solid #1a3a5c",
                 border_radius="8px",
                 overflow="hidden",
                 margin="4px 0 0 0",
-                background_color="#050d1a",
+                background_color="#060f1e",
             ),
         )
-
-        def _set_cmd_box_visible(visible):
-            cmd_box.layout.display = "" if visible else "none"
 
         # Mostrar/ocultar cmd_box cuando se tipea "/"
         def _on_input_change(change):
             val = change["new"]
-            if val == "/":
-                _set_cmd_box_visible(True)
-            elif not val.startswith("/"):
-                _set_cmd_box_visible(False)
+            if val == "/" or val.startswith("/"):
+                cmd_box.layout.display = ""
+            else:
+                cmd_box.layout.display = "none"
 
         prompt_input.observe(_on_input_change, names="value")
 
-        # ── Send + Close ──────────────────────────────────────────────────
-        send_btn = widgets.Button(
-            description="Send ↵",
-            layout=widgets.Layout(
-                display="none", width="80px", height="36px",
-                border_radius="6px",
-            ),
-        )
-        send_btn.style.button_color = "#003d5c"
-
-        close_btn = widgets.Button(
-            description="✕",
-            layout=widgets.Layout(
-                display="none", width="36px", height="36px",
-                border_radius="6px",
-            ),
-        )
-        close_btn.style.button_color = "#1a0a0a"
-
+        # ── Status + Output ───────────────────────────────────────────────
         status_html = widgets.HTML(value="", layout=widgets.Layout(display="none"))
 
         output_area = widgets.Output(
@@ -369,37 +378,21 @@ def jarvis_panel():
             )
         )
 
-        _open = [False]
-
-        # ── Toggle ────────────────────────────────────────────────────────
-        def _on_toggle(b):
-            _open[0] = not _open[0]
-            show = "" if _open[0] else "none"
-            prompt_input.layout.display = show
-            send_btn.layout.display = show
-            close_btn.layout.display = show
-            hint_html.layout.display = "none"
-            if _open[0]:
-                _set_cmd_box_visible(True)  # mostrar slash commands al abrir
-
-        toggle_btn.on_click(_on_toggle)
-
         # ── Send logic ────────────────────────────────────────────────────
         def _do_send(_):
             raw = prompt_input.value.strip()
             if not raw:
                 return
 
-            # Expandir slash command → prompt completo
             full_prompt = raw
-            for cmd, _, expansion in _JARVIS_SLASH_COMMANDS:
+            for cmd, _, exp in _JARVIS_SLASH_COMMANDS:
                 if raw.startswith(cmd):
                     suffix = raw[len(cmd):].strip()
-                    full_prompt = expansion + (f". Context: {suffix}" if suffix else "")
+                    full_prompt = exp + (f". Context: {suffix}" if suffix else "")
                     break
 
             prompt_input.value = ""
-            _set_cmd_box_visible(False)
+            cmd_box.layout.display = "none"
             output_area.layout.display = ""
             status_html.value = '<span style="color:#00d4ff">⚡ Processing...</span>'
             status_html.layout.display = ""
@@ -415,51 +408,70 @@ def jarvis_panel():
             status_html.value = '<span style="color:#27ae60">✅ Done</span>'
 
         send_btn.on_click(_do_send)
-        prompt_input.on_submit(_do_send)
+        # Suprimir DeprecationWarning de on_submit — sigue funcionando correctamente
+        with _warnings.catch_warnings():
+            _warnings.simplefilter("ignore", DeprecationWarning)
+            prompt_input.on_submit(_do_send)
 
         # ── Close ─────────────────────────────────────────────────────────
+        panel_ref = []  # referencia al panel para ocultar
+
         def _on_close(_):
-            for w in [prompt_input, send_btn, close_btn,
-                      cmd_box, status_html, output_area]:
-                w.layout.display = "none"
-            _open[0] = False
+            if panel_ref:
+                panel_ref[0].layout.display = "none"
 
         close_btn.on_click(_on_close)
 
         # ── Layout final ──────────────────────────────────────────────────
         header_row = widgets.HBox(
-            [toggle_btn, icon_html, hint_html],
-            layout=widgets.Layout(align_items="center"),
+            [icon_html, title_html, close_btn],
+            layout=widgets.Layout(
+                align_items="center",
+                justify_content="space-between",
+                margin="0 0 8px 0",
+            ),
         )
         input_row = widgets.HBox(
-            [prompt_input, send_btn, close_btn],
-            layout=widgets.Layout(gap="6px", margin="6px 0 0 0",
-                                  align_items="center"),
+            [prompt_input, send_btn],
+            layout=widgets.Layout(gap="6px", align_items="center"),
         )
         panel = widgets.VBox(
             [header_row, input_row, cmd_box, status_html, output_area],
             layout=widgets.Layout(
                 border="1px solid #00d4ff",
                 border_radius="12px",
-                padding="10px 12px",
-                background_color="#030d1a",
+                padding="12px 14px",
+                background_color="#030912",
                 max_width="900px",
-                box_shadow="0 0 18px rgba(0,212,255,0.25)",
+                box_shadow="0 0 22px rgba(0,212,255,0.2)",
             ),
         )
+        panel_ref.append(panel)
         _display(panel)
 
     except ImportError:
         print("ipywidgets not available. Use %%JARVIS directly.")
     except Exception as exc:
-        print(f"jarvis_panel error: {exc}")
+        print(f"JARVIS error: {exc}")
         print("Use %%JARVIS directly.")
 
 
-# ── Alias ─────────────────────────────────────────────────────────────────────
-jarvis = jarvis_panel
+# ── jarvis: funciona SIN paréntesis (y también CON) ──────────────────────────
+# Cuando IPython evalúa un nombre sin llamarlo, invoca _ipython_display_().
+# Cuando se llama como función, __call__ delega a _jarvis_show().
+class _JARVISProxy:
+    """Proxy que permite usar `jarvis` o `jarvis()` indistintamente."""
+    def _ipython_display_(self, **kwargs):
+        _jarvis_show()
+    def __call__(self, *args, **kwargs):
+        _jarvis_show()
+    def __repr__(self):
+        _jarvis_show()
+        return ""
+
+jarvis = _JARVISProxy()
 WIDGET_EOF
-echo "==> [jarvis] Widget Iron Man Copilot (v2 — Python-native) configurado ✓"
+echo "==> [jarvis] Widget Iron Man Copilot (v3 — sin paréntesis, panel abierto) configurado ✓"
 
 # ── Data Wrangler: display() inteligente estilo Fabric ────────
 # Archivo de startup 02-data-wrangler.py:
