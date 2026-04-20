@@ -161,26 +161,62 @@ jobs:
       # Jupyter uses a custom image (giovannotti/lab-jupyter) that bakes in all
       # server extensions — no pip install at boot. Stack deploy updates the
       # Docker configs (entrypoint.sh + init-kernels.sh) and triggers a restart.
+      #
+      # WHY we inject the SHA tag via sed:
+      #   docker stack deploy with :latest won't re-pull if the tag name is the
+      #   same as what's already running. Injecting the sha-<commit> tag forces
+      #   Swarm to detect a new image on every deploy, eliminating the race
+      #   condition between config updates and image updates.
       - name: Deploy jupyter stack
         env:
           LAB_JARVIS_MODEL: ${{ vars.LAB_JARVIS_MODEL }}
         run: |
-          docker stack deploy \
-            --with-registry-auth \
-            --prune \
-            -c stacks/ai-ml/01-jupyter/stack.yml \
-            jupyter
-          # Force image pull on both jupyter services so the new :latest is used.
-          # docker stack deploy alone won't re-pull if the tag name hasn't changed.
-          docker service update --force --image giovannotti/lab-jupyter:latest jupyter_jupyter_ogiovanni || true
-          docker service update --force --image giovannotti/lab-jupyter:latest jupyter_jupyter_odavid   || true
+          SHA_TAG="giovannotti/lab-jupyter:sha-${{ steps.tags.outputs.short_sha }}"
+          sed "s|giovannotti/lab-jupyter:latest|${SHA_TAG}|g" \
+            stacks/ai-ml/01-jupyter/stack.yml | \
+            docker stack deploy \
+              --with-registry-auth \
+              --prune \
+              -c - \
+              jupyter
 
       # -----------------------------------------------------------------------
-      # 6. Wait for services to stabilize + health check
-      #    Swarm rolling updates take a few seconds
+      # 6. Wait for all services to converge
+      #    Polls each service until all replicas reach Running state.
+      #    Fails loudly if convergence doesn't happen within 3 minutes.
       # -----------------------------------------------------------------------
-      - name: Wait for Swarm services to stabilize
-        run: sleep 20
+      - name: Wait for services to converge
+        run: |
+          wait_for_service() {
+            local svc=$1
+            local timeout=180
+            local elapsed=0
+            echo "⏳ Waiting for $svc to converge..."
+            while [ $elapsed -lt $timeout ]; do
+              # Count tasks in Running vs desired state
+              running=$(docker service ps "$svc" \
+                --filter desired-state=running \
+                --format "{{.CurrentState}}" 2>/dev/null \
+                | grep -c "^Running" || true)
+              desired=$(docker service inspect "$svc" \
+                --format "{{.Spec.Mode.Replicated.Replicas}}" 2>/dev/null || echo "0")
+              if [ "$running" -ge "$desired" ] && [ "$desired" -gt "0" ]; then
+                echo "✅ $svc converged ($running/$desired running)"
+                return 0
+              fi
+              echo "   $svc: $running/$desired running — waiting..."
+              sleep 5
+              elapsed=$((elapsed + 5))
+            done
+            echo "❌ $svc did not converge in ${timeout}s"
+            docker service ps "$svc" --no-trunc
+            return 1
+          }
+
+          wait_for_service rag-api_rag-api
+          wait_for_service agent_agent
+          wait_for_service jupyter_jupyter_ogiovanni
+          wait_for_service jupyter_jupyter_odavid
 
       - name: Health check — rag-api
         run: |
@@ -199,6 +235,22 @@ jobs:
             --insecure \
             https://agent.sexydad/health | jq .
           echo "✅ agent is healthy"
+
+      - name: Health check — jupyter
+        run: |
+          echo "Checking running image on jupyter services..."
+          SHA_TAG="sha-${{ steps.tags.outputs.short_sha }}"
+          for svc in jupyter_jupyter_ogiovanni jupyter_jupyter_odavid; do
+            img=$(docker service inspect "$svc" \
+              --format "{{.Spec.TaskTemplate.ContainerSpec.Image}}" 2>/dev/null || echo "unknown")
+            echo "  $svc → $img"
+            if echo "$img" | grep -q "$SHA_TAG"; then
+              echo "  ✅ $svc is running the expected image"
+            else
+              echo "  ❌ $svc is NOT running sha-${SHA_TAG} (got: $img)"
+              exit 1
+            fi
+          done
 
       # -----------------------------------------------------------------------
       # 7. Summary — printed in GitHub Actions UI
