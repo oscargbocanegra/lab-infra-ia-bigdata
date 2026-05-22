@@ -33,32 +33,117 @@
 
 ---
 
-## 📌 Overview
+## Why this project matters
 
-This repository is a **fully reproducible Infrastructure-as-Code** definition for a 2-node bare-metal **Docker Swarm** cluster purpose-built for AI, Machine Learning, and Big Data experimentation.
+This repository is a **real, reproducible AI + Big Data platform**, not just a collection of containers or isolated experiments.
 
-Every component is production-grade: secrets management via Docker Swarm Secrets (zero passwords in code), TLS on all endpoints, LAN whitelist, GPU-accelerated inference, and a complete **Medallion Architecture** data pipeline (Bronze → Silver → Gold) using **Apache Spark + Delta Lake + MinIO**.
+It combines **LLM inference, RAG, vector search, distributed processing, medallion data pipelines, orchestration, observability, and secure infrastructure** into a single self-hosted environment designed to behave like a production-style lab.
 
-> **30 services running — 100% operational.** Deploys from scratch in one sitting.
-
-### What makes this lab special
-
-| Capability | Implementation |
-|-----------|---------------|
-| 🤖 **Local LLM inference** | Ollama latest on RTX 2080 Ti (11 GB VRAM), gemma4:26b MoE — function calling + thinking mode |
-| 💬 **Chat UI + RAG** | Open WebUI v0.6.5 — multi-model chat with document knowledge bases |
-| 🔍 **Vector search** | Qdrant v1.13 — semantic embeddings + ANN search for RAG pipelines |
-| 🧪 **AI-powered notebooks** | JupyterLab with JARVIS Copilot: `/jarvis` inline transformer + `%%JARVIS` magic + Iron Man widget + Data Wrangler |
-| ⚡ **Distributed processing** | Apache Spark 3.5 cluster (Master + Worker, 10 CPUs / 14 GB RAM) |
-| 🏅 **Medallion data pipeline** | Bronze (raw) → Silver (Delta Lake ACID) → Gold (Delta Lake KPIs) |
-| 🔒 **Security by default** | Docker Swarm Secrets + BasicAuth + LAN-only whitelist + TLS |
-| 🔄 **Auto-recovery** | All services with `restart_policy: any` — survives full reboot |
-| 🧑‍💻 **Multi-user isolation** | Two independent JupyterLab instances (uid-isolated, GPU-shared) |
-| 📦 **Pure IaC** | 100% declarative stacks — reproducible deploy from zero |
+The goal is to explore how **AI systems and modern data platforms** can coexist in one coherent architecture with strong operational discipline.
 
 ---
 
-## 📐 Architecture
+## At a glance
+
+- **2-node bare-metal cluster**
+- **30 running services**
+- **GPU-enabled local LLM inference**
+- **Apache Spark + Delta Lake + MinIO medallion pipeline**
+- **Airflow orchestration**
+- **Qdrant vector search + RAG API**
+- **Open WebUI for multi-model chat**
+- **Prometheus + Grafana + OpenSearch observability**
+- **Docker Swarm Secrets, TLS, and LAN whitelist**
+- **GitHub Actions CI/CD + reproducible deployment**
+
+> **Outcome:** a portfolio-grade engineering platform for experimenting with AI workloads, Big Data pipelines, and infra-heavy system design.
+
+---
+
+## Core capabilities
+
+| Area | What’s included |
+|---|---|
+| **LLM Inference** | Ollama running local models with GPU acceleration |
+| **RAG & Retrieval** | Qdrant vector database + FastAPI RAG API + document workflows |
+| **AI User Experience** | Open WebUI for multi-model chat and knowledge interactions |
+| **Data Engineering** | Spark cluster + Delta Lake + MinIO for Bronze/Silver/Gold pipelines |
+| **Orchestration** | Apache Airflow for scheduling, evaluation, and workflow automation |
+| **Experimentation** | JupyterLab environments for notebooks, prototyping, and AI workflows |
+| **Observability** | Prometheus, Grafana, OpenSearch, dashboards, and service visibility |
+| **Security** | TLS, LAN restrictions, secrets management, basic auth, isolated access |
+| **Infrastructure as Code** | Declarative stacks and documented host configuration for reproducibility |
+
+---
+
+## What makes this repo different
+
+Most public AI repositories focus on:
+
+- notebooks,
+- isolated demos,
+- model calls,
+- or single-purpose examples.
+
+This project focuses on **system integration**.
+
+It brings together:
+
+- **AI application infrastructure**
+- **Big Data processing**
+- **workflow orchestration**
+- **observability**
+- **security**
+- **reproducible operations**
+
+That makes it closer to a **real engineering platform** than to a tutorial repository.
+
+---
+
+## Engineering signals
+
+This repository includes strong technical and operational signals:
+
+- documented architecture
+- ADRs (Architecture Decision Records)
+- CI/CD workflows
+- automated tests
+- runbooks
+- host-level configuration references
+- verification and hardening scripts
+- stack separation by domain
+
+These elements matter because they show not only *what runs*, but also *how the platform is operated, maintained, and reasoned about*.
+
+---
+
+## Quick navigation
+
+If you want to understand the project quickly, start here:
+
+1. **`docs/architecture/ARCHITECTURE.md`** — overall system design
+2. **`docs/adrs/`** — key technical decisions and tradeoffs
+3. **`stacks/`** — deployable services grouped by domain
+4. **`docs/runbooks/`** — operational workflows and maintenance
+5. **`notebooks/lab_demo.ipynb`** — practical experimentation entry point
+
+---
+
+## Architecture overview
+
+This platform is split across two physical nodes:
+
+### `master1` — control plane
+Hosts access, orchestration, observability, and lightweight coordination services.
+
+### `master2` — compute, storage, and GPU
+Hosts GPU workloads, stateful services, notebooks, and heavy processing components.
+
+This separation keeps the control plane stable while concentrating high-I/O and accelerated workloads on the stronger machine.
+
+---
+
+## Full technical architecture
 
 ### Full Stack Overview
 
@@ -254,6 +339,21 @@ Data Sources (CSV, JSON, APIs, DB exports)
 | `lab-notebooks` | Dev | `.ipynb` | Jupyter | Jupyter |
 
 **Why Delta Lake on Silver and Gold?** ACID transactions (no corrupt tables on job failure), time travel (`VERSION AS OF N`), schema evolution, upserts via `MERGE`, and compaction (`OPTIMIZE`).
+
+---
+
+## Repository structure
+
+```text
+docs/            Architecture, ADRs, runbooks, roadmap
+envs/            Example environment configuration
+notebooks/       Demo and experimentation notebooks
+scripts/         Hardening, diagnostics, observability, verification
+stacks/          Deployable services grouped by domain
+tests/           Validation and automated checks
+pyproject.toml   Python project configuration
+.github/         CI/CD automation
+```
 
 ---
 
@@ -642,6 +742,23 @@ The script verifies:
 - **Internal domain**: `*.sexydad` resolved via `/etc/hosts` on LAN clients
 - **Auto-restart on reboot**: every service uses `restart_policy: condition: any`
 - **Medallion Architecture**: Bronze (raw) → Silver (Delta Lake ACID) → Gold (Delta Lake aggregated)
+
+---
+
+## Portfolio context
+
+This repository is one of the main flagship projects in my public portfolio around:
+
+- AI engineering
+- Big Data platforms
+- self-hosted infrastructure
+- production-style experimentation environments
+
+If you're interested in AI systems, data platforms, or infra-heavy engineering work, feel free to explore the repository and connect:
+
+- GitHub: [@oscargbocanegra](https://github.com/oscargbocanegra)
+- Portfolio: [oscargbocanegra.github.io](https://oscargbocanegra.github.io/)
+- LinkedIn: [oscargbocanegra](https://www.linkedin.com/in/oscargbocanegra/)
 
 ---
 
