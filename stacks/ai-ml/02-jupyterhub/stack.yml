@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  jupyterhub:
+    image: giovannotti/lab-jupyterhub:sha-0cbf11c
+    hostname: jupyterhub
+
+    environment:
+      JUPYTERHUB_DB_HOST: postgres
+      JUPYTERHUB_DB_PORT: "5432"
+      JUPYTERHUB_DB_NAME: jupyterhub
+      JUPYTERHUB_DB_USER: jupyterhub
+      JUPYTERHUB_DB_PASSWORD_FILE: /run/secrets/jupyterhub_db_password
+      JUPYTERHUB_COOKIE_SECRET_FILE: /run/secrets/jupyterhub_cookie_secret
+      JUPYTERHUB_HUB_CONNECT_URL: http://jupyterhub:8081
+      JUPYTERHUB_NETWORK_NAME: internal
+      JUPYTERHUB_SINGLEUSER_IMAGE: giovannotti/lab-jupyter:sha-0cbf11c
+      JUPYTERHUB_LOG_LEVEL: INFO
+
+    secrets:
+      - jupyterhub_cookie_secret
+      - jupyterhub_db_password
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/fastdata/jupyterhub/hub:/srv/jupyterhub/data
+
+    networks:
+      - public
+      - internal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == master1
+          - node.role == manager
+
+      resources:
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+        limits:
+          cpus: "1.00"
+          memory: 2G
+
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+        monitor: 60s
+
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.jupyterhub.rule=Host(`jupyterhub.sexydad`)
+        - traefik.http.routers.jupyterhub.entrypoints=web
+        - traefik.http.services.jupyterhub.loadbalancer.server.port=8000
+
+networks:
+  public:
+    external: true
+
+  internal:
+    external: true
+
+secrets:
+  jupyterhub_cookie_secret:
+    external: true
+
+  jupyterhub_db_password:
+    external: true
