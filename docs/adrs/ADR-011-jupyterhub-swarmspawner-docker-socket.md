@@ -200,3 +200,25 @@ Negativas:
 - validar asignación GPU;
 - automatizar backup y restore;
 - ejecutar pruebas periódicas de restauración.
+
+## Evidencia de runtime NVIDIA
+
+La implementación inicial usa el runtime NVIDIA predeterminado de `master2`.
+
+Se validó que:
+
+- la RTX 2080 Ti es visible en el host;
+- la imagen single-user accede a la GPU;
+- los Jupyter legacy ejecutados como servicios Swarm acceden a la GPU;
+- `master2` posee la etiqueta `gpu=nvidia`;
+- `master2` no declara Generic Resources para GPU.
+
+Los servidores single-user declaran:
+
+```text
+NVIDIA_VISIBLE_DEVICES=0
+NVIDIA_DRIVER_CAPABILITIES=compute,utility
+CUDA_VISIBLE_DEVICES=0
+```
+
+Esta decisión deberá reevaluarse si se incorporan varias GPU o scheduling concurrente con aislamiento estricto.

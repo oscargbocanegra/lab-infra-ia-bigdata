@@ -237,3 +237,16 @@ No ejecutar `docker stack rm`, borrar secrets, bases, rutas o backups sin la con
 
 - ADR: `docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md`.
 - Runbook: `docs/runbooks/JUPYTERHUB_SWARM.md`.
+
+## Validación de runtime GPU y DNS
+
+La validación previa al despliegue confirmó:
+
+- `master2` utiliza el runtime Docker `nvidia` como predeterminado;
+- los servicios Jupyter legacy acceden correctamente a la RTX 2080 Ti;
+- la imagen single-user ejecuta `nvidia-smi`;
+- los servidores dinámicos usan `NVIDIA_VISIBLE_DEVICES=0`;
+- las capacidades autorizadas son `compute,utility`;
+- los aliases internos `postgres`, `ollama` y `spark_master` resuelven y aceptan conexión dentro de la red `internal`.
+
+La asignación GPU depende del placement en `master2`, del runtime NVIDIA del nodo y de las variables NVIDIA. El nodo no utiliza actualmente Generic Resources de Swarm para la GPU.

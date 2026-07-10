@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm
+FROM python:3.11-slim-bookworm@sha256:f5cf0344c9886ff24d34797578d5d7dd6e8911ae0fe5962bb55d0f89603ec361
 
 LABEL org.opencontainers.image.title="Lab JupyterHub"
 LABEL org.opencontainers.image.description="JupyterHub control plane for Docker Swarm"
@@ -23,9 +23,10 @@ RUN apt-get update \
 WORKDIR /srv/jupyterhub
 
 COPY requirements.txt /srv/jupyterhub/requirements.txt
+COPY requirements.lock /srv/jupyterhub/requirements.lock
 
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --requirement /srv/jupyterhub/requirements.txt
+RUN python -m pip install --upgrade pip==26.1.2 \
+    && python -m pip install --requirement /srv/jupyterhub/requirements.lock
 
 COPY entrypoint.sh /usr/local/bin/jupyterhub-entrypoint
 COPY jupyterhub_config.py /srv/jupyterhub/jupyterhub_config.py

@@ -260,3 +260,17 @@ El cambio puede cerrarse únicamente con evidencia de:
 - servicios legacy preservados;
 - stack, ADR y runbook versionados;
 - backup y rollback documentados.
+
+## Preflight GPU y permisos
+
+Antes del despliegue:
+
+1. validar `nvidia-smi` en `master2`;
+2. validar `nvidia-smi` dentro de la imagen single-user;
+3. validar acceso GPU dentro de un servicio Swarm legacy;
+4. comprobar lectura/escritura como UID `1000` y GID `100`;
+5. confirmar datalake y datasets como solo lectura;
+6. confirmar notebooks y artifacts como lectura/escritura;
+7. preservar un backup de ACL antes de cualquier ajuste.
+
+El rollback de ACL debe ejecutarse mediante el archivo generado con `getfacl --recursive --absolute-names`.

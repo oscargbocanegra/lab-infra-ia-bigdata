@@ -139,6 +139,7 @@ c.SwarmSpawner.environment = {
     "SPARK_MASTER_URL": "spark://spark_master:7077",
     "JARVIS_MODEL": "ollama:qwen2.5-coder:14b",
     "NVIDIA_VISIBLE_DEVICES": "0",
+    "NVIDIA_DRIVER_CAPABILITIES": "compute,utility",
     "CUDA_VISIBLE_DEVICES": "0",
     "PYTHONNOUSERSITE": "1",
 }
