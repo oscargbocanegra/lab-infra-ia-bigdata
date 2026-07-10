@@ -85,7 +85,7 @@ El acceso debe permanecer LAN-only.
 ### Hub
 
 ```text
-giovannotti/lab-jupyterhub:sha-a4397200@sha256:3a982f03fb41910830b09d3140e7cfeb87e37f494ccbb2ad931c40e2a39a7be0
+giovannotti/lab-jupyterhub:sha-c171d2a9@sha256:a7c047fcdd635cdb0754b3068654b51e43be6097d8650dd0342719a90bae1db6
 ```
 
 ### Single-user
