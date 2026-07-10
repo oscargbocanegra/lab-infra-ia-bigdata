@@ -265,3 +265,5 @@ Variables:
 - `JUPYTERHUB_COOKIE_SECRET_FILE`: archivo runtime entregado a JupyterHub.
 
 El archivo runtime es efímero y no debe almacenarse en Git, logs, backups ni en el volumen persistente del Hub.
+
+Router HTTPS: `websecure` con `tls=true`. El entrypoint `web` redirige globalmente hacia HTTPS.

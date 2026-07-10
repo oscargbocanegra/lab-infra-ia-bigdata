@@ -69,7 +69,8 @@ services:
         - traefik.enable=true
         - traefik.docker.network=public
         - traefik.http.routers.jupyterhub.rule=Host(`jupyterhub.sexydad`)
-        - traefik.http.routers.jupyterhub.entrypoints=web
+        - traefik.http.routers.jupyterhub.entrypoints=websecure
+        - traefik.http.routers.jupyterhub.tls=true
         - traefik.http.services.jupyterhub.loadbalancer.server.port=8000
 
 networks:
