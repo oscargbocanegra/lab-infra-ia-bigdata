@@ -11,7 +11,7 @@ services:
       JUPYTERHUB_DB_NAME: jupyterhub
       JUPYTERHUB_DB_USER: jupyterhub
       JUPYTERHUB_DB_PASSWORD_FILE: /run/secrets/jupyterhub_db_password
-      JUPYTERHUB_COOKIE_SECRET_FILE: /run/secrets/jupyterhub_cookie_secret
+      JUPYTERHUB_COOKIE_SECRET_SOURCE_FILE: /run/secrets/jupyterhub_cookie_secret
       JUPYTERHUB_HUB_CONNECT_URL: http://jupyterhub:8081
       JUPYTERHUB_NETWORK_NAME: internal
       JUPYTERHUB_SINGLEUSER_IMAGE: giovannotti/lab-jupyter:sha-0cbf11c

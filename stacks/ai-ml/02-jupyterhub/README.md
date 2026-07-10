@@ -250,3 +250,18 @@ La validación previa al despliegue confirmó:
 - los aliases internos `postgres`, `ollama` y `spark_master` resuelven y aceptan conexión dentro de la red `internal`.
 
 La asignación GPU depende del placement en `master2`, del runtime NVIDIA del nodo y de las variables NVIDIA. El nodo no utiliza actualmente Generic Resources de Swarm para la GPU.
+
+<!-- COOKIE_SECRET_STAGING:README -->
+
+### Preparación privada del cookie secret
+
+Docker Swarm monta el secret fuente en `/run/secrets/jupyterhub_cookie_secret`.
+
+El entrypoint copia el contenido normalizado a `/run/jupyterhub/jupyterhub_cookie_secret`, crea `/run/jupyterhub` con modo `0700`, aplica modo `0600` al archivo y exporta esa ruta como `JUPYTERHUB_COOKIE_SECRET_FILE`.
+
+Variables:
+- `JUPYTERHUB_COOKIE_SECRET_SOURCE_FILE`: secret fuente de Swarm.
+- `JUPYTERHUB_COOKIE_SECRET_RUNTIME_FILE`: ruta efímera privada opcional.
+- `JUPYTERHUB_COOKIE_SECRET_FILE`: archivo runtime entregado a JupyterHub.
+
+El archivo runtime es efímero y no debe almacenarse en Git, logs, backups ni en el volumen persistente del Hub.
