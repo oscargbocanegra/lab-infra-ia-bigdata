@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   jupyterhub:
-    image: giovannotti/lab-jupyterhub:sha-0cbf11c
+    image: giovannotti/lab-jupyterhub:sha-960cb595
     hostname: jupyterhub
 
     environment:
