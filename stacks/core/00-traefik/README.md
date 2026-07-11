@@ -54,7 +54,6 @@ The metrics endpoint is on `:8082` (entrypoint `metrics`). It is **not** publish
 | `traefik_basic_auth` | htpasswd file for Traefik dashboard |
 | `traefik_tls_cert` | Self-signed TLS certificate (PEM) |
 | `traefik_tls_key` | Self-signed TLS private key (PEM) |
-| `jupyter_basicauth_v2` | htpasswd for Jupyter instances |
 | `ollama_basicauth` | htpasswd for Ollama |
 | `opensearch_basicauth` | htpasswd for OpenSearch |
 | `dashboards_basicauth` | htpasswd for OpenSearch Dashboards |

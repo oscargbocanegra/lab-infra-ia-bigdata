@@ -1,6 +1,6 @@
 # Networking — Networks, Domains and Traffic Flow
 
-> Updated: 2026-07-11 — JupyterHub migration in progress
+> Updated: 2026-07-11 — JupyterHub operational; standalone routes retired
 
 ---
 
@@ -258,3 +258,13 @@ Reglas:
 - los single-user usan `internal`;
 - no se publican puertos directos del Hub o de los single-user;
 - `jupyterhub.sexydad` debe resolver a `192.168.80.100` en los clientes LAN.
+
+
+## Acceso Jupyter canónico
+
+La única entrada Jupyter es:
+
+    https://jupyterhub.sexydad
+
+Los routers y middlewares del antiguo JupyterLab standalone fueron
+retirados.

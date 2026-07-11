@@ -1,6 +1,6 @@
 # Service Inventory
 
-> Updated: 2026-07-11 — JupyterHub migration in progress
+> Updated: 2026-07-11 — JupyterHub operational; standalone JupyterLab retired
 
 ---
 
@@ -321,7 +321,7 @@ TOTAL                  ~14.3 CPU   ~24.3 GB / 32 GB  ✅ BREATHING ROOM
 | **Rollback** | Jupyter legacy `ogiovanni` y `odavid` preservados `1/1` |
 | **Runbook** | [`JUPYTERHUB_SWARM.md`](../runbooks/JUPYTERHUB_SWARM.md) |
 
-JupyterHub ya presta acceso multiusuario. Los Jupyter standalone se conservan temporalmente como rollback; su retirada requiere una ventana específica y la confirmación literal `CONFIRMO BORRADO`.
+JupyterHub ya presta acceso multiusuario. El stack JupyterLab standalone fue retirado del Swarm. JupyterHub es el único acceso Jupyter activo.
 
 <!-- JUPYTERHUB_RUNTIME_PARITY_START -->
 ## JupyterHub
@@ -342,3 +342,15 @@ JupyterHub ya presta acceso multiusuario. Los Jupyter standalone se conservan te
 Los servicios `jupyterhub-user-*` son dinámicos y son
 administrados por JupyterHub mediante SwarmSpawner.
 <!-- JUPYTERHUB_RUNTIME_PARITY_END -->
+
+
+## Retirada de JupyterLab standalone
+
+El stack `jupyter` y los servicios `jupyter_jupyter_*` fueron retirados.
+
+Estado canónico:
+
+- Hub: `master1`.
+- Single-users: `master2`.
+- Stack activo: `jupyterhub`.
+- Persistencia: `/srv/fastdata/jupyterhub/users`.

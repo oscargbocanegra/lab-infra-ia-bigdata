@@ -90,7 +90,7 @@ jobs:
             echo "${NETWORK}: driver=${DRIVER} scope=${SCOPE}"
           done
 
-          for SECRET in jupyterhub_cookie_secret jupyterhub_db_password; do
+          for SECRET in jupyterhub_cookie_secret jupyterhub_db_password minio_access_key minio_secret_key; do
             docker secret inspect "${SECRET}" > /dev/null
             echo "${SECRET}: existe"
           done
@@ -98,7 +98,6 @@ jobs:
           test -d /srv/fastdata/jupyterhub/hub
           sudo stat -c '%U:%G %a %n' /srv/fastdata/jupyterhub/hub
 
-          for SERVICE in             postgres_postgres             traefik_traefik             jupyter_jupyter_ogiovanni             jupyter_jupyter_odavid
           do
             REPLICAS="$(
               docker service ls                 --filter "name=${SERVICE}"                 --format '{{.Replicas}}'
@@ -106,22 +105,6 @@ jobs:
             test "${REPLICAS}" = "1/1"
             echo "${SERVICE}: ${REPLICAS}"
           done
-
-      - name: Capture rollback baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          BASELINE="${RUNNER_TEMP}/jupyterhub-legacy-before.txt"
-
-          for SERVICE in             jupyter_jupyter_ogiovanni             jupyter_jupyter_odavid
-          do
-            docker service inspect "${SERVICE}"               --format '{{.Spec.Name}}|{{.Spec.TaskTemplate.ContainerSpec.Image}}'
-          done | sort | tee "${BASELINE}"
-
-          test -s "${BASELINE}"
-
-          docker service inspect jupyterhub_jupyterhub             --format 'Current Hub image={{.Spec.TaskTemplate.ContainerSpec.Image}}'
 
       - name: Reconcile JupyterHub stack
         shell: bash
@@ -193,27 +176,6 @@ jobs:
             test "${STATUS}" = "200"
           done
 
-      - name: Confirm legacy services are unchanged
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          AFTER="${RUNNER_TEMP}/jupyterhub-legacy-after.txt"
-
-          for SERVICE in             jupyter_jupyter_ogiovanni             jupyter_jupyter_odavid
-          do
-            REPLICAS="$(
-              docker service ls                 --filter "name=${SERVICE}"                 --format '{{.Replicas}}'
-            )"
-            test "${REPLICAS}" = "1/1"
-
-            docker service inspect "${SERVICE}"               --format '{{.Spec.Name}}|{{.Spec.TaskTemplate.ContainerSpec.Image}}'
-          done | sort | tee "${AFTER}"
-
-          diff -u             "${RUNNER_TEMP}/jupyterhub-legacy-before.txt"             "${AFTER}"
-
-          echo "Legacy sin cambios: OK"
-
       - name: Collect diagnostics on failure
         if: failure()
         shell: bash
@@ -236,5 +198,5 @@ jobs:
             echo
             echo "### Services"
             echo
-            docker service ls               --format '| {{.Name}} | {{.Replicas}} | {{.Image}} |'               | grep -E '^\| (jupyterhub_|jupyter_|postgres_|traefik_)'               || true
+            docker service ls               --format '| {{.Name}} | {{.Replicas}} | {{.Image}} |'               | grep -E '^\| (jupyterhub_|postgres_|traefik_)'               || true
           } >> "${GITHUB_STEP_SUMMARY}"

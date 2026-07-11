@@ -1,7 +1,7 @@
 # =============================================================================
 # deploy.yml — Continuous Deployment
 # =============================================================================
-# Runs on push to main for legacy/non-JupyterHub changes.
+# Runs on push to main for shared images and non-JupyterHub stacks.
 # Branch protection must require CI; this workflow is not chained with workflow_run.
 # Executes on the self-hosted runner installed on master1.
 #
@@ -179,29 +179,6 @@ jobs:
       #   same as what's already running. Injecting the sha-<commit> tag forces
       #   Swarm to detect a new image on every deploy, eliminating the race
       #   condition between config updates and image updates.
-      - name: Deploy jupyter stack
-        env:
-          LAB_JARVIS_MODEL: ${{ vars.LAB_JARVIS_MODEL }}
-        run: |
-          SHA_TAG="giovannotti/lab-jupyter:sha-${{ steps.tags.outputs.short_sha }}"
-          # Write temp file next to the original stack.yml so that relative
-          # config paths (./entrypoint.sh, ./init-kernels.sh) still resolve
-          STACK_DIR="stacks/ai-ml/01-jupyter"
-          TMPFILE="${STACK_DIR}/stack-deploy.yml"
-          sed "s|giovannotti/lab-jupyter:latest|${SHA_TAG}|g" \
-            "${STACK_DIR}/stack.yml" > "$TMPFILE"
-          docker stack deploy \
-            --with-registry-auth \
-            --prune \
-            -c "$TMPFILE" \
-            jupyter
-          rm -f "$TMPFILE"
-
-      # -----------------------------------------------------------------------
-      # 6. Wait for all services to converge
-      #    Polls each service until all replicas reach Running state.
-      #    Fails loudly if convergence doesn't happen within 3 minutes.
-      # -----------------------------------------------------------------------
       - name: Wait for services to converge
         run: |
           wait_for_service() {
@@ -232,8 +209,6 @@ jobs:
 
           wait_for_service rag-api_rag-api
           wait_for_service agent_agent
-          wait_for_service jupyter_jupyter_ogiovanni
-          wait_for_service jupyter_jupyter_odavid
 
       - name: Health check — rag-api
         run: |
@@ -253,25 +228,6 @@ jobs:
             https://agent.sexydad/health | jq .
           echo "✅ agent is healthy"
 
-      - name: Health check — jupyter
-        run: |
-          echo "Checking running image on jupyter services..."
-          SHA_TAG="sha-${{ steps.tags.outputs.short_sha }}"
-          for svc in jupyter_jupyter_ogiovanni jupyter_jupyter_odavid; do
-            img=$(docker service inspect "$svc" \
-              --format "{{.Spec.TaskTemplate.ContainerSpec.Image}}" 2>/dev/null || echo "unknown")
-            echo "  $svc → $img"
-            if echo "$img" | grep -q "$SHA_TAG"; then
-              echo "  ✅ $svc is running the expected image"
-            else
-              echo "  ❌ $svc is NOT running sha-${SHA_TAG} (got: $img)"
-              exit 1
-            fi
-          done
-
-      # -----------------------------------------------------------------------
-      # 7. Summary — printed in GitHub Actions UI
-      # -----------------------------------------------------------------------
       - name: Deployment summary
         run: |
           echo "## ✅ Deployment complete" >> $GITHUB_STEP_SUMMARY

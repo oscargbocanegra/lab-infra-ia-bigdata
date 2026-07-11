@@ -1,6 +1,6 @@
 # Storage — Disk Map and Paths
 
-> Updated: 2026-07-11 — JupyterHub migration in progress
+> Updated: 2026-07-11 — JupyterHub operational; legacy paths pending final deletion
 
 ---
 
@@ -204,3 +204,14 @@ Las rutas legacy `/srv/fastdata/jupyter/<username>` se
 conservan temporalmente como rollback y no son la fuente
 activa de los servidores JupyterHub.
 <!-- JUPYTERHUB_RUNTIME_PARITY_END -->
+
+
+## Persistencia canónica de JupyterHub
+
+Las rutas activas son:
+
+    /srv/fastdata/jupyterhub/hub
+    /srv/fastdata/jupyterhub/users/<username>
+
+Las rutas `/srv/fastdata/jupyter` están fuera de servicio y pendientes
+de eliminación final después del merge y la verificación funcional.
