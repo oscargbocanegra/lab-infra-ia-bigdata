@@ -30,7 +30,7 @@ Se adopta:
 
 - JupyterHub `4.0.2`.
 - DockerSpawner `13.0.0` con `SwarmSpawner`.
-- NativeAuthenticator `1.3.0`.
+- NativeAuthenticator `1.2.0`.
 - Configurable HTTP Proxy `4.6.3`.
 - PostgreSQL como base de datos del Hub.
 - Traefik para acceso mediante `jupyterhub.sexydad`.

@@ -39,7 +39,7 @@ Los servicios legacy permanecen activos como rollback:
 |---|---:|---|
 | JupyterHub | 4.0.2 | Portal, autenticación y control de sesiones |
 | DockerSpawner | 13.0.0 | Integración con Docker Swarm |
-| NativeAuthenticator | 1.3.0 | Autenticación local |
+| NativeAuthenticator | 1.2.0 | Autenticación local |
 | Configurable HTTP Proxy | 4.6.3 | Proxy interno de JupyterHub |
 | PostgreSQL | 16 | Persistencia del estado del Hub |
 
