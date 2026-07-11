@@ -1,0 +1,96 @@
+name: JupyterHub CI
+
+on:
+  push:
+    branches:
+      - feature/jupyterhub-swarm
+    paths:
+      - "stacks/ai-ml/02-jupyterhub/**"
+      - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
+      - "docs/runbooks/JUPYTERHUB_SWARM.md"
+      - ".github/workflows/jupyterhub-ci.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "stacks/ai-ml/02-jupyterhub/**"
+      - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
+      - "docs/runbooks/JUPYTERHUB_SWARM.md"
+      - ".github/workflows/jupyterhub-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jupyterhub-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate JupyterHub image and stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh -n stacks/ai-ml/02-jupyterhub/entrypoint.sh
+          python -m py_compile             stacks/ai-ml/02-jupyterhub/jupyterhub_config.py
+          docker stack config             -c stacks/ai-ml/02-jupyterhub/stack.yml             > /tmp/jupyterhub-stack-rendered.yml
+          test -s /tmp/jupyterhub-stack-rendered.yml
+
+      - name: Validate deployment invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          STACK="stacks/ai-ml/02-jupyterhub/stack.yml"
+          grep -Eq 'lab-jupyterhub:sha-[0-9a-f]+@sha256:[0-9a-f]{64}' "$STACK"
+          grep -Fq 'node.hostname == master1' "$STACK"
+          grep -Fq 'node.role == manager' "$STACK"
+          grep -Fq '/var/run/docker.sock:/var/run/docker.sock:ro' "$STACK"
+          grep -Fq 'jupyterhub_cookie_secret' "$STACK"
+          grep -Fq 'jupyterhub_db_password' "$STACK"
+          grep -Fq 'traefik.http.routers.jupyterhub.entrypoints=websecure' "$STACK"
+          grep -Fq 'traefik.http.routers.jupyterhub.tls=true' "$STACK"
+          grep -Fq 'external: true' "$STACK"
+          if grep -Eq '^[[:space:]]*ports:' /tmp/jupyterhub-stack-rendered.yml; then
+            echo "ERROR: JupyterHub no debe publicar puertos directamente"
+            exit 1
+          fi
+
+      - name: Build validation image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build             --tag lab-jupyterhub:ci             stacks/ai-ml/02-jupyterhub
+
+      - name: Validate component versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm             --entrypoint python             lab-jupyterhub:ci             -c 'from importlib.metadata import version; expected={"jupyterhub":"4.0.2","dockerspawner":"13.0.0","jupyterhub-nativeauthenticator":"1.2.0","psycopg":"3.3.4"}; actual={k:version(k) for k in expected}; print(actual); assert actual == expected'
+          docker run --rm             --entrypoint configurable-http-proxy             lab-jupyterhub:ci             --version 2>&1 | grep -F '4.6.3'
+
+      - name: Test private cookie secret staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET_DIR="$(mktemp -d)"
+          trap 'rm -rf "$SECRET_DIR"' EXIT
+          printf '%s' 'ci-database-password'             > "$SECRET_DIR/jupyterhub_db_password"
+          printf '%064d' 0             > "$SECRET_DIR/jupyterhub_cookie_secret"
+          chmod 0444             "$SECRET_DIR/jupyterhub_db_password"             "$SECRET_DIR/jupyterhub_cookie_secret"
+
+          docker run --rm             --volume "$SECRET_DIR:/run/secrets:ro"             --env JUPYTERHUB_DB_PASSWORD_FILE=/run/secrets/jupyterhub_db_password             --env JUPYTERHUB_COOKIE_SECRET_SOURCE_FILE=/run/secrets/jupyterhub_cookie_secret             lab-jupyterhub:ci             sh -eu -c '
+              test "$(stat -c %a /run/jupyterhub)" = "700"
+              test "$(stat -c %a "$JUPYTERHUB_COOKIE_SECRET_FILE")" = "600"
+              test -s "$JUPYTERHUB_COOKIE_SECRET_FILE"
+              test "$JUPYTERHUB_DB_PASSWORD" = "ci-database-password"
+              echo "Cookie secret staging: OK"
+            '
