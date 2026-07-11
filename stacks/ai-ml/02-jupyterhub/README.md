@@ -293,3 +293,37 @@ Variables:
 El archivo runtime es efímero y no debe almacenarse en Git, logs, backups ni en el volumen persistente del Hub.
 
 Router HTTPS: `websecure` con `tls=true`. El entrypoint `web` redirige globalmente hacia HTTPS.
+
+<!-- JUPYTERHUB_RUNTIME_PARITY_START -->
+## Paridad funcional single-user
+
+La paridad funcional de JupyterHub fue validada el 2026-07-11
+para los usuarios `ogiovanni` y `odavid`.
+
+Capacidades disponibles:
+
+- kernels `llm`, `ia` y `bigdata`;
+- kernels base Python, Julia y R;
+- JARVIS mediante `/jarvis` y `%%JARVIS`;
+- Jupyter AI con Ollama;
+- acceso a GPU en `master2`;
+- secretos MinIO mediante Docker Swarm Secrets;
+- persistencia independiente de `work`, `.local`, `.venv`
+  y `.cache`.
+
+El bootstrap single-user se entrega mediante:
+
+- `jupyterhub_singleuser_entrypoint_v1`;
+- `jupyterhub_singleuser_init_kernels_v1`.
+
+Para exponer los kernels persistentes se mantiene:
+
+`c.Spawner.disable_user_config = False`
+
+Las rutas canónicas son:
+
+- `/srv/fastdata/jupyterhub/users/<username>/work`;
+- `/srv/fastdata/jupyterhub/users/<username>/.local`;
+- `/srv/fastdata/jupyterhub/users/<username>/.venv`;
+- `/srv/fastdata/jupyterhub/users/<username>/.cache`.
+<!-- JUPYTERHUB_RUNTIME_PARITY_END -->

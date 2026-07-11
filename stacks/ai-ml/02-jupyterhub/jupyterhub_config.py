@@ -1,7 +1,11 @@
 """Configuración de JupyterHub para Docker Swarm."""
 
 import os
+
+import docker
 from urllib.parse import quote_plus
+
+from docker.types import ConfigReference, SecretReference
 
 from dockerspawner import SwarmSpawner
 from nativeauthenticator import NativeAuthenticator
@@ -18,6 +22,36 @@ def required_env(name: str) -> str:
 def env(name: str, default: str) -> str:
     """Retorna una variable opcional con valor predeterminado."""
     return os.environ.get(name, default).strip()
+
+
+
+_swarm_client = docker.APIClient(version="auto")
+
+
+def swarm_resource_id(
+    resource_kind: str,
+    resource_name: str,
+) -> str:
+    """Obtiene el ID exacto de un config o secret Swarm."""
+    list_resources = getattr(_swarm_client, resource_kind)
+
+    matches = [
+        resource
+        for resource in list_resources(
+            filters={"name": resource_name}
+        )
+        if resource.get("Spec", {}).get("Name")
+        == resource_name
+    ]
+
+    if len(matches) != 1:
+        raise RuntimeError(
+            "Se esperaba exactamente un recurso Swarm "
+            f"{resource_kind} llamado {resource_name!r}; "
+            f"encontrados: {len(matches)}"
+        )
+
+    return matches[0]["ID"]
 
 
 c = get_config()  # noqa: F821
@@ -72,7 +106,7 @@ c.SwarmSpawner.image = env(
     "JUPYTERHUB_SINGLEUSER_IMAGE",
     "giovannotti/lab-jupyter:sha-0cbf11c",
 )
-c.SwarmSpawner.cmd = ["jupyterhub-singleuser"]
+c.SwarmSpawner.cmd = ["/tmp/entrypoint.sh"]
 c.SwarmSpawner.name_template = "jupyterhub-user-{username}"
 c.SwarmSpawner.network_name = env(
     "JUPYTERHUB_NETWORK_NAME",
@@ -144,12 +178,84 @@ c.SwarmSpawner.environment = {
     "PYTHONNOUSERSITE": "1",
 }
 
+
+singleuser_entrypoint_config_name = env(
+    "JUPYTERHUB_SINGLEUSER_ENTRYPOINT_CONFIG",
+    "jupyterhub_singleuser_entrypoint_v1",
+)
+
+singleuser_init_kernels_config_name = env(
+    "JUPYTERHUB_SINGLEUSER_INIT_KERNELS_CONFIG",
+    "jupyterhub_singleuser_init_kernels_v1",
+)
+
+minio_access_secret_name = env(
+    "JUPYTERHUB_MINIO_ACCESS_SECRET",
+    "minio_access_key",
+)
+
+minio_secret_secret_name = env(
+    "JUPYTERHUB_MINIO_SECRET_SECRET",
+    "minio_secret_key",
+)
+
+c.SwarmSpawner.extra_container_spec = {
+    "configs": [
+        ConfigReference(
+            config_id=swarm_resource_id(
+                "configs",
+                singleuser_entrypoint_config_name,
+            ),
+            config_name=singleuser_entrypoint_config_name,
+            filename="/tmp/entrypoint.sh",
+            uid="1000",
+            gid="100",
+            mode=0o555,
+        ),
+        ConfigReference(
+            config_id=swarm_resource_id(
+                "configs",
+                singleuser_init_kernels_config_name,
+            ),
+            config_name=singleuser_init_kernels_config_name,
+            filename="/tmp/init-kernels.sh",
+            uid="1000",
+            gid="100",
+            mode=0o555,
+        ),
+    ],
+    "secrets": [
+        SecretReference(
+            secret_id=swarm_resource_id(
+                "secrets",
+                minio_access_secret_name,
+            ),
+            secret_name=minio_access_secret_name,
+            filename="minio_access_key",
+            uid="1000",
+            gid="100",
+            mode=0o400,
+        ),
+        SecretReference(
+            secret_id=swarm_resource_id(
+                "secrets",
+                minio_secret_secret_name,
+            ),
+            secret_name=minio_secret_secret_name,
+            filename="minio_secret_key",
+            uid="1000",
+            gid="100",
+            mode=0o400,
+        ),
+    ],
+}
+
 # Tiempo adicional para crear y converger el servicio Swarm.
 c.Spawner.start_timeout = 180
 c.Spawner.http_timeout = 120
 
 # Evita que un usuario modifique la configuración global del servidor.
-c.Spawner.disable_user_config = True
+c.Spawner.disable_user_config = False
 
 # Logging operativo, sin activar trazas sensibles.
 c.JupyterHub.log_level = env("JUPYTERHUB_LOG_LEVEL", "INFO")

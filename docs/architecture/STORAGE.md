@@ -182,3 +182,25 @@ Política de mounts:
 ```
 
 Las rutas deben existir antes del spawn y conservar UID `1000`, GID `100` y permisos validados. No eliminar rutas legacy o nuevas hasta cerrar la migración.
+
+<!-- JUPYTERHUB_RUNTIME_PARITY_START -->
+## Almacenamiento canónico de JupyterHub
+
+Las rutas activas son:
+
+- `/srv/fastdata/jupyterhub/users/<username>/work`;
+- `/srv/fastdata/jupyterhub/users/<username>/.local`;
+- `/srv/fastdata/jupyterhub/users/<username>/.venv`;
+- `/srv/fastdata/jupyterhub/users/<username>/.cache`.
+
+Distribución:
+
+- `work`: notebooks y proyectos;
+- `.local`: kernelspecs y paquetes de usuario;
+- `.venv`: entornos `llm`, `ia` y `bigdata`;
+- `.cache`: caché persistente.
+
+Las rutas legacy `/srv/fastdata/jupyter/<username>` se
+conservan temporalmente como rollback y no son la fuente
+activa de los servidores JupyterHub.
+<!-- JUPYTERHUB_RUNTIME_PARITY_END -->

@@ -15,11 +15,26 @@ services:
       JUPYTERHUB_HUB_CONNECT_URL: http://jupyterhub:8081
       JUPYTERHUB_NETWORK_NAME: internal
       JUPYTERHUB_SINGLEUSER_IMAGE: giovannotti/lab-jupyter:sha-0cbf11c
+      JUPYTERHUB_SINGLEUSER_ENTRYPOINT_CONFIG: jupyterhub_singleuser_entrypoint_v1
+      JUPYTERHUB_SINGLEUSER_INIT_KERNELS_CONFIG: jupyterhub_singleuser_init_kernels_v1
+      JUPYTERHUB_MINIO_ACCESS_SECRET: minio_access_key
+      JUPYTERHUB_MINIO_SECRET_SECRET: minio_secret_key
       JUPYTERHUB_LOG_LEVEL: INFO
 
     secrets:
       - jupyterhub_cookie_secret
       - jupyterhub_db_password
+
+    configs:
+      - source: hub_config_v4
+        target: /srv/jupyterhub/jupyterhub_config.py
+        mode: 0444
+      - source: singleuser_entrypoint_v1
+        target: /srv/jupyterhub/singleuser/entrypoint.sh
+        mode: 0444
+      - source: singleuser_init_kernels_v1
+        target: /srv/jupyterhub/singleuser/init-kernels.sh
+        mode: 0444
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -72,6 +87,16 @@ services:
         - traefik.http.routers.jupyterhub.entrypoints=websecure
         - traefik.http.routers.jupyterhub.tls=true
         - traefik.http.services.jupyterhub.loadbalancer.server.port=8000
+
+configs:
+  hub_config_v4:
+    file: ./jupyterhub_config.py
+
+  singleuser_entrypoint_v1:
+    file: ../01-jupyter/entrypoint.sh
+
+  singleuser_init_kernels_v1:
+    file: ../01-jupyter/init-kernels.sh
 
 networks:
   public:
