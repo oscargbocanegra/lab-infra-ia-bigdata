@@ -322,3 +322,23 @@ TOTAL                  ~14.3 CPU   ~24.3 GB / 32 GB  ✅ BREATHING ROOM
 | **Runbook** | [`JUPYTERHUB_SWARM.md`](../runbooks/JUPYTERHUB_SWARM.md) |
 
 JupyterHub ya presta acceso multiusuario. Los Jupyter standalone se conservan temporalmente como rollback; su retirada requiere una ventana específica y la confirmación literal `CONFIRMO BORRADO`.
+
+<!-- JUPYTERHUB_RUNTIME_PARITY_START -->
+## JupyterHub
+
+| Parámetro | Estado |
+|---|---|
+| Hub | `master1` |
+| Single-users | `master2` |
+| Usuarios | `ogiovanni`, `odavid` |
+| Runtime | Paridad funcional completada |
+| Kernels | Python, LLM, IA, BigData, Julia y R |
+| Agente | JARVIS mediante Ollama |
+| GPU | RTX 2080 Ti en `master2` |
+| MinIO | Secrets asociados a cada single-user |
+| Persistencia | `/srv/fastdata/jupyterhub/users/<username>` |
+| Rollback | JupyterLab legacy preservado temporalmente |
+
+Los servicios `jupyterhub-user-*` son dinámicos y son
+administrados por JupyterHub mediante SwarmSpawner.
+<!-- JUPYTERHUB_RUNTIME_PARITY_END -->

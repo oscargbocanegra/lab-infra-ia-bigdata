@@ -317,3 +317,50 @@ Validación completa de autorización, autenticación, spawn dinámico, placemen
 ### Rollback
 
 Los servicios `jupyter_jupyter_ogiovanni` y `jupyter_jupyter_odavid` permanecen `1/1`. Su retirada requiere una ventana posterior y la confirmación literal `CONFIRMO BORRADO`.
+
+<!-- JUPYTERHUB_RUNTIME_PARITY_START -->
+## Cierre de paridad funcional
+
+Criterios validados para `ogiovanni` y `odavid`:
+
+1. JupyterHub y ambos single-users en `1/1`.
+2. Single-users ejecutándose en `master2`.
+3. Kernels `llm`, `ia` y `bigdata` visibles en JupyterLab.
+4. JARVIS funcional con `/jarvis` y `%%JARVIS`.
+5. Proveedor Ollama y modelo JARVIS disponibles.
+6. Secretos MinIO montados sin exponer su contenido.
+7. GPU disponible desde los contenedores.
+8. Datos migrados a las rutas canónicas de JupyterHub.
+9. Persistencia validada después de recrear los servicios.
+
+### Diagnóstico de kernels no visibles
+
+Verificar:
+
+- `printenv JUPYTERHUB_DISABLE_USER_CONFIG`;
+- `jupyter kernelspec list`;
+- endpoint `api/kernelspecs` del single-user.
+
+La configuración esperada es:
+
+`c.Spawner.disable_user_config = False`
+
+### Limpieza diferida
+
+Los siguientes elementos se retirarán en un cambio separado:
+
+- servicios `jupyter_jupyter_ogiovanni` y
+  `jupyter_jupyter_odavid`;
+- stack legacy `jupyter`;
+- routers y accesos legacy;
+- rutas `/srv/fastdata/jupyter/ogiovanni` y
+  `/srv/fastdata/jupyter/odavid`;
+- configs históricas `jupyter_entrypoint_v1` a `v12`;
+- configs históricas `jupyter_init_kernels_v1` a `v12`;
+- configs sustituidos `jupyterhub_hub_config_v2` y `v3`;
+- imágenes Docker que queden sin referencias;
+- backups temporales después de completar su retención.
+
+La limpieza requiere backup, validación de referencias,
+rollback definido y confirmación literal `CONFIRMO BORRADO`.
+<!-- JUPYTERHUB_RUNTIME_PARITY_END -->
