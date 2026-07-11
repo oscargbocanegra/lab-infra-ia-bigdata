@@ -106,7 +106,7 @@ c.SwarmSpawner.image = env(
     "JUPYTERHUB_SINGLEUSER_IMAGE",
     "giovannotti/lab-jupyter:sha-0cbf11c",
 )
-c.SwarmSpawner.cmd = ["/tmp/entrypoint.sh", "jupyterhub-singleuser"]
+c.SwarmSpawner.cmd = ["/tmp/entrypoint.sh"]
 c.SwarmSpawner.name_template = "jupyterhub-user-{username}"
 c.SwarmSpawner.network_name = env(
     "JUPYTERHUB_NETWORK_NAME",

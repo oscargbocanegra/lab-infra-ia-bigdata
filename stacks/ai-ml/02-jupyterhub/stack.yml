@@ -26,7 +26,7 @@ services:
       - jupyterhub_db_password
 
     configs:
-      - source: hub_config_v2
+      - source: hub_config_v3
         target: /srv/jupyterhub/jupyterhub_config.py
         mode: 0444
       - source: singleuser_entrypoint_v1
@@ -89,7 +89,7 @@ services:
         - traefik.http.services.jupyterhub.loadbalancer.server.port=8000
 
 configs:
-  hub_config_v2:
+  hub_config_v3:
     file: ./jupyterhub_config.py
 
   singleuser_entrypoint_v1:
