@@ -28,10 +28,8 @@ Estado verificado:
 - `odavid` completó autorización, autenticación, spawn, placement, UID/GID, GPU, conectividad, Stop/Start y persistencia;
 - `SwarmSpawner` eliminó y recreó correctamente el servicio single-user durante el ciclo Stop/Start.
 
-Los servicios legacy permanecen activos como rollback:
+El stack JupyterLab standalone fue retirado. JupyterHub es el acceso Jupyter canónico:
 
-- `jupyter_jupyter_ogiovanni`;
-- `jupyter_jupyter_odavid`.
 
 ## Componentes
 
@@ -140,6 +138,8 @@ Las rutas deben existir previamente en `master2`. Docker no debe crearlas autom�
 ```text
 jupyterhub_cookie_secret
 jupyterhub_db_password
+minio_access_key
+minio_secret_key
 ```
 
 Los secrets se declaran como externos y no deben almacenarse en Git.
@@ -224,7 +224,7 @@ Este comando valida la sintaxis, pero no comprueba que imágenes, secrets, redes
 8. Persistencia del Hub preparada en `master1`.
 9. Persistencia de usuarios preparada en `master2`.
 10. Permisos y ACL verificados.
-11. Servicios legacy en `1/1`.
+11. Imagen single-user disponible en `master2`.
 
 ## Despliegue
 
@@ -243,7 +243,7 @@ Características:
 - validación de redes, secrets, persistencia, PostgreSQL y Traefik;
 - despliegue exclusivo del stack `jupyterhub`;
 - validación de imagen, placement y endpoints HTTPS;
-- comprobación de que los servicios Jupyter legacy no cambian.
+- validación de que JupyterHub permanece saludable.
 
 El comando directo queda reservado para recuperación controlada desde `master1` y debe generar evidencia en `~/lab-reports`:
 
@@ -269,7 +269,7 @@ No ejecutar `docker stack rm`, borrar secrets, bases, rutas o backups sin la con
 La validación previa al despliegue confirmó:
 
 - `master2` utiliza el runtime Docker `nvidia` como predeterminado;
-- los servicios Jupyter legacy acceden correctamente a la RTX 2080 Ti;
+- los servicios `jupyterhub-user-*` acceden correctamente a la RTX 2080 Ti;
 - la imagen single-user ejecuta `nvidia-smi`;
 - los servidores dinámicos usan `NVIDIA_VISIBLE_DEVICES=0`;
 - las capacidades autorizadas son `compute,utility`;
@@ -327,3 +327,13 @@ Las rutas canónicas son:
 - `/srv/fastdata/jupyterhub/users/<username>/.venv`;
 - `/srv/fastdata/jupyterhub/users/<username>/.cache`.
 <!-- JUPYTERHUB_RUNTIME_PARITY_END -->
+
+
+## Retirada de JupyterLab standalone
+
+La decisión está documentada en:
+
+    docs/adrs/ADR-013-retirada-jupyterlab-legacy.md
+
+El directorio `stacks/ai-ml/01-jupyter` se conserva únicamente como
+contexto de construcción de la imagen single-user.

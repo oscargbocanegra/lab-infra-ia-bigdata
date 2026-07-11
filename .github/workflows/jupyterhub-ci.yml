@@ -5,6 +5,7 @@ on:
     branches:
       - feature/jupyterhub-swarm
     paths:
+      - "stacks/ai-ml/01-jupyter/**"
       - "stacks/ai-ml/02-jupyterhub/**"
       - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
@@ -19,6 +20,7 @@ on:
     branches:
       - main
     paths:
+      - "stacks/ai-ml/01-jupyter/**"
       - "stacks/ai-ml/02-jupyterhub/**"
       - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
@@ -53,6 +55,8 @@ jobs:
         run: |
           set -euo pipefail
           sh -n stacks/ai-ml/02-jupyterhub/entrypoint.sh
+          sh -n stacks/ai-ml/01-jupyter/entrypoint.sh
+          sh -n stacks/ai-ml/01-jupyter/init-kernels.sh
           python -m py_compile             stacks/ai-ml/02-jupyterhub/jupyterhub_config.py
           docker stack config             -c stacks/ai-ml/02-jupyterhub/stack.yml             > /tmp/jupyterhub-stack-rendered.yml
           test -s /tmp/jupyterhub-stack-rendered.yml
@@ -76,7 +80,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate legacy deployment isolation
+      - name: Validate deployment workflow isolation
         shell: bash
         run: |
           set -euo pipefail
@@ -98,7 +102,7 @@ jobs:
             grep -Fq -- "- \"${PATH_VALUE}\"" "$LEGACY"
           done
 
-          echo "Legacy deploy isolation: OK"
+          echo "Deployment workflow isolation: OK"
 
       - name: Build validation image
         shell: bash

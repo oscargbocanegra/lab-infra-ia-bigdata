@@ -33,8 +33,6 @@ secrets:
   traefik_tls_key:
     external: true
   # Service BasicAuth secrets (executed by Traefik middleware)
-  jupyter_basicauth_v2:
-    external: true
   ollama_basicauth:
     external: true
   opensearch_basicauth:
@@ -108,7 +106,6 @@ services:
       - traefik_basic_auth
       - traefik_tls_cert
       - traefik_tls_key
-      - jupyter_basicauth_v2
       - ollama_basicauth
       - opensearch_basicauth
       - dashboards_basicauth
@@ -142,8 +139,6 @@ services:
 
         # Auth middlewares
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
-        - traefik.http.middlewares.jupyter-auth.basicauth.usersfile=/run/secrets/jupyter_basicauth_v2
-        - traefik.http.middlewares.jupyter-chain.chain.middlewares=lan-allow,jupyter-auth
         - traefik.http.middlewares.ollama-auth.basicauth.usersfile=/run/secrets/ollama_basicauth
         - traefik.http.middlewares.opensearch-auth.basicauth.usersfile=/run/secrets/opensearch_basicauth
         - traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth
