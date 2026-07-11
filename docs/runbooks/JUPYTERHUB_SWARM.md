@@ -77,15 +77,29 @@ No modificar propietarios ni permisos durante una verificación ordinaria.
 
 ## Despliegue controlado
 
-El despliegue se realiza únicamente desde `master1`.
+### Mecanismo primario: GitHub Actions
+
+1. Fusionar una rama aprobada en `main`.
+2. Verificar que `JupyterHub CI` finalizó correctamente.
+3. Abrir GitHub Actions y seleccionar `Deploy JupyterHub`.
+4. Ejecutar el workflow sobre `main`.
+5. Escribir `DEPLOY` en el parámetro de confirmación.
+6. Aprobar el environment `production` cuando la protección lo requiera.
+7. Revisar el resumen y la evidencia generada por el workflow.
+
+El workflow se ejecuta en el runner self-hosted de `master1` y reconcilia exclusivamente el stack `jupyterhub`.
+
+### Recuperación controlada desde `master1`
+
+Usar solo cuando GitHub Actions no esté disponible y registrar toda la salida en `~/lab-reports`:
 
 ```bash
 cd ~/lab-infra-ia-bigdata
-docker stack config -c stacks/ai-ml/02-jupyterhub/stack.yml >/dev/null
-docker stack deploy --with-registry-auth -c stacks/ai-ml/02-jupyterhub/stack.yml jupyterhub
+docker stack config   -c stacks/ai-ml/02-jupyterhub/stack.yml   >/dev/null
+docker stack deploy   --with-registry-auth   -c stacks/ai-ml/02-jupyterhub/stack.yml   jupyterhub
 ```
 
-No ejecutar hasta completar la preparación de imagen, PostgreSQL, secrets, persistencia y backup.
+No recrear secrets, base de datos o persistencia durante una reconciliación ordinaria.
 
 ## Verificación técnica
 
@@ -107,10 +121,25 @@ Resultado esperado:
 ### Verificación HTTP
 
 ```bash
-curl --fail --silent --show-error -H "Host: jupyterhub.sexydad" http://127.0.0.1/hub/health
+curl --fail --silent --show-error   --resolve 'jupyterhub.sexydad:443:127.0.0.1'   --insecure   https://jupyterhub.sexydad/hub/health
 ```
 
 Resultado esperado: respuesta HTTP satisfactoria del healthcheck.
+
+## Verificación de GitHub Actions
+
+En `master1`, antes y después de una reconciliación:
+
+```bash
+docker service inspect jupyterhub_jupyterhub   --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+
+for service in   jupyter_jupyter_ogiovanni   jupyter_jupyter_odavid
+do
+  docker service inspect "$service"     --format '{{.Spec.Name}} {{.Spec.TaskTemplate.ContainerSpec.Image}}'
+done
+```
+
+La imagen real de JupyterHub debe coincidir con la imagen fijada por digest en `stack.yml`. Los servicios legacy deben conservar sus imágenes y permanecer en `1/1`.
 
 ## Validación funcional
 

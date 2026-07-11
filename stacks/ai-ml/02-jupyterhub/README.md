@@ -15,7 +15,18 @@ La arquitectura separa:
 
 ## Estado
 
-Scaffold en validación. No desplegar hasta completar todos los prerrequisitos.
+Despliegue técnico activo en `master1`.
+
+Estado verificado:
+
+- `jupyterhub_jupyterhub` en `1/1`;
+- PostgreSQL inicializado para JupyterHub;
+- Traefik publica `jupyterhub.sexydad` por `websecure` con TLS;
+- `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`;
+- el cookie secret de Swarm se transforma en un archivo efímero privado `0600`;
+- la validación funcional de los servidores single-user continúa pendiente.
+
+Los servicios legacy permanecen activos como rollback.
 
 Los servicios legacy permanecen activos como rollback:
 
@@ -94,7 +105,7 @@ giovannotti/lab-jupyterhub:sha-c171d2a9@sha256:a7c047fcdd635cdb0754b3068654b51e4
 giovannotti/lab-jupyter:sha-0cbf11c
 ```
 
-La imagen del Hub debe publicarse en un registry antes del despliegue.
+La imagen del Hub está publicada y fijada por tag inmutable y digest de registry.
 
 ## Persistencia
 
@@ -217,13 +228,28 @@ Este comando valida la sintaxis, pero no comprueba que imágenes, secrets, redes
 
 ## Despliegue
 
-El despliegue se realizará únicamente desde `master1` cuando todos los prerrequisitos estén aprobados.
+El mecanismo primario de reconciliación es GitHub Actions:
 
-```bash
-docker stack deploy --with-registry-auth -c stacks/ai-ml/02-jupyterhub/stack.yml jupyterhub
+```text
+.github/workflows/jupyterhub-deploy.yml
 ```
 
-No ejecutar durante la fase de scaffold.
+Características:
+
+- ejecución manual mediante `workflow_dispatch`;
+- confirmación literal `DEPLOY`;
+- runner self-hosted en `master1`;
+- environment `production`;
+- validación de redes, secrets, persistencia, PostgreSQL y Traefik;
+- despliegue exclusivo del stack `jupyterhub`;
+- validación de imagen, placement y endpoints HTTPS;
+- comprobación de que los servicios Jupyter legacy no cambian.
+
+El comando directo queda reservado para recuperación controlada desde `master1` y debe generar evidencia en `~/lab-reports`:
+
+```bash
+docker stack deploy   --with-registry-auth   -c stacks/ai-ml/02-jupyterhub/stack.yml   jupyterhub
+```
 
 ## Rollback
 

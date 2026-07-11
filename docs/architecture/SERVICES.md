@@ -1,6 +1,6 @@
 # Service Inventory
 
-> Updated: 2026-03-31 — Lab 100% operational (20 services)
+> Updated: 2026-07-11 — JupyterHub migration in progress
 
 ---
 
@@ -31,7 +31,7 @@ Spark History    ✅
 Portainer Agent  ✅
 ```
 
-**Total: 20 services / 20 operational ✅**
+**Legacy baseline: 20/20 operational. JupyterHub: Hub técnico 1/1; validación funcional pendiente.**
 
 ---
 
@@ -303,3 +303,22 @@ Portainer Agent        ~0.1        ~64 MB
 ────────────────────── ─────────── ──────────────
 TOTAL                  ~14.3 CPU   ~24.3 GB / 32 GB  ✅ BREATHING ROOM
 ```
+
+## JupyterHub — Migración multiusuario
+
+| Parámetro | Valor |
+|---|---|
+| **Stack** | `jupyterhub` |
+| **Archivo** | `stacks/ai-ml/02-jupyterhub/stack.yml` |
+| **Hub** | `master1`, servicio `jupyterhub_jupyterhub` |
+| **Single-user** | servicios dinámicos `jupyterhub-user-*` en `master2` |
+| **URL** | `https://jupyterhub.sexydad` |
+| **Base de datos** | PostgreSQL `jupyterhub` en `master2` |
+| **Redes** | `public` e `internal` |
+| **Persistencia Hub** | `/srv/fastdata/jupyterhub/hub` en `master1` |
+| **Persistencia usuarios** | `/srv/fastdata/jupyterhub/users/<usuario>` en `master2` |
+| **Estado** | Hub técnico `1/1`; validación funcional single-user pendiente |
+| **Rollback** | Jupyter legacy `ogiovanni` y `odavid` preservados `1/1` |
+| **Runbook** | [`JUPYTERHUB_SWARM.md`](../runbooks/JUPYTERHUB_SWARM.md) |
+
+El servicio no sustituye todavía el baseline legacy. La retirada de los Jupyter standalone requiere completar autenticación, spawn, GPU, conectividad, persistencia y ventana de rollback.

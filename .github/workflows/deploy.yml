@@ -1,7 +1,8 @@
 # =============================================================================
 # deploy.yml — Continuous Deployment
 # =============================================================================
-# Runs ONLY on push to main, AFTER ci.yml passes.
+# Runs on push to main for legacy/non-JupyterHub changes.
+# Branch protection must require CI; this workflow is not chained with workflow_run.
 # Executes on the self-hosted runner installed on master1.
 #
 # What it does:
@@ -29,6 +30,10 @@ on:
       - "stacks/ai-ml/02-jupyterhub/**"
       - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
+      - "docs/architecture/SERVICES.md"
+      - "docs/architecture/NODES.md"
+      - "docs/architecture/STORAGE.md"
+      - "docs/architecture/NETWORKING.md"
       - ".github/workflows/jupyterhub-ci.yml"
       - ".github/workflows/jupyterhub-deploy.yml"
       - ".github/workflows/deploy.yml"

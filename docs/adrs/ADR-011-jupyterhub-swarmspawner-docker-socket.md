@@ -2,7 +2,9 @@
 
 ## Estado
 
-Propuesto.
+Aceptado e implementado técnicamente.
+
+La validación funcional de los servidores single-user y el cierre de la migración permanecen pendientes.
 
 ## Fecha
 
@@ -175,6 +177,31 @@ Ante fallo:
 - El servicio single-user se elimina al detenerlo.
 - Los servicios legacy siguen disponibles durante rollback.
 - Stack, ADR y runbook quedan versionados en Git.
+
+## Estado de implementación
+
+Corte operativo: `2026-07-11`.
+
+- JupyterHub está desplegado en `master1` con una réplica saludable.
+- La imagen del Hub está fijada por tag inmutable y digest.
+- PostgreSQL contiene la base y las tablas de JupyterHub.
+- Traefik publica `jupyterhub.sexydad` exclusivamente por HTTPS.
+- Los endpoints `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`.
+- El cookie secret de Swarm se copia a `/run/jupyterhub/jupyterhub_cookie_secret` con modo `0600`.
+- Los Jupyter legacy continúan `1/1`.
+- Falta completar spawn, placement, GPU, conectividad y persistencia para `ogiovanni` y `odavid`.
+
+## Control de despliegue
+
+La reconciliación normal del stack se realiza mediante:
+
+```text
+.github/workflows/jupyterhub-deploy.yml
+```
+
+El workflow es manual, protegido por el environment `production`, exige la confirmación `DEPLOY`, se ejecuta en el runner de `master1` y verifica que los servicios legacy permanezcan sin cambios.
+
+El workflow legacy `.github/workflows/deploy.yml` excluye los archivos de esta migración para impedir reconstrucciones o redespliegues accidentales de los Jupyter standalone.
 
 ## Consecuencias
 
