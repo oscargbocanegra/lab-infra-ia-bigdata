@@ -9,6 +9,7 @@ on:
       - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
       - ".github/workflows/jupyterhub-ci.yml"
+      - ".github/workflows/jupyterhub-deploy.yml"
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
       - ".github/workflows/jupyterhub-ci.yml"
+      - ".github/workflows/jupyterhub-deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -34,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate source files
         shell: bash
