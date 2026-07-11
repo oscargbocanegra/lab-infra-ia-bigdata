@@ -312,9 +312,7 @@ Validación completa de autenticación, spawn dinámico, placement en `master2`,
 
 ### `odavid`
 
-Validación de autorización, autenticación, spawn dinámico, placement en `master2`, UID/GID y acceso a la RTX 2080 Ti.
-
-Pendiente: conectividad interna completa, marcador persistente y ciclo Stop/Start con verificación de hash SHA-256.
+Validación completa de autorización, autenticación, spawn dinámico, placement en `master2`, UID/GID, GPU, conectividad interna, mounts, escritura, eliminación y recreación del servicio dinámico, Stop/Start y persistencia con verificación de hash SHA-256.
 
 ### Rollback
 

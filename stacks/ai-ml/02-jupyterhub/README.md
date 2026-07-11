@@ -15,7 +15,7 @@ La arquitectura separa:
 
 ## Estado
 
-JupyterHub está operativo y validado funcionalmente en `master1`. La aceptación integral de `odavid` continúa pendiente.
+JupyterHub está operativo y validado funcionalmente en `master1`. `ogiovanni` y `odavid` completaron la aceptación funcional integral.
 
 Estado verificado:
 
@@ -25,7 +25,7 @@ Estado verificado:
 - `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`;
 - el cookie secret de Swarm se transforma en un archivo efímero privado `0600`;
 - `ogiovanni` completó autenticación, spawn, placement, GPU, conectividad, Stop/Start y persistencia;
-- `odavid` completó autorización, autenticación, spawn, placement, UID/GID y acceso GPU;
+- `odavid` completó autorización, autenticación, spawn, placement, UID/GID, GPU, conectividad, Stop/Start y persistencia;
 - `SwarmSpawner` eliminó y recreó correctamente el servicio single-user durante el ciclo Stop/Start.
 
 Los servicios legacy permanecen activos como rollback:
