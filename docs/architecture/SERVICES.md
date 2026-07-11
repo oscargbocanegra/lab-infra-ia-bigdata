@@ -31,7 +31,7 @@ Spark History    ✅
 Portainer Agent  ✅
 ```
 
-**Legacy baseline: 20/20 operational. JupyterHub: operativo `1/1`; validación funcional completa para `ogiovanni` y validación base para `odavid`.**
+**Legacy baseline: 20/20 operational. JupyterHub: operativo `1/1`; validación funcional integral completada para `ogiovanni` y `odavid`.**
 
 ---
 
@@ -317,7 +317,7 @@ TOTAL                  ~14.3 CPU   ~24.3 GB / 32 GB  ✅ BREATHING ROOM
 | **Redes** | `public` e `internal` |
 | **Persistencia Hub** | `/srv/fastdata/jupyterhub/hub` en `master1` |
 | **Persistencia usuarios** | `/srv/fastdata/jupyterhub/users/<usuario>` en `master2` |
-| **Estado** | Operativo `1/1`; `ogiovanni` validado completamente y `odavid` validado en autenticación, spawn, placement y GPU |
+| **Estado** | Operativo `1/1`; `ogiovanni` y `odavid` validados integralmente, incluyendo Stop/Start y persistencia |
 | **Rollback** | Jupyter legacy `ogiovanni` y `odavid` preservados `1/1` |
 | **Runbook** | [`JUPYTERHUB_SWARM.md`](../runbooks/JUPYTERHUB_SWARM.md) |
 

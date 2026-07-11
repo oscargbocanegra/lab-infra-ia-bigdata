@@ -4,7 +4,7 @@
 
 Aceptado, implementado y validado funcionalmente.
 
-La aceptación integral de `odavid` y la retirada de los servicios legacy permanecen como tareas operativas posteriores.
+La retirada de los servicios legacy permanece como tarea operativa posterior.
 
 ## Fecha
 
@@ -190,7 +190,7 @@ Corte operativo: `2026-07-11`.
 - El cookie secret de Swarm se copia a `/run/jupyterhub/jupyterhub_cookie_secret` con modo `0600`.
 - Los Jupyter legacy continúan `1/1`.
 - `ogiovanni` validó autenticación, spawn, placement, recursos, GPU, conectividad, mounts, escritura, Stop/Start y persistencia.
-- `odavid` validó autorización, autenticación, spawn, placement en `master2`, UID/GID y GPU.
+- `odavid` validó autorización, autenticación, spawn, placement en `master2`, UID/GID, GPU, conectividad, mounts, escritura, Stop/Start y persistencia.
 - `SwarmSpawner` eliminó el servicio anterior y creó uno nuevo durante el ciclo Stop/Start.
 - Los Jupyter legacy continúan `1/1` como rollback.
 
