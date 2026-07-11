@@ -15,7 +15,7 @@ La arquitectura separa:
 
 ## Estado
 
-Despliegue técnico activo en `master1`.
+JupyterHub está operativo y validado funcionalmente en `master1`. La aceptación integral de `odavid` continúa pendiente.
 
 Estado verificado:
 
@@ -24,9 +24,9 @@ Estado verificado:
 - Traefik publica `jupyterhub.sexydad` por `websecure` con TLS;
 - `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`;
 - el cookie secret de Swarm se transforma en un archivo efímero privado `0600`;
-- la validación funcional de los servidores single-user continúa pendiente.
-
-Los servicios legacy permanecen activos como rollback.
+- `ogiovanni` completó autenticación, spawn, placement, GPU, conectividad, Stop/Start y persistencia;
+- `odavid` completó autorización, autenticación, spawn, placement, UID/GID y acceso GPU;
+- `SwarmSpawner` eliminó y recreó correctamente el servicio single-user durante el ciclo Stop/Start.
 
 Los servicios legacy permanecen activos como rollback:
 
@@ -39,7 +39,7 @@ Los servicios legacy permanecen activos como rollback:
 |---|---:|---|
 | JupyterHub | 4.0.2 | Portal, autenticación y control de sesiones |
 | DockerSpawner | 13.0.0 | Integración con Docker Swarm |
-| NativeAuthenticator | 1.2.0 | Autenticación local |
+| NativeAuthenticator | 1.3.0 | Autenticación local |
 | Configurable HTTP Proxy | 4.6.3 | Proxy interno de JupyterHub |
 | PostgreSQL | 16 | Persistencia del estado del Hub |
 

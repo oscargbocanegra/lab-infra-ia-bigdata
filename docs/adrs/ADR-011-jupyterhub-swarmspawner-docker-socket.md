@@ -2,9 +2,9 @@
 
 ## Estado
 
-Aceptado e implementado técnicamente.
+Aceptado, implementado y validado funcionalmente.
 
-La validación funcional de los servidores single-user y el cierre de la migración permanecen pendientes.
+La aceptación integral de `odavid` y la retirada de los servicios legacy permanecen como tareas operativas posteriores.
 
 ## Fecha
 
@@ -30,7 +30,7 @@ Se adopta:
 
 - JupyterHub `4.0.2`.
 - DockerSpawner `13.0.0` con `SwarmSpawner`.
-- NativeAuthenticator `1.2.0`.
+- NativeAuthenticator `1.3.0`.
 - Configurable HTTP Proxy `4.6.3`.
 - PostgreSQL como base de datos del Hub.
 - Traefik para acceso mediante `jupyterhub.sexydad`.
@@ -189,7 +189,10 @@ Corte operativo: `2026-07-11`.
 - Los endpoints `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`.
 - El cookie secret de Swarm se copia a `/run/jupyterhub/jupyterhub_cookie_secret` con modo `0600`.
 - Los Jupyter legacy continúan `1/1`.
-- Falta completar spawn, placement, GPU, conectividad y persistencia para `ogiovanni` y `odavid`.
+- `ogiovanni` validó autenticación, spawn, placement, recursos, GPU, conectividad, mounts, escritura, Stop/Start y persistencia.
+- `odavid` validó autorización, autenticación, spawn, placement en `master2`, UID/GID y GPU.
+- `SwarmSpawner` eliminó el servicio anterior y creó uno nuevo durante el ciclo Stop/Start.
+- Los Jupyter legacy continúan `1/1` como rollback.
 
 ## Control de despliegue
 

@@ -303,3 +303,19 @@ Antes del despliegue:
 7. preservar un backup de ACL antes de cualquier ajuste.
 
 El rollback de ACL debe ejecutarse mediante el archivo generado con `getfacl --recursive --absolute-names`.
+
+## Evidencia de aceptación — 2026-07-11
+
+### `ogiovanni`
+
+Validación completa de autenticación, spawn dinámico, placement en `master2`, UID/GID, límites de recursos, GPU, conectividad interna, mounts, escritura, recreación de tarea, Stop/Start desde JupyterHub y persistencia.
+
+### `odavid`
+
+Validación de autorización, autenticación, spawn dinámico, placement en `master2`, UID/GID y acceso a la RTX 2080 Ti.
+
+Pendiente: conectividad interna completa, marcador persistente y ciclo Stop/Start con verificación de hash SHA-256.
+
+### Rollback
+
+Los servicios `jupyter_jupyter_ogiovanni` y `jupyter_jupyter_odavid` permanecen `1/1`. Su retirada requiere una ventana posterior y la confirmación literal `CONFIRMO BORRADO`.
