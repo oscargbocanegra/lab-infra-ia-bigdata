@@ -10,6 +10,7 @@ on:
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
       - ".github/workflows/jupyterhub-ci.yml"
       - ".github/workflows/jupyterhub-deploy.yml"
+      - ".github/workflows/deploy.yml"
   pull_request:
     branches:
       - main
@@ -19,6 +20,7 @@ on:
       - "docs/runbooks/JUPYTERHUB_SWARM.md"
       - ".github/workflows/jupyterhub-ci.yml"
       - ".github/workflows/jupyterhub-deploy.yml"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -65,6 +67,21 @@ jobs:
             echo "ERROR: JupyterHub no debe publicar puertos directamente"
             exit 1
           fi
+
+      - name: Validate legacy deployment isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          LEGACY=".github/workflows/deploy.yml"
+
+          test "$(grep -c "^    paths-ignore:$" "$LEGACY")" = "1"
+
+          for PATH_VALUE in             "stacks/ai-ml/02-jupyterhub/**"             "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"             "docs/runbooks/JUPYTERHUB_SWARM.md"             ".github/workflows/jupyterhub-ci.yml"             ".github/workflows/jupyterhub-deploy.yml"             ".github/workflows/deploy.yml"
+          do
+            grep -Fq -- "- \"${PATH_VALUE}\"" "$LEGACY"
+          done
+
+          echo "Legacy deploy isolation: OK"
 
       - name: Build validation image
         shell: bash

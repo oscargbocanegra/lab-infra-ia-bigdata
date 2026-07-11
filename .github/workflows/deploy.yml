@@ -25,6 +25,13 @@ name: Deploy
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "stacks/ai-ml/02-jupyterhub/**"
+      - "docs/adrs/ADR-011-jupyterhub-swarmspawner-docker-socket.md"
+      - "docs/runbooks/JUPYTERHUB_SWARM.md"
+      - ".github/workflows/jupyterhub-ci.yml"
+      - ".github/workflows/jupyterhub-deploy.yml"
+      - ".github/workflows/deploy.yml"
 
   # Allow manual trigger — useful for forced redeploy without code changes
   workflow_dispatch:
