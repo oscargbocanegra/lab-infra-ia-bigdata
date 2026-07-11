@@ -255,7 +255,7 @@ c.Spawner.start_timeout = 180
 c.Spawner.http_timeout = 120
 
 # Evita que un usuario modifique la configuración global del servidor.
-c.Spawner.disable_user_config = True
+c.Spawner.disable_user_config = False
 
 # Logging operativo, sin activar trazas sensibles.
 c.JupyterHub.log_level = env("JUPYTERHUB_LOG_LEVEL", "INFO")
