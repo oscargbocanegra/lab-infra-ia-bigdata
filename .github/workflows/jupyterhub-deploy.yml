@@ -1,0 +1,240 @@
+name: Deploy JupyterHub
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: "Escriba DEPLOY para reconciliar JupyterHub"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jupyterhub-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Reconcile JupyterHub on master1
+    if: ${{ inputs.confirm_deploy == 'DEPLOY' }}
+    runs-on: self-hosted
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate execution context
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test "$(hostname)" = "master1"
+          test "${GITHUB_REF_NAME}" = "main"
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${{ inputs.confirm_deploy }}" = "DEPLOY"
+
+          test "$(docker info --format '{{.Swarm.LocalNodeState}}')" = "active"
+          test "$(docker info --format '{{.Swarm.ControlAvailable}}')" = "true"
+
+          echo "Host=$(hostname)"
+          echo "Ref=${GITHUB_REF_NAME}"
+          docker info --format 'Swarm={{.Swarm.LocalNodeState}} Control={{.Swarm.ControlAvailable}}'
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Validate desired state and prerequisites
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          STACK="stacks/ai-ml/02-jupyterhub/stack.yml"
+          RENDERED="${RUNNER_TEMP}/jupyterhub-stack-rendered.yml"
+
+          docker stack config -c "${STACK}" > "${RENDERED}"
+          test -s "${RENDERED}"
+
+          DESIRED_IMAGE="$(
+            awk '/^[[:space:]]*image:/ {print $2; exit}' "${STACK}"
+          )"
+
+          case "${DESIRED_IMAGE}" in
+            *@sha256:*) ;;
+            *)
+              echo "ERROR: la imagen JupyterHub no está fijada por digest"
+              exit 1
+              ;;
+          esac
+
+          echo "desired_image=${DESIRED_IMAGE}" >> "${GITHUB_OUTPUT}"
+          echo "Imagen deseada: ${DESIRED_IMAGE}"
+
+          docker manifest inspect "${DESIRED_IMAGE}" > /dev/null
+
+          for NETWORK in public internal; do
+            DRIVER="$(docker network inspect "${NETWORK}" --format '{{.Driver}}')"
+            SCOPE="$(docker network inspect "${NETWORK}" --format '{{.Scope}}')"
+            test "${DRIVER}" = "overlay"
+            test "${SCOPE}" = "swarm"
+            echo "${NETWORK}: driver=${DRIVER} scope=${SCOPE}"
+          done
+
+          for SECRET in jupyterhub_cookie_secret jupyterhub_db_password; do
+            docker secret inspect "${SECRET}" > /dev/null
+            echo "${SECRET}: existe"
+          done
+
+          test -d /srv/fastdata/jupyterhub/hub
+          sudo stat -c '%U:%G %a %n' /srv/fastdata/jupyterhub/hub
+
+          for SERVICE in             postgres_postgres             traefik_traefik             jupyter_jupyter_ogiovanni             jupyter_jupyter_odavid
+          do
+            REPLICAS="$(
+              docker service ls                 --filter "name=${SERVICE}"                 --format '{{.Replicas}}'
+            )"
+            test "${REPLICAS}" = "1/1"
+            echo "${SERVICE}: ${REPLICAS}"
+          done
+
+      - name: Capture rollback baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASELINE="${RUNNER_TEMP}/jupyterhub-legacy-before.txt"
+
+          for SERVICE in             jupyter_jupyter_ogiovanni             jupyter_jupyter_odavid
+          do
+            docker service inspect "${SERVICE}"               --format '{{.Spec.Name}}|{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+          done | sort | tee "${BASELINE}"
+
+          test -s "${BASELINE}"
+
+          docker service inspect jupyterhub_jupyterhub             --format 'Current Hub image={{.Spec.TaskTemplate.ContainerSpec.Image}}'
+
+      - name: Reconcile JupyterHub stack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker stack deploy             --with-registry-auth             -c stacks/ai-ml/02-jupyterhub/stack.yml             jupyterhub
+
+      - name: Wait for Hub convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SERVICE="jupyterhub_jupyterhub"
+          TIMEOUT=180
+          ELAPSED=0
+
+          while [ "${ELAPSED}" -lt "${TIMEOUT}" ]; do
+            DESIRED="$(
+              docker service inspect "${SERVICE}"                 --format '{{.Spec.Mode.Replicated.Replicas}}'
+            )"
+
+            RUNNING="$(
+              docker service ps "${SERVICE}"                 --filter desired-state=running                 --format '{{.CurrentState}}'                 | grep -c '^Running'                 || true
+            )"
+
+            echo "${SERVICE}: ${RUNNING}/${DESIRED} running"
+
+            if [ "${DESIRED}" = "1" ] && [ "${RUNNING}" = "1" ]; then
+              exit 0
+            fi
+
+            sleep 5
+            ELAPSED=$((ELAPSED + 5))
+          done
+
+          docker service ps "${SERVICE}" --no-trunc
+          exit 1
+
+      - name: Validate deployed state
+        shell: bash
+        env:
+          DESIRED_IMAGE: ${{ steps.preflight.outputs.desired_image }}
+        run: |
+          set -euo pipefail
+
+          ACTUAL_IMAGE="$(
+            docker service inspect jupyterhub_jupyterhub               --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+          )"
+
+          echo "Deseada: ${DESIRED_IMAGE}"
+          echo "Real:    ${ACTUAL_IMAGE}"
+
+          test "${ACTUAL_IMAGE}" = "${DESIRED_IMAGE}"
+
+          RUNNING_NODE="$(
+            docker service ps jupyterhub_jupyterhub               --filter desired-state=running               --format '{{.Node}}'               | head -n 1
+          )"
+
+          test "${RUNNING_NODE}" = "master1"
+          echo "Placement: ${RUNNING_NODE}"
+
+          for ENDPOINT in /hub/health /hub/login /hub/signup; do
+            STATUS="$(
+              curl                 --silent                 --output /dev/null                 --write-out '%{http_code}'                 --max-time 15                 --resolve 'jupyterhub.sexydad:443:127.0.0.1'                 --insecure                 "https://jupyterhub.sexydad${ENDPOINT}"
+            )"
+
+            echo "${ENDPOINT}: HTTP ${STATUS}"
+            test "${STATUS}" = "200"
+          done
+
+      - name: Confirm legacy services are unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          AFTER="${RUNNER_TEMP}/jupyterhub-legacy-after.txt"
+
+          for SERVICE in             jupyter_jupyter_ogiovanni             jupyter_jupyter_odavid
+          do
+            REPLICAS="$(
+              docker service ls                 --filter "name=${SERVICE}"                 --format '{{.Replicas}}'
+            )"
+            test "${REPLICAS}" = "1/1"
+
+            docker service inspect "${SERVICE}"               --format '{{.Spec.Name}}|{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+          done | sort | tee "${AFTER}"
+
+          diff -u             "${RUNNER_TEMP}/jupyterhub-legacy-before.txt"             "${AFTER}"
+
+          echo "Legacy sin cambios: OK"
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          docker service ps jupyterhub_jupyterhub --no-trunc || true
+          docker service logs             --since 15m             --timestamps             jupyterhub_jupyterhub             || true
+
+      - name: Deployment summary
+        if: always()
+        shell: bash
+        env:
+          DESIRED_IMAGE: ${{ steps.preflight.outputs.desired_image }}
+        run: |
+          {
+            echo "## JupyterHub deployment"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Runner: \`$(hostname)\`"
+            echo "- Desired image: \`${DESIRED_IMAGE:-not-resolved}\`"
+            echo
+            echo "### Services"
+            echo
+            docker service ls               --format '| {{.Name}} | {{.Replicas}} | {{.Image}} |'               | grep -E '^\| (jupyterhub_|jupyter_|postgres_|traefik_)'               || true
+          } >> "${GITHUB_STEP_SUMMARY}"

@@ -1,6 +1,6 @@
 # Cluster Nodes
 
-> Updated: 2026-03-30 — Phase 5: MinIO, Spark, Airflow
+> Updated: 2026-07-11 — JupyterHub migration in progress
 
 ---
 
@@ -185,3 +185,21 @@ Mass storage    —                    HDD 2TB               ← 4x capacity
 GPU             —                    RTX 2080 Ti 11GB VRAM ← only GPU node
 Role            Control/Gateway      Compute/Data/AI
 ```
+
+## Addendum JupyterHub — 2026-07-11
+
+### `master1`
+
+- Ejecuta `jupyterhub_jupyterhub`.
+- Mantiene `/srv/fastdata/jupyterhub/hub`.
+- Accede al Docker Socket para que `SwarmSpawner` gestione servicios dinámicos.
+- Reconcilia el stack mediante el runner self-hosted de GitHub Actions.
+
+### `master2`
+
+- Ejecuta temporalmente servicios `jupyterhub-user-*`.
+- Mantiene `/srv/fastdata/jupyterhub/users/<usuario>`.
+- Proporciona CPU, RAM, GPU y acceso al datalake.
+- Conserva los dos servicios Jupyter legacy durante la migración.
+
+No mover el Hub a `master2` ni los single-user a `master1` sin ADR y evaluación de recursos, seguridad y rollback.

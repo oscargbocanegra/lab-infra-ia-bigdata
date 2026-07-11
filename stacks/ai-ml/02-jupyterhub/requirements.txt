@@ -1,0 +1,4 @@
+jupyterhub==4.0.2
+dockerspawner==13.0.0
+jupyterhub-nativeauthenticator==1.2.0
+psycopg[binary]==3.3.4

@@ -1,6 +1,6 @@
 # Networking — Networks, Domains and Traffic Flow
 
-> Updated: 2026-03-30 — Phase 5: MinIO, Spark, Airflow
+> Updated: 2026-07-11 — JupyterHub migration in progress
 
 ---
 
@@ -235,3 +235,26 @@ ufw allow 22/tcp
 ufw allow from <lan-cidr>   # LAN for Swarm + Postgres :5432
 ufw enable
 ```
+
+## Addendum de red JupyterHub — 2026-07-11
+
+Flujo de acceso:
+
+```text
+Cliente LAN
+  -> https://jupyterhub.sexydad:443
+  -> Traefik / red public
+  -> jupyterhub_jupyterhub:8000 en master1
+  -> servicios jupyterhub-user-* por red internal
+  -> PostgreSQL, Ollama, Spark, MinIO y OpenSearch
+```
+
+Reglas:
+
+- acceso exclusivamente LAN;
+- HTTP redirige a HTTPS;
+- router Traefik `websecure` con TLS;
+- el Hub usa `public` e `internal`;
+- los single-user usan `internal`;
+- no se publican puertos directos del Hub o de los single-user;
+- `jupyterhub.sexydad` debe resolver a `192.168.80.100` en los clientes LAN.

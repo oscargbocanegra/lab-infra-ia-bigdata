@@ -1,6 +1,6 @@
 # Storage — Disk Map and Paths
 
-> Updated: 2026-03-30 — Phase 5: MinIO, Spark, Airflow
+> Updated: 2026-07-11 — JupyterHub migration in progress
 
 ---
 
@@ -152,3 +152,33 @@ sudo chmod 2770 /srv/fastdata/jupyter/<second-user>
 | `/srv/datalake` | 1.8 TB | ~50 GB | ~1.75 TB | HDD — space for datasets |
 
 > Update with `df -h /srv/fastdata /srv/datalake` on master2.
+
+## Addendum de almacenamiento JupyterHub — 2026-07-11
+
+### `master1`
+
+```text
+/srv/fastdata/jupyterhub/hub
+```
+
+Contiene estado local del Hub. La base transaccional permanece en PostgreSQL.
+
+### `master2`
+
+```text
+/srv/fastdata/jupyterhub/users/<usuario>/work
+/srv/fastdata/jupyterhub/users/<usuario>/.local
+/srv/fastdata/jupyterhub/users/<usuario>/.venv
+/srv/fastdata/jupyterhub/users/<usuario>/.cache
+```
+
+Política de mounts:
+
+```text
+/srv/datalake              -> solo lectura
+/srv/datalake/datasets     -> solo lectura
+/srv/datalake/notebooks    -> lectura/escritura controlada
+/srv/datalake/artifacts    -> lectura/escritura controlada
+```
+
+Las rutas deben existir antes del spawn y conservar UID `1000`, GID `100` y permisos validados. No eliminar rutas legacy o nuevas hasta cerrar la migración.
