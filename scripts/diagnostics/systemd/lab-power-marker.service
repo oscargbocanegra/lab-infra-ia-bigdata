@@ -1,0 +1,16 @@
+[Unit]
+Description=Lab clean or unexpected shutdown marker
+Documentation=file:/usr/local/share/lab-infra/docs/runbooks/REBOOT_DIAGNOSTICS.md
+After=local-fs.target
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/lab-power-marker.sh boot
+ExecStop=/usr/local/sbin/lab-power-marker.sh shutdown
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

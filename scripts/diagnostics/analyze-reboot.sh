@@ -1,176 +1,103 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-# analyze-reboot.sh
-# Analiza logs históricos para detectar causa de reinicio en master1
+umask 0027
 
-REPORT_FILE="/tmp/reboot-analysis-$(date +%Y%m%d-%H%M%S).txt"
-LAST_BOOT=$(who -b | awk '{print $3, $4}')
+OUTPUT_DIR="${LAB_HEALTH_REPORT_DIR:-/var/log/lab-health/reboot}"
 
-echo "========================================" | tee "$REPORT_FILE"
-echo "ANÁLISIS POST-REINICIO - master1" | tee -a "$REPORT_FILE"
-echo "========================================" | tee -a "$REPORT_FILE"
-echo "Fecha análisis: $(date)" | tee -a "$REPORT_FILE"
-echo "Último boot: $LAST_BOOT" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output-dir)
+      OUTPUT_DIR="${2:?Falta valor para --output-dir}"
+      shift 2
+      ;;
+    *)
+      echo "Argumento no reconocido: $1" >&2
+      exit 2
+      ;;
+  esac
+done
 
-# 1. INFORMACIÓN DEL SISTEMA
-echo "=== 1. INFORMACIÓN DEL SISTEMA ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
-uptime | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
-
-# 2. CAUSA DEL ÚLTIMO REINICIO
-echo "=== 2. CAUSA DEL ÚLTIMO REINICIO ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
-
-if command -v last &> /dev/null; then
-    echo "--- Últimos reinicios ---" | tee -a "$REPORT_FILE"
-    last reboot | head -10 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Este script debe ejecutarse como root." >&2
+  exit 1
 fi
 
-if command -v journalctl &> /dev/null; then
-    echo "--- Logs del último boot ---" | tee -a "$REPORT_FILE"
-    journalctl -b -1 --no-pager | tail -100 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-    
-    echo "--- Errores críticos boot anterior ---" | tee -a "$REPORT_FILE"
-    journalctl -b -1 -p err --no-pager | tail -50 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+HOST="$(hostname -s)"
+TS="$(date +%Y%m%d_%H%M%S)"
+REPORT="${OUTPUT_DIR}/reboot-analysis-${HOST}-${TS}.txt"
+LATEST="${OUTPUT_DIR}/reboot-analysis-${HOST}-latest.txt"
 
-# 3. EVENTOS DE KERNEL (OOM, Panic, etc)
-echo "=== 3. EVENTOS CRÍTICOS DE KERNEL ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+install -d -m 0750 "${OUTPUT_DIR}"
+touch "${REPORT}"
+chmod 0640 "${REPORT}"
 
-if [ -f /var/log/kern.log ]; then
-    echo "--- Out of Memory (OOM) ---" | tee -a "$REPORT_FILE"
-    grep -i "out of memory\|oom-kill\|killed process" /var/log/kern.log | tail -20 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-    
-    echo "--- Kernel Panic ---" | tee -a "$REPORT_FILE"
-    grep -i "panic\|oops\|bug:" /var/log/kern.log | tail -20 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+run_section() {
+  local title="$1"
+  shift
 
-if command -v journalctl &> /dev/null; then
-    echo "--- OOM desde journalctl ---" | tee -a "$REPORT_FILE"
-    journalctl -b -1 --no-pager | grep -i "out of memory\|oom" | tail -20 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+  {
+    echo
+    echo "===== ${title} ====="
 
-# 4. LOGS DE DOCKER
-echo "=== 4. EVENTOS DE DOCKER ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+    if ! timeout 45s "$@"; then
+      echo "COMMAND_STATUS=NONZERO"
+    fi
+  } >> "${REPORT}" 2>&1
+}
 
-if command -v journalctl &> /dev/null; then
-    echo "--- Errores Docker boot anterior ---" | tee -a "$REPORT_FILE"
-    journalctl -b -1 -u docker --no-pager | grep -i "error\|fatal\|failed" | tail -30 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+{
+  echo "REBOOT_ANALYSIS_START=$(date --iso-8601=seconds)"
+  echo "HOST=${HOST}"
+  echo "CURRENT_BOOT_ID=$(cat /proc/sys/kernel/random/boot_id)"
+  echo "KERNEL=$(uname -r)"
+} > "${REPORT}"
 
-# 5. ESTADO ACTUAL DE RECURSOS
-echo "=== 5. RECURSOS ACTUALES ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "POWER_EVENT_REPORTS" \
+  bash -c "find '${OUTPUT_DIR}' -maxdepth 1 -type f -name 'power-event-${HOST}-*.txt' -printf '%T@ %p\n' | sort -nr | head -5"
 
-echo "--- Memoria ---" | tee -a "$REPORT_FILE"
-free -h | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "BOOT_HISTORY" \
+  journalctl --list-boots --no-pager
 
-echo "--- Disco ---" | tee -a "$REPORT_FILE"
-df -h | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "LAST_REBOOTS_AND_SHUTDOWNS" \
+  last -x -n 30
 
-echo "--- Load Average ---" | tee -a "$REPORT_FILE"
-cat /proc/loadavg | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "PREVIOUS_BOOT_WARNINGS" \
+  journalctl -b -1 -p warning..alert --no-pager -n 400
 
-# 6. ESTADO DE DOCKER SWARM
-echo "=== 6. ESTADO DOCKER SWARM ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "PREVIOUS_BOOT_KERNEL" \
+  journalctl -k -b -1 --no-pager -n 400
 
-if command -v docker &> /dev/null; then
-    echo "--- Nodos del cluster ---" | tee -a "$REPORT_FILE"
-    docker node ls 2>&1 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-    
-    echo "--- Servicios (estado) ---" | tee -a "$REPORT_FILE"
-    docker service ls 2>&1 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-    
-    echo "--- Servicios con problemas ---" | tee -a "$REPORT_FILE"
-    docker service ls --filter "mode=replicated" 2>&1 | awk '$4 !~ /^[0-9]+\/\1$/ && NR>1' | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+run_section "PREVIOUS_BOOT_SYSTEMD" \
+  journalctl -b -1 -u systemd-logind \
+  -u systemd-poweroff.service \
+  -u systemd-reboot.service \
+  -u systemd-shutdown.service \
+  --no-pager -n 300
 
-# 7. LOGS DEL SISTEMA (SYSLOG)
-echo "=== 7. EVENTOS SYSLOG CRÍTICOS ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "CURRENT_FAILED_UNITS" \
+  systemctl --failed --no-pager
 
-if [ -f /var/log/syslog ]; then
-    echo "--- Últimos errores críticos ---" | tee -a "$REPORT_FILE"
-    grep -i "error\|critical\|emergency" /var/log/syslog | tail -30 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+run_section "DISK_AND_FILESYSTEM" \
+  df -hT
 
-# 8. VERIFICACIÓN DE HARDWARE
-echo "=== 8. EVENTOS DE HARDWARE ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "MEMORY" \
+  free -h
 
-if command -v journalctl &> /dev/null; then
-    echo "--- Errores de hardware ---" | tee -a "$REPORT_FILE"
-    journalctl -b -1 --no-pager | grep -i "hardware error\|mce\|temperature\|thermal" | tail -20 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+run_section "DOCKER_STATUS" \
+  systemctl status docker --no-pager
 
-# 9. TEMPERATURA Y SENSORES (si disponible)
-echo "=== 9. SENSORES (actual) ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+run_section "DOCKER_EVENTS_PREVIOUS_BOOT" \
+  journalctl -b -1 -u docker --no-pager -n 300
 
-if command -v sensors &> /dev/null; then
-    sensors 2>&1 | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-else
-    echo "sensors no disponible (instalar: apt install lm-sensors)" | tee -a "$REPORT_FILE"
-    echo "" | tee -a "$REPORT_FILE"
-fi
+{
+  echo
+  echo "REBOOT_ANALYSIS_STATUS=COMPLETE"
+  echo "REPORT=${REPORT}"
+} >> "${REPORT}"
 
-# 10. RESUMEN Y RECOMENDACIONES
-echo "=== 10. RESUMEN ===" | tee -a "$REPORT_FILE"
-echo "" | tee -a "$REPORT_FILE"
+cp -f "${REPORT}" "${LATEST}"
+chmod 0640 "${LATEST}"
 
-# Análisis automático
-FINDINGS=""
-
-if [ -f /var/log/kern.log ] && grep -qi "out of memory\|oom-kill" /var/log/kern.log; then
-    FINDINGS="${FINDINGS}\n⚠️  OOM detectado - Memoria insuficiente"
-fi
-
-if command -v journalctl &> /dev/null && journalctl -b -1 --no-pager | grep -qi "panic"; then
-    FINDINGS="${FINDINGS}\n⚠️  Kernel Panic detectado"
-fi
-
-if [ -f /var/log/kern.log ] && grep -qi "hardware error" /var/log/kern.log; then
-    FINDINGS="${FINDINGS}\n⚠️  Error de hardware detectado"
-fi
-
-if command -v journalctl &> /dev/null && journalctl -b -1 -u docker --no-pager | grep -qi "fatal"; then
-    FINDINGS="${FINDINGS}\n⚠️  Error fatal en Docker"
-fi
-
-if [ -n "$FINDINGS" ]; then
-    echo "HALLAZGOS:" | tee -a "$REPORT_FILE"
-    echo -e "$FINDINGS" | tee -a "$REPORT_FILE"
-else
-    echo "ℹ️  No se detectaron causas obvias. Revisar logs completos." | tee -a "$REPORT_FILE"
-fi
-
-echo "" | tee -a "$REPORT_FILE"
-echo "========================================" | tee -a "$REPORT_FILE"
-echo "Reporte guardado en: $REPORT_FILE" | tee -a "$REPORT_FILE"
-echo "========================================" | tee -a "$REPORT_FILE"
-
-# Copiar reporte a ubicación permanente
-cp "$REPORT_FILE" "/tmp/reboot-analysis-latest.txt"
-echo "Copia permanente: /tmp/reboot-analysis-latest.txt"
+echo "REBOOT_ANALYSIS_REPORT=${REPORT}"
+echo "REBOOT_ANALYSIS_STATUS=COMPLETE"
