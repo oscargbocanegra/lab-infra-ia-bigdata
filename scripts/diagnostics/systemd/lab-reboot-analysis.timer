@@ -1,0 +1,11 @@
+[Unit]
+Description=Run lab reboot analysis after boot
+
+[Timer]
+OnBootSec=2min
+AccuracySec=30s
+Persistent=false
+Unit=lab-reboot-analysis.service
+
+[Install]
+WantedBy=timers.target

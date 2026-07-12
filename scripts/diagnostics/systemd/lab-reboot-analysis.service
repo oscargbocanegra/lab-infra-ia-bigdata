@@ -1,0 +1,18 @@
+[Unit]
+Description=Lab previous reboot diagnostic analysis
+Documentation=file:/usr/local/share/lab-infra/docs/runbooks/REBOOT_DIAGNOSTICS.md
+After=lab-power-marker.service docker.service
+Wants=lab-power-marker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/analyze-reboot.sh --output-dir /var/log/lab-health/reboot
+TimeoutStartSec=180
+Nice=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/log/lab-health /var/lib/lab-health
