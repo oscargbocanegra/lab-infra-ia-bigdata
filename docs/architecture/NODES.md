@@ -1,6 +1,6 @@
 # Cluster Nodes
 
-> Updated: 2026-07-11 — JupyterHub migration in progress
+> Updated: 2026-07-12 — OpenSearch migrated to master2
 
 ---
 
@@ -36,7 +36,6 @@ docker node update --label-add net=lan master1
 | Traefik | core/00-traefik | `tier=control` |
 | Portainer | core/01-portainer | `tier=control` |
 | Portainer Agent | core/01-portainer | global |
-| OpenSearch | data/11-opensearch | `tier=control` |
 | OpenSearch Dashboards | data/11-opensearch | `tier=control` |
 | Spark Master | data/98-spark | `tier=control` |
 | Spark History Server | data/98-spark | `tier=control` |
@@ -50,7 +49,6 @@ docker node update --label-add net=lan master1
 ```
 /srv/fastdata/        → local HDD (no LVM) — Portainer data, OpenSearch data
 /srv/fastdata/portainer
-/srv/fastdata/opensearch
 /srv/fastdata/airflow/dags     → shared DAGs (accessed by webserver + scheduler)
 /srv/fastdata/airflow/logs     → local task logs (before remote logging)
 /srv/fastdata/airflow/plugins  → Airflow plugins
@@ -120,6 +118,7 @@ docker node inspect master2 --format '{{ json .Description.Resources.GenericReso
 | Service | Stack | Constraint | Storage |
 |---------|-------|------------|---------|
 | PostgreSQL 16 | core/02-postgres | `hostname=master2` | `/srv/fastdata/postgres` (NVMe) |
+| OpenSearch | data/11-opensearch | `tier=compute` + `storage=primary` | `/srv/fastdata/opensearch` (NVMe) |
 | n8n | automation/02-n8n | `tier=compute` | `/srv/fastdata/n8n` (NVMe) |
 | JupyterLab (<admin-user>) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/<admin-user>` (NVMe) |
 | JupyterLab (<second-user>) | ai-ml/01-jupyter | `tier=compute` + hostname | `/srv/fastdata/jupyter/<second-user>` (NVMe) |
@@ -134,6 +133,7 @@ docker node inspect master2 --format '{{ json .Description.Resources.GenericReso
 ```
 /srv/fastdata/        → LVM on NVMe (600 GB, ext4)
 │   ├── postgres/     → PostgreSQL data
+│   ├── opensearch/   → OpenSearch indices and translog
 │   ├── n8n/          → n8n config/data
 │   ├── airflow/      → DAGs, logs, plugins (shared with master1 via volume/sync)
 │   │   ├── dags/

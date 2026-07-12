@@ -31,6 +31,7 @@ version: "3.8"
 services:
   fluent-bit:
     image: fluent/fluent-bit:3.2
+    hostname: "{{.Node.Hostname}}"
 
     # GLOBAL mode: 1 instance per Swarm node
     # This ensures logs from BOTH master1 and master2 are collected
@@ -89,13 +90,13 @@ services:
     configs:
       - source: fluent_bit_config
         target: /fluent-bit/etc/fluent-bit.conf
-      - source: fluent_bit_parsers
+      - source: fluent_bit_parsers_v3
         target: /fluent-bit/etc/parsers_docker.conf
 
 configs:
   fluent_bit_config:
     file: ./fluent-bit.conf
-  fluent_bit_parsers:
+  fluent_bit_parsers_v3:
     file: ./parsers_docker.conf
 
 networks:

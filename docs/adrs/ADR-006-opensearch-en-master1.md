@@ -1,7 +1,9 @@
 # ADR-006: OpenSearch on master1 (not master2)
 
 **Date**: 2026-02-04  
-**Status**: Accepted (revisable)
+**Status**: Superseded
+
+**Superseded by**: [ADR-013: OpenSearch migration to master2](ADR-013-opensearch-migration-master2.md)
 
 ---
 

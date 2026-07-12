@@ -353,7 +353,7 @@ Current state:
 
 ---
 
-## Block — OpenSearch (master1) ✅ OPERATIONAL
+## Block — OpenSearch (master2) ✅ OPERATIONAL
 
 Current state:
 - ✅ **OPERATIONAL** - Cluster status GREEN, version 2.19.4

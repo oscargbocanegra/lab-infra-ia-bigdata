@@ -166,7 +166,7 @@ LAN User (PC)
          ├──[portainer.sexydad]──────────────► Portainer :9000 (master1)
          ├──[traefik.sexydad]────────────────► Traefik Dashboard :8080 (master1)
          ├──[n8n.sexydad]────────────────────► n8n :5678 (master2)
-         ├──[opensearch.sexydad]─────────────► OpenSearch :9200 (master1)
+         ├──[opensearch.sexydad]─────────────► OpenSearch :9200 (master2)
          ├──[dashboards.sexydad]─────────────► OpenSearch Dashboards :5601 (master1)
          ├──[ollama.sexydad]─────────────────► Ollama :11434 (master2)
          ├──[jupyter-<admin-user>.sexydad]───► JupyterLab :8888 (master2)
@@ -269,7 +269,7 @@ deploy:
 |---------|------|------------|--------|
 | Traefik | master1 | `tier=control` | Ports :80/:443 on control plane |
 | Portainer | master1 | `tier=control` | Admin UI |
-| OpenSearch | master1 | `tier=control` | master2 saturated with GPU workloads |
+| OpenSearch | master2 | `tier=compute` + `storage=primary` | Stateful I/O on NVMe |
 | OpenSearch Dashboards | master1 | `tier=control` | Lightweight frontend |
 | Redis (Celery) | master1 | `tier=control` | Lightweight broker, alongside scheduler |
 | Airflow Webserver | master1 | `tier=control` | UI + REST API |
@@ -380,6 +380,6 @@ deploy:
 **Decision**: Register GPU as Generic Resource (`nvidia.com/gpu=1`) instead of using the runtime driver directly.  
 **Reason**: Swarm has no native `--gpus` support. Generic Resources enable proper reservation and placement. `default-runtime: nvidia` in master2's `daemon.json` activates the runtime.
 
-### ADR-006: OpenSearch on master1 (not master2)
-**Decision**: OpenSearch runs on master1 despite having HDD instead of NVMe.  
-**Reason**: At deployment time, master2 had 14/16 CPUs and 28/31 GB RAM committed by Jupyter x2 + Ollama. OpenSearch is a support/observability service; HDD is sufficient for lab workloads.
+### ADR-013: OpenSearch migration to master2
+**Decision**: OpenSearch runs on master2 using `tier=compute` and `storage=primary`; Dashboards remains on master1.
+**Reason**: OpenSearch is stateful and I/O intensive, while master2 provides the primary NVMe storage. ADR-013 supersedes ADR-006.
