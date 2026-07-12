@@ -139,3 +139,25 @@ curl -X POST http://localhost:9200/_plugins/_ism/add/docker-logs-* \
   -H 'Content-Type: application/json' \
   -d '{"policy_id": "docker-logs-retention-7d"}'
 ```
+
+## Lab health and reboot diagnostics
+
+Fluent Bit also tails the persistent host reports from both Swarm nodes:
+
+```text
+/var/log/lab-health/reboot/*.txt
+```
+
+The `*-latest.txt` copies are excluded to prevent duplicate ingestion. Records
+are stored in `docker-logs-*` and enriched with:
+
+- `node`
+- `source_type=lab-health`
+- `event_category=reboot_diagnostics`
+- `source_path`
+
+The offset database is persisted at:
+
+```text
+/fluent-bit/state/lab-health-tail.db
+```

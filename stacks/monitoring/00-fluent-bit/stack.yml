@@ -66,6 +66,11 @@ services:
         read_only: true
 
       - type: bind
+        source: /var/log/lab-health/reboot
+        target: /var/log/lab-health/reboot
+        read_only: true
+
+      - type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
         read_only: true
@@ -88,13 +93,13 @@ services:
     # Inline config via command — keeps everything in this file
     # Full config injected via Docker Configs below
     configs:
-      - source: fluent_bit_config
+      - source: fluent_bit_config_v2
         target: /fluent-bit/etc/fluent-bit.conf
       - source: fluent_bit_parsers_v3
         target: /fluent-bit/etc/parsers_docker.conf
 
 configs:
-  fluent_bit_config:
+  fluent_bit_config_v2:
     file: ./fluent-bit.conf
   fluent_bit_parsers_v3:
     file: ./parsers_docker.conf
