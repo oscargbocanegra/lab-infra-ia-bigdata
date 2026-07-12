@@ -81,7 +81,7 @@ SSL:      disabled (LAN only)
 
 ## 2. MinIO — Object Storage
 
-**Node**: master2  
+**Node**: master2
 **Persistence**: `/srv/datalake/minio` (HDD 2TB)  
 **Stack**: `minio` (`stacks/data/12-minio/stack.yml`)
 
@@ -170,10 +170,10 @@ redis://airflow_redis:6379/0
 
 ## 4. OpenSearch — Search Engine
 
-**Node**: master1  
+**Node**: master2
 **Port**: `9200` (HTTP, overlay `internal` + Traefik only)  
 **Stack**: `opensearch` (`stacks/data/11-opensearch/stack.yml`)  
-**Persistence**: `/srv/fastdata/opensearch` (HDD master1)
+**Persistence**: `/srv/fastdata/opensearch` (NVMe master2)
 
 ### Configuration
 

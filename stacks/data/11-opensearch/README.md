@@ -4,7 +4,7 @@
 
 OpenSearch is an open-source search and analytics engine (Elasticsearch fork) for log analytics, full-text search, and data visualization. Includes **OpenSearch Dashboards** (web UI similar to Kibana) for visualization and management.
 
-**Hardware:** HDD fastdata on master1 (control plane)  
+**Hardware:** OpenSearch sobre NVMe en master2; Dashboards en master1
 **API Endpoint:** `https://opensearch.sexydad`  
 **UI Endpoint:** `https://dashboards.sexydad`  
 **Security:** BasicAuth + LAN Whitelist (Security plugin disabled for lab simplicity)
@@ -24,18 +24,18 @@ OpenSearch is an open-source search and analytics engine (Elasticsearch fork) fo
 ## Prerequisites
 
 - ✅ Networks: `internal` and `public`
-- ✅ Directory: `/srv/fastdata/opensearch` on **master1** (control plane)
+- ✅ Directory: `/srv/fastdata/opensearch` on **master2** (compute/data)
 - ✅ Secrets: `opensearch_basicauth` and `dashboards_basicauth` created
 - ✅ Traefik middlewares: `opensearch-auth@docker` and `dashboards-auth@docker`
-- ✅ System config: `vm.max_map_count=262144` on master1
+- ✅ System config: `vm.max_map_count=262144` on master2
 
 ## Deployment
 
 ### 1. Prepare data directory
 
 ```bash
-# On master1 (control plane)
-ssh <admin-user>@<master1-ip>
+# On master2 (compute/data)
+ssh <admin-user>@<master2-ip>
 sudo mkdir -p /srv/fastdata/opensearch
 sudo chown -R 1000:1000 /srv/fastdata/opensearch
 sudo chmod 755 /srv/fastdata/opensearch
@@ -43,7 +43,7 @@ sudo chmod 755 /srv/fastdata/opensearch
 
 > OpenSearch runs as UID 1000, hence the specific chown.
 
-### 2. Configure system settings (one-time on master1)
+### 2. Configure system settings (one-time on master2)
 
 ```bash
 # Increase virtual memory (required by OpenSearch)
@@ -353,10 +353,10 @@ Body:
 - **Memory:** 1GB reserved, 3GB limit
 
 ### Storage
-- **Location:** `/srv/fastdata/opensearch` (HDD on master1)
+- **Location:** `/srv/fastdata/opensearch` (NVMe on master2)
 - **Type:** Bind mount
 - **Owner:** UID 1000 (opensearch user)
-- **Node:** master1 (control plane)
+- **Node:** master2 (compute/data)
 
 ### Security
 - **Plugin:** Disabled (DISABLE_SECURITY_PLUGIN=true)
@@ -457,10 +457,10 @@ docker service logs opensearch_opensearch -f
 
 # Common issues:
 # 1. vm.max_map_count too low
-ssh <master1-ip> "sysctl vm.max_map_count"
+ssh <master2-ip> "sysctl vm.max_map_count"
 
 # 2. Permissions on data directory
-ssh <master1-ip> "ls -la /srv/fastdata/opensearch"
+ssh <master2-ip> "ls -la /srv/fastdata/opensearch"
 
 # 3. Memory issues
 docker service ps opensearch_opensearch --no-trunc
@@ -475,10 +475,9 @@ If you see memory errors, reduce JVM heap in stack.yml:
 
 ### Reset data
 
-```bash
-sudo rm -rf /srv/fastdata/opensearch/*
-docker service update --force opensearch_opensearch
-```
+Resetting OpenSearch data is destructive and requires the literal authorization
+`CONFIRMO BORRADO`, a verified backup or snapshot, and an approved recovery plan.
+Do not remove the bind-mount contents during routine troubleshooting.
 
 ---
 
@@ -487,7 +486,7 @@ docker service update --force opensearch_opensearch
 - **Single-node:** Configured as single-node (`discovery.type=single-node`)
 - **Security Plugin:** Disabled to simplify the internal lab
 - **Dashboards:** Includes full graphical interface (similar to Kibana)
-- **Deployment:** Running on master1 (control plane) due to resource availability
-- **HDD Storage:** Sufficient for lab/learning environment
+- **Deployment:** OpenSearch runs on master2; Dashboards remains on master1
+- **NVMe Storage:** Active OpenSearch data resides on master2
 - **Production:** For production, enable the security plugin, configure a multi-node cluster, and use NVMe
 - **Backups:** Consider regular snapshots if data is critical

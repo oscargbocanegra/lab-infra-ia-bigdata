@@ -1,78 +1,110 @@
 #!/usr/bin/env bash
-# =============================================================================
-# setup-opensearch-logs.sh
-# =============================================================================
-# Purpose: Configure OpenSearch for centralized Docker log collection.
+# Configure OpenSearch for centralized Docker logs.
 #
-# This script creates:
-#   1. ISM Policy    → auto-delete indices older than 7 days
-#   2. Index Template → correct mappings for docker-logs-* indices
+# Execute from master1. The script reaches the active OpenSearch container
+# on master2 through SSH and Docker exec, avoiding exposed credentials.
 #
-# Run ONCE from the Swarm manager node BEFORE deploying the fluent-bit stack.
-# OpenSearch must be running and reachable on port 9200.
-#
-# Usage:
-#   bash scripts/observability/setup-opensearch-logs.sh
-#
-# Requirements:
-#   - curl installed on the Swarm manager
-#   - OpenSearch accessible at localhost:9200 (internal overlay port)
-#
-# =============================================================================
+# Optional environment variables:
+#   OPENSEARCH_NODE=master2
+#   OPENSEARCH_SERVICE_FILTER=opensearch_opensearch
+#   REPORT_DIR=$HOME/lab-reports
 
-set -euo pipefail
+set -Eeuo pipefail
 
-# ---------------------------------------------------------------------------
-# Config — adjust if OpenSearch is on a different host/port
-# ---------------------------------------------------------------------------
-OS_HOST="${OPENSEARCH_HOST:-localhost}"
-OS_PORT="${OPENSEARCH_PORT:-9200}"
-OS_URL="http://${OS_HOST}:${OS_PORT}"
+OPENSEARCH_NODE="${OPENSEARCH_NODE:-master2}"
+OPENSEARCH_SERVICE_FILTER="${OPENSEARCH_SERVICE_FILTER:-opensearch_opensearch}"
+OPENSEARCH_SSH_IDENTITY="${OPENSEARCH_SSH_IDENTITY:-${HOME}/.ssh/id_ed25519_master2}"
+REPORT_DIR="${REPORT_DIR:-${HOME}/lab-reports}"
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+REPORT="${REPORT_DIR}/setup-opensearch-logs-${TIMESTAMP}.txt"
 
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+mkdir -p "${REPORT_DIR}"
+exec > >(tee "${REPORT}") 2>&1
 
-log()  { echo -e "${BOLD}[INFO]${NC}  $*"; }
-ok()   { echo -e "${GREEN}[OK]${NC}    $*"; }
-warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-err()  { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
+log() { printf '[INFO] %s\n' "$*"; }
+ok() { printf '[OK] %s\n' "$*"; }
+warn() { printf '[WARN] %s\n' "$*"; }
+die() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 
-# ---------------------------------------------------------------------------
-# 1. Wait for OpenSearch to be ready
-# ---------------------------------------------------------------------------
-log "Checking OpenSearch connectivity at ${OS_URL} ..."
+[[ "$(hostname)" == "master1" ]] || die "Run this script from master1"
 
-MAX_RETRIES=10
-for i in $(seq 1 $MAX_RETRIES); do
-    STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${OS_URL}/_cluster/health" 2>/dev/null || echo "000")
-    if [[ "$STATUS" == "200" ]]; then
-        ok "OpenSearch is reachable (HTTP 200)"
-        break
+command -v ssh >/dev/null 2>&1 || die "ssh is required"
+command -v python3 >/dev/null 2>&1 || die "python3 is required"
+[[ -r "${OPENSEARCH_SSH_IDENTITY}" ]] || die "SSH identity not readable: ${OPENSEARCH_SSH_IDENTITY}"
+
+log "Resolving OpenSearch container on ${OPENSEARCH_NODE}"
+
+OS_CONTAINER="$(
+  ssh -i "${OPENSEARCH_SSH_IDENTITY}" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=10 "${OPENSEARCH_NODE}" \
+    "docker ps -q --filter name=${OPENSEARCH_SERVICE_FILTER} | head -1"
+)"
+
+[[ -n "${OS_CONTAINER}" ]] || \
+  die "OpenSearch container not found on ${OPENSEARCH_NODE}"
+
+ok "Container resolved: ${OS_CONTAINER}"
+
+os_request() {
+  local method="$1"
+  local path="$2"
+  local body="${3:-}"
+
+  if [[ -n "${body}" ]]; then
+    printf '%s' "${body}" |
+      ssh -i "${OPENSEARCH_SSH_IDENTITY}" -o IdentitiesOnly=yes -o BatchMode=yes "${OPENSEARCH_NODE}" \
+        "docker exec -i ${OS_CONTAINER} curl -sS -w '\n%{http_code}' \
+        -X ${method} 'http://127.0.0.1:9200${path}' \
+        -H 'Content-Type: application/json' --data-binary @-"
+  else
+    ssh -i "${OPENSEARCH_SSH_IDENTITY}" -o IdentitiesOnly=yes -o BatchMode=yes "${OPENSEARCH_NODE}" \
+      "docker exec ${OS_CONTAINER} curl -sS -w '\n%{http_code}' \
+      -X ${method} 'http://127.0.0.1:9200${path}'"
+  fi
+}
+
+split_response() {
+  local response="$1"
+  RESPONSE_CODE="$(printf '%s\n' "${response}" | tail -n 1)"
+  RESPONSE_BODY="$(printf '%s\n' "${response}" | sed '$d')"
+}
+
+expect_code() {
+  local actual="$1"
+  local operation="$2"
+  shift 2
+
+  local expected
+  for expected in "$@"; do
+    if [[ "${actual}" == "${expected}" ]]; then
+      ok "${operation} (HTTP ${actual})"
+      return 0
     fi
-    if [[ $i -eq $MAX_RETRIES ]]; then
-        err "OpenSearch not reachable after ${MAX_RETRIES} attempts. Is the stack running?"
-    fi
-    warn "Attempt $i/${MAX_RETRIES} — HTTP ${STATUS}. Retrying in 5s..."
-    sleep 5
-done
+  done
 
-# ---------------------------------------------------------------------------
-# 2. Create ISM Policy: docker-logs-retention-7d
-# ---------------------------------------------------------------------------
-# ISM = Index State Management (OpenSearch's built-in ILM equivalent)
-# Policy: indices matching docker-logs-* are automatically deleted after 7 days
-# ---------------------------------------------------------------------------
-log "Creating ISM policy: docker-logs-retention-7d ..."
+  printf '%s\n' "${RESPONSE_BODY}" >&2
+  die "${operation} failed with HTTP ${actual}"
+}
 
-ISM_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
-    "${OS_URL}/_plugins/_ism/policies/docker-logs-retention-7d" \
-    -H 'Content-Type: application/json' \
-    -d '{
+log "Checking cluster health"
+response="$(os_request GET '/_cluster/health')"
+split_response "${response}"
+expect_code "${RESPONSE_CODE}" "Cluster health" 200
+
+log "Applying single-node persistent settings"
+cluster_settings='{
+  "persistent": {
+    "cluster.default_number_of_replicas": "0",
+    "plugins.index_state_management.history.number_of_replicas": "0"
+  }
+}'
+response="$(os_request PUT '/_cluster/settings' "${cluster_settings}")"
+split_response "${response}"
+expect_code "${RESPONSE_CODE}" "Single-node settings" 200
+
+policy_path='/_plugins/_ism/policies/docker-logs-retention-7d'
+policy_body='{
   "policy": {
-    "description": "Delete docker-logs-* indices older than 7 days. Prevents disk exhaustion on master1.",
+    "description": "Delete docker-logs-* indices older than 7 days on the single-node lab cluster.",
     "default_state": "active",
     "states": [
       {
@@ -104,56 +136,49 @@ ISM_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
       }
     ]
   }
-}')
+}'
 
-HTTP_CODE=$(echo "$ISM_RESPONSE" | tail -1)
-BODY=$(echo "$ISM_RESPONSE" | head -1)
+log "Reading ISM policy"
+response="$(os_request GET "${policy_path}")"
+split_response "${response}"
 
-if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
-    ok "ISM policy created successfully (HTTP ${HTTP_CODE})"
-elif [[ "$HTTP_CODE" == "409" ]]; then
-    warn "ISM policy already exists — skipping (HTTP 409)"
+if [[ "${RESPONSE_CODE}" == "200" ]]; then
+  read -r seq_no primary_term < <(
+    printf '%s' "${RESPONSE_BODY}" |
+      python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+print(data["_seq_no"], data["_primary_term"])
+'
+  )
+  update_path="${policy_path}?if_seq_no=${seq_no}&if_primary_term=${primary_term}"
+  log "Updating existing ISM policy"
+  response="$(os_request PUT "${update_path}" "${policy_body}")"
+  split_response "${response}"
+  expect_code "${RESPONSE_CODE}" "ISM policy update" 200
+elif [[ "${RESPONSE_CODE}" == "404" ]]; then
+  log "Creating ISM policy"
+  response="$(os_request PUT "${policy_path}" "${policy_body}")"
+  split_response "${response}"
+  expect_code "${RESPONSE_CODE}" "ISM policy creation" 200 201
 else
-    err "Failed to create ISM policy (HTTP ${HTTP_CODE}): ${BODY}"
+  printf '%s\n' "${RESPONSE_BODY}" >&2
+  die "Unable to read ISM policy (HTTP ${RESPONSE_CODE})"
 fi
 
-# ---------------------------------------------------------------------------
-# 3. Create Index Template: docker-logs-template
-# ---------------------------------------------------------------------------
-# Defines field mappings for all docker-logs-YYYY.MM.DD indices.
-# Without this, OpenSearch would auto-map everything as text (inefficient).
-#
-# Key mappings:
-#   @timestamp  → date     (the actual log timestamp from Docker)
-#   log         → text     (searchable message) + keyword (aggregatable)
-#   stream      → keyword  (stdout / stderr — for filtering)
-#   node        → keyword  (master1 / master2 — for per-node filtering)
-#   container_name → keyword
-#   container_id   → keyword
-#   image_name     → keyword
-#   tag (swarm)    → keyword  (com.docker.stack.namespace, service name)
-# ---------------------------------------------------------------------------
-log "Creating index template: docker-logs-template ..."
-
-TEMPLATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
-    "${OS_URL}/_index_template/docker-logs-template" \
-    -H 'Content-Type: application/json' \
-    -d '{
+template_body='{
   "index_patterns": ["docker-logs-*"],
   "priority": 200,
   "template": {
     "settings": {
       "number_of_shards": 1,
       "number_of_replicas": 0,
-      "refresh_interval": "10s",
-      "index.lifecycle.name": "docker-logs-retention-7d"
+      "refresh_interval": "10s"
     },
     "mappings": {
-      "dynamic": false,
+      "dynamic": true,
       "properties": {
-        "@timestamp": {
-          "type": "date"
-        },
+        "@timestamp": {"type": "date"},
         "log": {
           "type": "text",
           "analyzer": "standard",
@@ -164,84 +189,81 @@ TEMPLATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
             }
           }
         },
-        "stream": {
-          "type": "keyword"
-        },
+        "stream": {"type": "keyword"},
         "node": {
-          "type": "keyword"
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
         },
-        "container_name": {
-          "type": "keyword"
-        },
-        "container_id": {
-          "type": "keyword"
-        },
-        "image_name": {
-          "type": "keyword"
-        },
-        "docker_compose_service": {
-          "type": "keyword"
-        },
-        "com.docker.stack.namespace": {
-          "type": "keyword"
-        },
-        "com.docker.swarm.service.name": {
-          "type": "keyword"
-        },
-        "com.docker.swarm.task.name": {
-          "type": "keyword"
-        }
+        "container_name": {"type": "keyword"},
+        "container_id": {"type": "keyword"},
+        "image_name": {"type": "keyword"},
+        "docker_compose_service": {"type": "keyword"},
+        "com.docker.stack.namespace": {"type": "keyword"},
+        "com.docker.swarm.service.name": {"type": "keyword"},
+        "com.docker.swarm.task.name": {"type": "keyword"}
       }
     }
   }
-}')
+}'
 
-HTTP_CODE=$(echo "$TEMPLATE_RESPONSE" | tail -1)
-BODY=$(echo "$TEMPLATE_RESPONSE" | head -1)
+log "Creating or updating index template"
+response="$(
+  os_request PUT '/_index_template/docker-logs-template' "${template_body}"
+)"
+split_response "${response}"
+expect_code "${RESPONSE_CODE}" "Index template" 200 201
 
-if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
-    ok "Index template created successfully (HTTP ${HTTP_CODE})"
-else
-    err "Failed to create index template (HTTP ${HTTP_CODE}): ${BODY}"
-fi
+log "Applying zero replicas to existing docker log indices"
+replica_body='{"index":{"number_of_replicas":0}}'
+response="$(
+  os_request PUT \
+    '/docker-logs-*/_settings?allow_no_indices=true&expand_wildcards=all' \
+    "${replica_body}"
+)"
+split_response "${response}"
+expect_code "${RESPONSE_CODE}" "Existing index replicas" 200
 
-# ---------------------------------------------------------------------------
-# 4. Verify setup
-# ---------------------------------------------------------------------------
-log "Verifying ISM policy ..."
-ISM_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-    "${OS_URL}/_plugins/_ism/policies/docker-logs-retention-7d")
-[[ "$ISM_CHECK" == "200" ]] && ok "ISM policy verified ✓" || warn "ISM policy check returned HTTP ${ISM_CHECK}"
+log "Verifying resources"
 
-log "Verifying index template ..."
-TMPL_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-    "${OS_URL}/_index_template/docker-logs-template")
-[[ "$TMPL_CHECK" == "200" ]] && ok "Index template verified ✓" || warn "Index template check returned HTTP ${TMPL_CHECK}"
+for resource in \
+  '/_cluster/settings?include_defaults=true&flat_settings=true' \
+  "${policy_path}" \
+  '/_index_template/docker-logs-template' \
+  '/_cluster/health'
+do
+  response="$(os_request GET "${resource}")"
+  split_response "${response}"
+  expect_code "${RESPONSE_CODE}" "Verify ${resource}" 200
+done
 
-# ---------------------------------------------------------------------------
-# Done
-# ---------------------------------------------------------------------------
-echo ""
-echo -e "${GREEN}${BOLD}============================================================${NC}"
-echo -e "${GREEN}${BOLD}  OpenSearch log collection configured successfully!${NC}"
-echo -e "${GREEN}${BOLD}============================================================${NC}"
-echo ""
-echo "  ISM Policy:     docker-logs-retention-7d  (auto-delete after 7 days)"
-echo "  Index Pattern:  docker-logs-YYYY.MM.DD    (daily rollover by Fluent Bit)"
-echo "  Template:       docker-logs-template       (optimized mappings)"
-echo ""
-echo "  Next steps:"
-echo "  1. Create state dir on BOTH Swarm nodes:"
-echo "     manager : mkdir -p /srv/fastdata/fluent-bit"
-echo "     worker  : ssh <user>@<worker-ip> 'mkdir -p /srv/fastdata/fluent-bit'"
-echo ""
-echo "  2. Deploy Fluent Bit:"
-echo "     docker stack deploy -c stacks/monitoring/00-fluent-bit/stack.yml fluent-bit"
-echo ""
-echo "  3. Verify logs arrive in OpenSearch (~30s):"
-echo "     curl http://localhost:9200/_cat/indices/docker-logs-* | sort"
-echo ""
-echo "  4. Configure Dashboards:"
-echo "     OpenSearch Dashboards → Management → Index Patterns → docker-logs-*"
-echo "     Time field: @timestamp"
-echo ""
+health_response="$(os_request GET '/_cluster/health')"
+split_response "${health_response}"
+
+cluster_status="$(
+  printf '%s' "${RESPONSE_BODY}" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])'
+)"
+unassigned="$(
+  printf '%s' "${RESPONSE_BODY}" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["unassigned_shards"])'
+)"
+
+[[ "${cluster_status}" == "green" ]] || \
+  die "Cluster status is ${cluster_status}, expected green"
+[[ "${unassigned}" == "0" ]] || \
+  die "Unassigned shards=${unassigned}, expected 0"
+
+ok "Cluster remains green with zero unassigned shards"
+
+echo
+echo "VALIDATION_RESULT=SUCCESS"
+echo "OPENSEARCH_NODE=${OPENSEARCH_NODE}"
+echo "OPENSEARCH_CONTAINER=${OS_CONTAINER}"
+echo "CLUSTER_STATUS=${cluster_status}"
+echo "UNASSIGNED_SHARDS=${unassigned}"
+echo "REPORT=${REPORT}"

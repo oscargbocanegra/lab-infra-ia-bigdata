@@ -4,7 +4,8 @@ version: "3.8"
 # Stack: OpenSearch - Search and Analytics Engine
 # ============================================================
 # Purpose: Distributed search and analytics (Elasticsearch fork)
-# Node: master1 (tier=control) — HDD suficiente para lab; master2 saturado con GPU/AI
+# Placement: OpenSearch stateful en master2 (tier=compute, storage=primary)
+# Storage: /srv/fastdata/opensearch sobre NVMe de master2
 # Networks: internal (backend), public (Traefik ingress)
 # Security: BasicAuth + LAN Whitelist (security plugin disabled for lab simplicity)
 # Dashboards: tier=control (master1) — frontend ligero, acceso vía Traefik
@@ -65,8 +66,9 @@ services:
       
       placement:
         constraints:
-          # master1 (control plane): HDD suficiente para lab; master2 saturado (GPU/Jupyter/Ollama)
-          - node.labels.tier == control
+          # master2: servicio stateful sobre almacenamiento NVMe primario
+          - node.labels.tier == compute
+          - node.labels.storage == primary
       
       resources:
         reservations:

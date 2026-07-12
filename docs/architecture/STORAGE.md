@@ -1,6 +1,6 @@
 # Storage — Disk Map and Paths
 
-> Updated: 2026-07-11 — JupyterHub operational; legacy paths pending final deletion
+> Updated: 2026-07-12 — OpenSearch persistence migrated to master2 NVMe
 
 ---
 
@@ -12,7 +12,6 @@ Single disk: WDC WD5000LPLX — 500 GB HDD (ROTA)
 ├── / (root filesystem)
 ├── /srv/fastdata/           → local HDD (NOT NVMe, name is inherited)
 │   ├── portainer/           → Portainer CE data
-│   ├── opensearch/          → OpenSearch data (index, translog)
 │   └── traefik/             → (prep) Traefik configs if needed
 └── /srv/backups/
     └── master2/             → (planned) backups received via rsync/restic
@@ -69,6 +68,7 @@ UUID=<UUID_HDD_DATALAKE>   /srv/datalake   ext4   defaults,nofail   0 2
 /srv/fastdata/                    (NVMe — I/O intensive, active workloads)
 ├── postgres/                     PostgreSQL 16 data directory
 │   └── [PG internal files]       owner: 999:999, mode: 700
+├── opensearch/                   OpenSearch indices and translog
 ├── n8n/                          n8n config, workflows, credentials
 ├── airflow/                      Airflow DAGs, logs, plugins, Redis data
 │   ├── dags/                     Python DAGs (mounted on master1 and master2)
@@ -114,7 +114,7 @@ UUID=<UUID_HDD_DATALAKE>   /srv/datalake   ext4   defaults,nofail   0 2
 | n8n state | `/srv/fastdata/n8n` | Metadata + credentials — NVMe |
 | Airflow DAGs/logs/plugins | `/srv/fastdata/airflow` | Frequent access — NVMe |
 | Spark shuffle/spill | `/srv/fastdata/spark-tmp` | Massive I/O on joins — NVMe mandatory |
-| OpenSearch index | `/srv/fastdata/opensearch` | Query latency — HDD on master1 (sufficient for lab) |
+| OpenSearch index | `/srv/fastdata/opensearch` on master2 | Active index I/O — NVMe |
 | Jupyter home | `/srv/fastdata/jupyter/{user}` | .venv and kernels — NVMe for fast pip install |
 | MinIO buckets | `/srv/datalake/minio` | Bulk object storage — HDD sufficient (cold data) |
 | LLM models (.gguf) | `/srv/datalake/models/ollama` | Large files (4–30 GB) — HDD sufficient |

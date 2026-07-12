@@ -11,7 +11,8 @@ This directory records the architectural decisions made during the design and im
 | [ADR-003](ADR-003-separacion-fastdata-datalake.md) | Separation of fastdata/datalake on master2 | Accepted |
 | [ADR-004](ADR-004-opensearch-security-plugin-disabled.md) | OpenSearch Security Plugin Disabled | Accepted |
 | [ADR-005](ADR-005-gpu-generic-resources-swarm.md) | GPU via Generic Resources in Docker Swarm | Accepted |
-| [ADR-006](ADR-006-opensearch-en-master1.md) | OpenSearch on master1 (not master2) | Accepted |
+| [ADR-006](ADR-006-opensearch-en-master1.md) | OpenSearch on master1 (not master2) | Superseded |
+| [ADR-013](ADR-013-opensearch-migration-master2.md) | OpenSearch migration to master2 | Accepted |
 | [ADR-007](ADR-007-data-governance-openmetadata.md) | Data Governance: OpenMetadata + Great Expectations | Accepted |
 | [ADR-008](ADR-008-agents-evals-langgraph.md) | Hybrid LangGraph Agent + RAGAS Evaluation Pipeline | Accepted |
 | [ADR-009](ADR-009-qdrant-vs-pgvector.md) | Qdrant as Primary Vector Store (vs pgvector) | Accepted |
