@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 set -Eeuo pipefail
 
 CONFIG_FILE="${CONFIG_FILE:-/etc/default/lab-docker-container-cleanup}"
@@ -16,12 +17,17 @@ mkdir -p "${REPORT_DIR}"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 REPORT="${REPORT_DIR}/docker-container-cleanup-$(hostname)-${TIMESTAMP}.txt"
+
 API_JSON="$(mktemp)"
+CANDIDATE_IDS_FILE="$(mktemp)"
+CURRENT_IDS_FILE="$(mktemp)"
 
 cleanup() {
-  rm -f "${API_JSON}"
+  rm -f \
+    "${API_JSON}" \
+    "${CANDIDATE_IDS_FILE}" \
+    "${CURRENT_IDS_FILE}"
 }
-
 trap cleanup EXIT
 
 exec > >(tee "${REPORT}") 2>&1
@@ -76,7 +82,10 @@ curl \
   'http://localhost/containers/json?all=1' \
   >"${API_JSON}"
 
-python3 - "${API_JSON}" "${RETENTION}" <<'PY'
+python3 - \
+  "${API_JSON}" \
+  "${RETENTION}" \
+  "${CANDIDATE_IDS_FILE}" <<'PY'
 import json
 import re
 import sys
@@ -86,8 +95,9 @@ from pathlib import Path
 records = json.loads(
     Path(sys.argv[1]).read_text(encoding="utf-8")
 )
-
 retention = sys.argv[2]
+candidate_ids_path = Path(sys.argv[3])
+
 match = re.fullmatch(r"(\d+)([smhd])", retention)
 
 if not match:
@@ -106,7 +116,6 @@ factor = {
 }[unit]
 
 cutoff = int(time.time()) - (value * factor)
-
 candidates = []
 
 for item in records:
@@ -121,6 +130,7 @@ for item in records:
         continue
 
     names = ",".join(item.get("Names") or [])
+
     candidates.append(
         {
             "id": item.get("Id", ""),
@@ -134,7 +144,23 @@ for item in records:
         }
     )
 
-print(f"CANDIDATE_COUNT={len(candidates)}")
+candidate_ids = sorted(
+    {
+        item["id"]
+        for item in candidates
+        if item["id"]
+    }
+)
+
+candidate_ids_path.write_text(
+    "".join(
+        f"{candidate_id}\n"
+        for candidate_id in candidate_ids
+    ),
+    encoding="utf-8",
+)
+
+print(f"CANDIDATE_COUNT={len(candidate_ids)}")
 
 for item in candidates:
     print(
@@ -165,6 +191,44 @@ docker container prune \
   --filter "until=${RETENTION}"
 
 echo
+echo "===== VERIFICAR CANDIDATOS INICIALES ====="
+
+docker ps -aq --no-trunc |
+  sort -u >"${CURRENT_IDS_FILE}"
+
+CANDIDATES_INITIAL="$(
+  wc -l <"${CANDIDATE_IDS_FILE}"
+)"
+
+CANDIDATES_REMOVED=0
+CANDIDATES_REMAINING=0
+
+while IFS= read -r candidate_id; do
+  [[ -n "${candidate_id}" ]] || continue
+
+  if grep -Fxq \
+    "${candidate_id}" \
+    "${CURRENT_IDS_FILE}"; then
+
+    echo "CANDIDATE_REMAINING=${candidate_id}"
+
+    CANDIDATES_REMAINING=$(
+      (CANDIDATES_REMAINING + 1)
+    )
+  else
+    echo "CANDIDATE_REMOVED=${candidate_id}"
+
+    CANDIDATES_REMOVED=$(
+      (CANDIDATES_REMOVED + 1)
+    )
+  fi
+done <"${CANDIDATE_IDS_FILE}"
+
+echo "CANDIDATES_INITIAL=${CANDIDATES_INITIAL}"
+echo "CANDIDATES_REMOVED=${CANDIDATES_REMOVED}"
+echo "CANDIDATES_REMAINING=${CANDIDATES_REMAINING}"
+
+echo
 echo "===== ESTADO DESPUÉS ====="
 
 DEAD_AFTER="$(
@@ -187,6 +251,13 @@ echo "EXITED_AFTER=${EXITED_AFTER}"
 echo "CREATED_AFTER=${CREATED_AFTER}"
 
 docker system df
+
+if [[ "${CANDIDATES_REMAINING}" -ne 0 ]]; then
+  echo "UNRESOLVED_CANDIDATES=YES"
+  exit 3
+fi
+
+echo "UNRESOLVED_CANDIDATES=NO"
 
 if [[ "${DEAD_AFTER}" -ne 0 ]]; then
   echo "UNRESOLVED_DEAD_METADATA=YES"
