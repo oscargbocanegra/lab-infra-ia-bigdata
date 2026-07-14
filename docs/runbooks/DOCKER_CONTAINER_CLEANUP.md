@@ -33,3 +33,26 @@ sudo systemctl disable --now lab-docker-container-cleanup.timer
 ```
 
 La reparación de metadata bajo `/var/lib/docker` nunca se automatiza.
+
+## Verificación posterior de candidatos
+
+Antes de ejecutar `docker container prune`, el proceso conserva los
+identificadores completos de todos los candidatos.
+
+Después del prune valida individualmente cada identificador y reporta:
+
+- `CANDIDATES_INITIAL`;
+- `CANDIDATES_REMOVED`;
+- `CANDIDATES_REMAINING`;
+- `CANDIDATE_REMOVED=<id>`;
+- `CANDIDATE_REMAINING=<id>`;
+- `UNRESOLVED_CANDIDATES`.
+
+Códigos de salida:
+
+- `0`: ejecución correcta;
+- `2`: permanece metadata en estado `dead`;
+- `3`: permanece al menos un candidato inicial.
+
+La reparación manual de metadata bajo `/var/lib/docker` permanece fuera
+del alcance de esta automatización.
