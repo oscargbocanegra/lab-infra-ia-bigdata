@@ -7,7 +7,7 @@ version: "3.9"
 # Agent: global (runs on ALL nodes: master1 + master2)
 # Server: master1 (tier=control)
 # URL: https://portainer.sexydad
-# Version: 2.39.1
+# Version: 2.39.4
 # ============================================================
 
 networks:
@@ -31,7 +31,7 @@ services:
       - /:/host
 
   portainer:
-    image: portainer/portainer-ce:2.39.1
+    image: portainer/portainer-ce:2.39.4
     command: -H tcp://tasks.agent:9001 --tlsskipverify
     networks:
       - public
@@ -58,4 +58,4 @@ services:
         - traefik.http.services.portainer.loadbalancer.server.port=9000
         - traefik.http.routers.portainer.middlewares=lan-whitelist@docker
         - "com.docker.stack.namespace=portainer"
-        - "description=Portainer CE 2.39.1 - Docker Swarm management UI"
+        - "description=Portainer CE 2.39.4 - Docker Swarm management UI"

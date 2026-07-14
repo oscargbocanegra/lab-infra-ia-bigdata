@@ -51,7 +51,7 @@ configs:
 
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.5
+    image: ghcr.io/open-webui/open-webui:v0.10.2
 
     # Custom entrypoint reads Docker secrets and exports them as env vars
     # before starting Open WebUI. Required because Open WebUI does not support
