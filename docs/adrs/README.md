@@ -16,3 +16,4 @@ This directory records the architectural decisions made during the design and im
 | [ADR-007](ADR-007-data-governance-openmetadata.md) | Data Governance: OpenMetadata + Great Expectations | Accepted |
 | [ADR-008](ADR-008-agents-evals-langgraph.md) | Hybrid LangGraph Agent + RAGAS Evaluation Pipeline | Accepted |
 | [ADR-009](ADR-009-qdrant-vs-pgvector.md) | Qdrant as Primary Vector Store (vs pgvector) | Accepted |
+| [ADR-014](ADR-014-nvidia-driver-580-ollama-gpu-runtime.md) | NVIDIA driver 580 for Ollama GPU runtime | Accepted |
