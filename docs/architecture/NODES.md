@@ -203,3 +203,20 @@ Role            Control/Gateway      Compute/Data/AI
 - Conserva los dos servicios Jupyter legacy durante la migración.
 
 No mover el Hub a `master2` ni los single-user a `master1` sin ADR y evaluación de recursos, seguridad y rollback.
+
+## Docker Engine parity baseline — 2026-07-14
+
+Validated cluster state:
+
+| Node | Docker Engine | Swarm state | Availability |
+|---|---:|---|---|
+| `master1` | `29.6.1` | Manager / Leader | Active |
+| `master2` | `29.6.1` | Worker / Ready | Active |
+
+`master2` preserves Docker's `nvidia` default runtime and NVIDIA Container
+Toolkit integration. Post-upgrade validation confirmed:
+
+- all desired Swarm services converged;
+- Ollama GPU inference with `size_vram > 0`;
+- NVIDIA Exporter target `up{job="nvidia_gpu"} = 1`;
+- Open WebUI remained healthy.
