@@ -68,6 +68,9 @@ DEFAULT_FORWARD_POLICY="ACCEPT"
 # Without these rules, inter-container traffic and container→internet is dropped
 # because containers use 172.x.x.x IPs which don't match the LAN RETURN rules below.
 -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
+# PostgreSQL host port: allow master1 and deny other LAN origins
+-A DOCKER-USER -s 192.168.80.100/32 -p tcp --dport 5432 -j RETURN
+-A DOCKER-USER -p tcp --dport 5432 -j DROP
 -A DOCKER-USER -d 172.16.0.0/12 -j RETURN
 # Allow traffic from private LAN
 -A DOCKER-USER -d <lan-cidr> -j RETURN

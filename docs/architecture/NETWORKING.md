@@ -142,9 +142,9 @@ All services are published under the `.sexydad` domain (internal LAN domain).
 
 | Port | Protocol | Service | Mode |
 |------|----------|---------|------|
-| 5432 | TCP | PostgreSQL | host |
+| 5432 | TCP | PostgreSQL — solo master1; clientes mediante túnel SSH | host |
 
-> Postgres uses `mode: host` for direct access from DBeaver/SQL clients on the LAN.
+> PostgreSQL usa `mode: host`, restringido a `master1`; DBeaver y otros clientes deben utilizar el túnel SSH.
 
 ### Internal ports (overlay `internal` only)
 
