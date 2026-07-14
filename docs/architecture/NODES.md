@@ -1,6 +1,6 @@
 # Cluster Nodes
 
-> Updated: 2026-07-12 — OpenSearch migrated to master2
+> Updated: 2026-07-14 — NVIDIA driver 580 and Ollama GPU runtime validated
 
 ---
 
@@ -78,8 +78,8 @@ docker node update --label-add net=lan master1
 | **Disk 2** | Seagate ST2000LM015 — 1.8 TB HDD (ROTA=1) |
 | **GPU** | NVIDIA GeForce RTX 2080 Ti |
 | **VRAM** | 11 GB |
-| **NVIDIA Driver** | 535.288.01 |
-| **CUDA Version** | 12.2 |
+| **NVIDIA Driver** | `580.159.03` |
+| **CUDA Version** | `13.0` |
 | **OS** | Ubuntu (Debian family) |
 | **LAN IP** | `<IP_MASTER2>` (static, <lan-cidr> network) |
 

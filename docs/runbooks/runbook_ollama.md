@@ -171,3 +171,53 @@ docker stack deploy -c stacks/ai-ml/02-ollama/stack.yml ollama
 docker service ps ollama_ollama
 docker exec -it $(docker ps -q -f name=ollama_ollama) ollama list
 ```
+
+## 6. GPU compatibility baseline — 2026-07-14
+
+Validated configuration on `master2`:
+
+- GPU: NVIDIA GeForce RTX 2080 Ti, 11 GB VRAM.
+- Driver package: `nvidia-driver-580-server`.
+- Active driver: `580.159.03`.
+- CUDA reported by `nvidia-smi`: `13.0`.
+- NVIDIA Container Toolkit: `1.19.0`.
+- Docker default runtime: `nvidia`.
+- Ollama validated version: `0.32.0`.
+- NVIDIA Exporter: `1/1`, scraped by Prometheus.
+
+The previous driver `535.309.01` exposed the GPU inside containers, but Ollama
+rejected it because the bundled CUDA libraries required driver `550` or newer.
+The result was CPU fallback with `/api/ps` reporting `size_vram=0`.
+
+### Validation
+
+```bash
+# master2
+nvidia-smi
+docker info --format '{{.DefaultRuntime}}'
+
+# master1
+docker service ls | grep -E 'ollama|nvidia-exporter'
+
+PROM_CID="$(
+  docker ps -q     --filter label=com.docker.swarm.service.name=prometheus_prometheus   | head -1
+)"
+
+docker exec "${PROM_CID}"   /bin/promtool query instant   http://127.0.0.1:9090   'up{job="nvidia_gpu"}'
+```
+
+Ollama GPU inference is valid only when `/api/ps` reports `size_vram > 0`.
+Logs must show CUDA device selection and model layers offloaded to GPU.
+
+### Rollback
+
+A rollback requires a maintenance window and reboot:
+
+```bash
+# master2
+sudo apt-get install -y nvidia-driver-535-server
+sudo reboot
+```
+
+Rollback restores the previous host driver but disables GPU inference for the
+currently validated Ollama runtime.
