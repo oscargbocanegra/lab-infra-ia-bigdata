@@ -1,0 +1,16 @@
+[Unit]
+Description=Laboratory Docker stopped-container cleanup
+Documentation=file:///usr/local/share/lab-infra/DOCKER_CONTAINER_CLEANUP.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/lab-docker-container-cleanup
+ExecStart=/bin/bash /usr/local/sbin/lab-docker-container-cleanup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

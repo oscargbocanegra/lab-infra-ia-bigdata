@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily laboratory Docker container cleanup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=lab-docker-container-cleanup.service
+
+[Install]
+WantedBy=timers.target
