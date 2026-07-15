@@ -24,11 +24,11 @@ Repositorio base: `main` — `12a9e6f85a2b8068a898d2b45bd9575c3be41754`
 
 ## Evidencia principal
 
-- `baseline-repository-runtime-architecture-master1-20260715_005452.txt`
-- `baseline-gap-repo-jupyterhub-master1-20260715_005946.txt`
-- `baseline-runtime-master2-direct-20260715_010008.txt`
-- `fluentbit-opensearch-current-path-master1-20260715_010855.txt`
-- `opensearch-internal-api-close-master2-20260715_011416.txt`
+- `master1:~/lab-reports/baseline-repository-runtime-architecture-master1-20260715_005452.txt`
+- `master1:~/lab-reports/baseline-gap-repo-jupyterhub-master1-20260715_005946.txt`
+- `master2:~/lab-reports/baseline-runtime-master2-direct-20260715_010008.txt`
+- `master1:~/lab-reports/fluentbit-opensearch-current-path-master1-20260715_010855.txt`
+- `master2:~/lab-reports/opensearch-internal-api-close-master2-20260715_011416.txt`
 
 ## Decisiones y pendientes
 
