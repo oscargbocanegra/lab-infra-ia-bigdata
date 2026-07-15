@@ -29,8 +29,10 @@ ufw allow from 192.168.80.100 to any port 7946 proto tcp comment 'Swarm node com
 ufw allow from 192.168.80.100 to any port 7946 proto udp comment 'Swarm node communication UDP'
 ufw allow from 192.168.80.100 to any port 4789 proto udp comment 'Swarm overlay network'
 
-# PostgreSQL — only accessible from master1 (for Docker Swarm overlay + DBeaver SSH tunnel)
-ufw allow from 192.168.80.100 to any port 5432 proto tcp comment 'PostgreSQL from master1'
+# PostgreSQL and Ollama — LAN clients use DHCP within 192.168.80.0/24.
+# Docker-published port enforcement is defined in DOCKER-USER below.
+ufw allow from 192.168.80.0/24 to any port 5432 proto tcp comment 'PostgreSQL LAN'
+ufw allow from 192.168.80.0/24 to any port 11434 proto tcp comment 'Ollama API LAN'
 
 # ── DOCKER-USER rules via /etc/ufw/after.rules ────────────────────────────
 # Docker bypasses UFW by inserting rules before the UFW chains in iptables.
@@ -56,9 +58,8 @@ cat >> "${AFTER_RULES}" << 'DOCKER_RULES'
 # Without these rules, inter-container traffic and container→internet is dropped
 # because containers use 172.x.x.x IPs, not 192.168.80.x
 -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
-# PostgreSQL host port: allow master1 and deny other LAN origins
--A DOCKER-USER -s 192.168.80.100/32 -p tcp --dport 5432 -j RETURN
--A DOCKER-USER -p tcp --dport 5432 -j DROP
+# Approved LAN clients (192.168.80.0/24) may use PostgreSQL and Ollama.
+# DHCP leases are intentionally supported; deny non-LAN origins below.
 -A DOCKER-USER -d 172.16.0.0/12 -j RETURN
 # Allow traffic from private LAN
 -A DOCKER-USER -d 192.168.80.0/24 -j RETURN

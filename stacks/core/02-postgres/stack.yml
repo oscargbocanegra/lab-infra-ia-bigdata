@@ -4,7 +4,7 @@ version: "3.9"
 # Stack: PostgreSQL 16 + pgvector — Central database cluster
 # ============================================================
 # Node:    master2 (hostname=master2, NVMe /srv/fastdata/postgres)
-# Port:    5432 (mode: host — restricted to master1 by DOCKER-USER)
+# Port:    5432 (mode: host — allowed from LAN 192.168.80.0/24)
 #
 # Managed databases:
 #   postgres  → superuser (admin)
@@ -88,7 +88,7 @@ services:
 
     ports:
       # mode: host → binds to master2 only, bypasses Swarm routing mesh
-      # Host access: master1 only; DBeaver/psql must use the SSH tunnel
+      # LAN access: 192.168.80.0/24 for DBeaver/psql; DHCP clients are supported
       - target: 5432
         published: 5432
         protocol: tcp

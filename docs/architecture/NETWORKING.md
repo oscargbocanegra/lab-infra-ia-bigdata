@@ -1,6 +1,6 @@
 # Networking — Networks, Domains and Traffic Flow
 
-> Updated: 2026-07-11 — JupyterHub operational; standalone routes retired
+> Updated: 2026-07-14 — direct LAN access policy reconciled
 
 ---
 
@@ -142,9 +142,10 @@ All services are published under the `.sexydad` domain (internal LAN domain).
 
 | Port | Protocol | Service | Mode |
 |------|----------|---------|------|
-| 5432 | TCP | PostgreSQL — solo master1; clientes mediante túnel SSH | host |
+| 5432 | TCP | PostgreSQL — DBeaver/psql desde `192.168.80.0/24` | host |
+| 11434 | TCP | Ollama API — Postman desde `192.168.80.0/24` | host |
 
-> PostgreSQL usa `mode: host`, restringido a `master1`; DBeaver y otros clientes deben utilizar el túnel SSH.
+> Estas excepciones directas permiten clientes DHCP de la LAN. Los servicios Swarm continúan usando la red `internal`.
 
 ### Internal ports (overlay `internal` only)
 
@@ -153,7 +154,6 @@ All services are published under the `.sexydad` domain (internal LAN domain).
 | 5678 | n8n | Traefik (via public) |
 | 9200 | OpenSearch | Traefik, Jupyter, n8n, Airflow |
 | 5601 | OpenSearch Dashboards | Traefik |
-| 11434 | Ollama | Traefik, Jupyter |
 | 8888 | JupyterLab (per user) | Traefik |
 | 9000 | Portainer | Traefik |
 | 9001 | Portainer Agent | Portainer server |
@@ -209,7 +209,7 @@ opensearch-dashboards → opensearch (overlay internal)
 
 jupyter → ollama (overlay internal)
   URL: http://ollama:11434
-  No auth (internal network only — not exposed to LAN without Traefik)
+  No auth for internal callers; the direct API is additionally allowed from 192.168.80.0/24
   
 jupyter → opensearch (overlay internal)  
   URL: http://opensearch:9200
@@ -230,7 +230,7 @@ ufw allow 443/tcp
 ufw allow from <lan-cidr>   # Full LAN for Swarm internals
 ufw enable
 
-# master2: SSH + Swarm + postgres LAN only
+# master2: SSH + Swarm + PostgreSQL/Ollama LAN access
 ufw allow 22/tcp
 ufw allow from <lan-cidr>   # LAN for Swarm + Postgres :5432
 ufw enable

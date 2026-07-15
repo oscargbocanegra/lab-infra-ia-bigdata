@@ -35,7 +35,7 @@ services:
       - ollama_basicauth
     
     # Expose port directly on host — acceso por IP sin pasar por Traefik
-    # http://192.168.80.200:11434 desde cualquier equipo de la red
+    # http://192.168.80.200:11434 desde equipos autorizados de 192.168.80.0/24 (Postman; DHCP soportado)
     ports:
       - target: 11434
         published: 11434

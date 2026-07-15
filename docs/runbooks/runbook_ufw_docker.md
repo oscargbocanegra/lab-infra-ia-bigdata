@@ -1,6 +1,6 @@
 # Runbook: UFW Firewall + Docker Swarm
 
-> **Last updated:** 2026-04-06  
+> **Last updated:** 2026-07-14
 > **Applies to:** master1 (`<master1-ip>`) and master2 (`<master2-ip>`)
 
 ---
@@ -68,9 +68,8 @@ DEFAULT_FORWARD_POLICY="ACCEPT"
 # Without these rules, inter-container traffic and container→internet is dropped
 # because containers use 172.x.x.x IPs which don't match the LAN RETURN rules below.
 -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
-# PostgreSQL host port: allow master1 and deny other LAN origins
--A DOCKER-USER -s 192.168.80.100/32 -p tcp --dport 5432 -j RETURN
--A DOCKER-USER -p tcp --dport 5432 -j DROP
+# Approved LAN clients use DHCP in 192.168.80.0/24.
+# This intentionally permits direct PostgreSQL (DBeaver/psql) and Ollama API (Postman) access.
 -A DOCKER-USER -d 172.16.0.0/12 -j RETURN
 # Allow traffic from private LAN
 -A DOCKER-USER -d <lan-cidr> -j RETURN
@@ -120,7 +119,8 @@ Port      Protocol  From                  Purpose
 7946/tcp  TCP       <master1-ip> only     Swarm node communication
 7946/udp  UDP       <master1-ip> only     Swarm node communication
 4789/udp  UDP       <master1-ip> only     Swarm overlay network (VXLAN)
-5432/tcp  TCP       <master1-ip> only     PostgreSQL (for DBeaver SSH tunnel)
+5432/tcp  TCP       192.168.80.0/24       PostgreSQL (DBeaver/psql; DHCP clients)
+11434/tcp TCP       192.168.80.0/24       Ollama API (Postman; DHCP clients)
 9000/tcp  TCP       <master1-ip> only     MinIO API (restic backups)
 ```
 
