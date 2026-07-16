@@ -61,33 +61,30 @@ DEFAULT_FORWARD_POLICY="ACCEPT"
 ### DOCKER-USER chain (in `/etc/ufw/after.rules`)
 
 ```iptables
-# DOCKER-USER — restrict Docker-published ports to LAN only
+# DOCKER-USER — restrict only approved Docker-published ports
 *filter
 :DOCKER-USER - [0:0]
-# Allow traffic from Docker overlay/bridge subnets (172.16.0.0/12)
-# Without these rules, inter-container traffic and container→internet is dropped
-# because containers use 172.x.x.x IPs which don't match the LAN RETURN rules below.
+-A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
 -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
-# Approved LAN clients use DHCP in 192.168.80.0/24.
-# This intentionally permits direct PostgreSQL (DBeaver/psql) and Ollama API (Postman) access.
--A DOCKER-USER -d 172.16.0.0/12 -j RETURN
-# Allow traffic from private LAN
--A DOCKER-USER -d <lan-cidr> -j RETURN
--A DOCKER-USER -s <lan-cidr> -j RETURN
-# Drop everything else (non-LAN traffic hitting Docker-published ports)
--A DOCKER-USER -j DROP
+-A DOCKER-USER -s <lan-cidr> -p tcp -m conntrack --ctstate NEW --ctorigdst <master2-ip> --ctorigdstport 5432 -j RETURN
+-A DOCKER-USER -s <lan-cidr> -p tcp -m conntrack --ctstate NEW --ctorigdst <master2-ip> --ctorigdstport 11434 -j RETURN
+-A DOCKER-USER -p tcp -m conntrack --ctstate NEW --ctorigdst <master2-ip> --ctorigdstport 5432 -j DROP
+-A DOCKER-USER -p tcp -m conntrack --ctstate NEW --ctorigdst <master2-ip> --ctorigdstport 11434 -j DROP
+-A DOCKER-USER -p tcp -m conntrack --ctstate NEW --ctorigdst <master2-ip> --ctorigdstport 9000 -j DROP
+-A DOCKER-USER -j RETURN
 COMMIT
 # END DOCKER-USER
 ```
 
-**WHY four RETURN rules are required:**
+Rule order is mandatory:
 
-1. `-s 172.16.0.0/12 RETURN` — allows container→internet and container→container traffic (source is 172.x.x.x)
-2. `-d 172.16.0.0/12 RETURN` — allows internet→container replies (destination is 172.x.x.x)
-3. `-s <lan-cidr> RETURN` — allows LAN client requests to reach containers
-4. `-d <lan-cidr> RETURN` — allows container SYN-ACK replies back to LAN clients
+1. Preserve `ESTABLISHED,RELATED` replies.
+2. Preserve container-originated overlay, bridge and outbound traffic.
+3. Allow only the approved LAN and published ports.
+4. Drop other new connections to `5432`, `11434` and legacy `9000`.
+5. Return unrelated Docker forwarding.
 
-Without rules 1 and 2, containers have no internet access and cannot communicate with each other through the overlay network. This causes service crashes on startup (e.g. `pip install` in entrypoint scripts failing with `Network is unreachable`).
+Do not add a blanket `-d 172.16.0.0/12 -j RETURN` before the port rules: after DNAT it bypasses all source restrictions.
 
 ---
 
@@ -121,8 +118,9 @@ Port      Protocol  From                  Purpose
 4789/udp  UDP       <master1-ip> only     Swarm overlay network (VXLAN)
 5432/tcp  TCP       192.168.80.0/24       PostgreSQL (DBeaver/psql; DHCP clients)
 11434/tcp TCP       192.168.80.0/24       Ollama API (Postman; DHCP clients)
-9000/tcp  TCP       <master1-ip> only     MinIO API (restic backups)
 ```
+
+MinIO `9000/tcp` is internal-only. LAN access uses `https://minio-api.sexydad`; service-to-service access uses `http://minio:9000` on the overlay network.
 
 ---
 

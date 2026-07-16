@@ -11,7 +11,11 @@ echo "=== UFW hardening for master2 ==="
 # they reach the DOCKER-USER chain — breaking all Docker-published ports.
 sed -i 's/DEFAULT_FORWARD_POLICY="DROP"/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
 
-# Reset to clean state
+# Reset is disruptive and requires an explicit maintenance authorization.
+if [[ "${CONFIRMO_UFW_RESET:-}" != "SI" ]]; then
+  echo "ERROR: export CONFIRMO_UFW_RESET=SI only during an approved maintenance window." >&2
+  exit 64
+fi
 ufw --force reset
 
 # Default policies
@@ -51,21 +55,22 @@ fi
 # Append DOCKER-USER block
 cat >> "${AFTER_RULES}" << 'DOCKER_RULES'
 
-# DOCKER-USER — restrict Docker-published ports to LAN only
+# DOCKER-USER — restrict only approved Docker-published ports
 *filter
 :DOCKER-USER - [0:0]
-# Allow traffic from Docker overlay/bridge subnets (172.16.0.0/12)
-# Without these rules, inter-container traffic and container→internet is dropped
-# because containers use 172.x.x.x IPs, not 192.168.80.x
+# Preserve replies and established flows before evaluating new connections.
+-A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+# Preserve container-originated overlay, bridge and outbound traffic.
 -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
-# Approved LAN clients (192.168.80.0/24) may use PostgreSQL and Ollama.
-# DHCP leases are intentionally supported; deny non-LAN origins below.
--A DOCKER-USER -d 172.16.0.0/12 -j RETURN
-# Allow traffic from private LAN
--A DOCKER-USER -d 192.168.80.0/24 -j RETURN
--A DOCKER-USER -s 192.168.80.0/24 -j RETURN
-# Drop everything else (non-LAN traffic hitting Docker-published ports)
--A DOCKER-USER -j DROP
+# Allow new PostgreSQL and Ollama connections only from the authorized LAN.
+-A DOCKER-USER -s 192.168.80.0/24 -p tcp -m conntrack --ctstate NEW --ctorigdst 192.168.80.200 --ctorigdstport 5432 -j RETURN
+-A DOCKER-USER -s 192.168.80.0/24 -p tcp -m conntrack --ctstate NEW --ctorigdst 192.168.80.200 --ctorigdstport 11434 -j RETURN
+# Deny all other new connections to the approved direct ports and legacy MinIO 9000.
+-A DOCKER-USER -p tcp -m conntrack --ctstate NEW --ctorigdst 192.168.80.200 --ctorigdstport 5432 -j DROP
+-A DOCKER-USER -p tcp -m conntrack --ctstate NEW --ctorigdst 192.168.80.200 --ctorigdstport 11434 -j DROP
+-A DOCKER-USER -p tcp -m conntrack --ctstate NEW --ctorigdst 192.168.80.200 --ctorigdstport 9000 -j DROP
+# Do not alter unrelated Docker forwarding.
+-A DOCKER-USER -j RETURN
 COMMIT
 # END DOCKER-USER
 DOCKER_RULES

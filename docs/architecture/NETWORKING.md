@@ -220,21 +220,15 @@ jupyter → opensearch (overlay internal)
 
 ## Firewall Considerations
 
-**Current state**: UFW is active on both nodes (Phase 7 — DOCKER-USER chain configured).
+**P1-R6 target state:** UFW remains active and `DOCKER-USER` filters new connections by original host port using conntrack.
 
-```bash
-# master1: allow ingress on :80, :443 and SSH
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow from <lan-cidr>   # Full LAN for Swarm internals
-ufw enable
+- `5432/tcp`: allowed from `192.168.80.0/24` for PostgreSQL clients.
+- `11434/tcp`: allowed from `192.168.80.0/24` for Ollama clients.
+- `9000/tcp`: not published directly; MinIO uses overlay `internal` or Traefik.
+- Container-originated and `ESTABLISHED,RELATED` traffic remains allowed.
+- Other Docker forwarding is returned without a blanket LAN allow rule.
 
-# master2: SSH + Swarm + PostgreSQL/Ollama LAN access
-ufw allow 22/tcp
-ufw allow from <lan-cidr>   # LAN for Swarm + Postgres :5432
-ufw enable
-```
+The runtime publication of MinIO `9000/tcp` detected on 2026-07-16 is drift and must be removed by redeploying the declarative MinIO stack after the firewall patch is approved.
 
 ## Addendum de red JupyterHub — 2026-07-11
 
