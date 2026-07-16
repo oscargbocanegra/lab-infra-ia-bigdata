@@ -1,4 +1,4 @@
-# ADR-013: Retirada de JupyterLab standalone
+# ADR-015: Retirada de JupyterLab standalone
 
 - Estado: Aceptado
 - Fecha: 2026-07-11
