@@ -625,6 +625,9 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Evidencia runtime: ejecución `manual__2026-07-17T04:12:22+00:00` con tareas
   `promote` y `audit` exitosas; auditoría registrada para `users`, partición
   `2026-07-17`, con una fila procesada.
+- Se preparó el validador Silver para aceptar CSV del flujo mínimo y usar por
+  defecto `users/profiles`, pero su despliegue y ejecución quedaron pendientes
+  por indisponibilidad temporal de SSH hacia `master1`/`master2`.
 - Pendiente: ejecutar validación Silver, completar la variante distribuida con
   Spark cuando la imagen tenga soporte S3A y registrar lineage.
 
