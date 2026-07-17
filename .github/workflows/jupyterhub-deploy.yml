@@ -66,7 +66,7 @@ jobs:
           test -s "${RENDERED}"
 
           DESIRED_IMAGE="$(
-            awk '/^[[:space:]]*image:/ {print $2; exit}' "${STACK}"
+            awk '/^[[:space:]]*image:/ {print $2; exit}' "${STACK}" | tr -d '\r'
           )"
 
           case "${DESIRED_IMAGE}" in
