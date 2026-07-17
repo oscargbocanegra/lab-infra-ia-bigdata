@@ -580,7 +580,7 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - [x] Crear transformación Bronze a Silver mínima con Airflow/pandas.
 - [x] Crear transformación Silver a Gold mínima con Airflow/pandas.
 - [x] Orquestar el pipeline mínimo con Airflow.
-- [ ] Ejecutar desde JupyterHub y desde Airflow.
+- [x] Ejecutar desde JupyterHub y desde Airflow.
 - [x] Registrar auditoría de ejecución en PostgreSQL.
 - [ ] Publicar datasets y lineage en OpenMetadata.
 - [ ] Crear plantilla reutilizable para nuevas fuentes.
@@ -644,6 +644,20 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   anteriores fallidos se conservan como evidencia del contrato de datos.
 - Pendiente: ejecutar validación Silver, completar la variante distribuida con
   Spark cuando la imagen tenga soporte S3A y registrar lineage.
+
+### Checkpoint P2-R1 — PySpark desde JupyterHub (2026-07-17)
+
+- La imagen single-user incorpora `pyspark==3.5.3` y
+  `openjdk-17-jre-headless`; Java es necesario para iniciar el gateway JVM de
+  PySpark aunque el Master sea remoto.
+- Evidencia runtime: la imagen construida en `master1` completó
+  `spark.range(10).count() == 10` contra
+  `spark://spark-master-internal:7077` mediante la red Swarm `internal`.
+- El job fue distribuido por el Master y la ejecución terminó con
+  `PYSPARK_DISTRIBUTED_SMOKE_OK`.
+- Rollback: conservar la imagen single-user anterior en
+  `JUPYTERHUB_SINGLEUSER_IMAGE`, redeplegar el stack JupyterHub y recrear solo
+  las sesiones single-user. No se modificaron datos, secretos ni volúmenes.
 
 ## P2-R2 — OpenSearch y observabilidad
 
