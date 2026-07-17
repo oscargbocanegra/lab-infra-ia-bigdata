@@ -7,7 +7,7 @@ Apache Spark provides distributed data processing for PySpark jobs from Jupyter 
 | Property | Value |
 |----------|-------|
 | Image | `apache/spark:3.5.3` |
-| Master URL | `spark://spark-master:7077` |
+| Master URL | `spark://spark-master-internal:7077` |
 | Master UI | https://spark-master.sexydad |
 | History Server UI | https://spark-history.sexydad |
 
@@ -16,7 +16,7 @@ Apache Spark provides distributed data processing for PySpark jobs from Jupyter 
 | Service | Node | Role | Resources |
 |---------|------|------|-----------|
 | `spark_master` | master1 (`tier=control`) | Coordinator, job scheduler | 2 CPU / 2G RAM |
-| `spark_worker` | master2 (`tier=compute`) | Task execution | 10 CPU / 14G RAM |
+| `spark_worker` | master2 (`tier=compute`) | Task execution | 8 CPU / 8G RAM |
 | `spark_history` | master1 | Job history viewer | 1 CPU / 1G RAM |
 
 ## Important: Hostname Must Use Hyphens
@@ -50,7 +50,7 @@ mkdir -p /srv/fastdata/spark-tmp
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder \
-    .master("spark://spark-master:7077") \
+    .master("spark://spark-master-internal:7077") \
     .appName("my-job") \
     .getOrCreate()
 ```
@@ -62,7 +62,7 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 
 SparkSubmitOperator(
     task_id="my_spark_job",
-    conn_id="spark_default",   # conn_type=Spark, host=spark://spark-master:7077
+    conn_id="spark_default",   # conn_type=Spark, host=spark://spark-master-internal:7077
     application="/opt/airflow/dags/my_job.py",
 )
 ```

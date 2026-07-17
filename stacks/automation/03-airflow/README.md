@@ -93,7 +93,7 @@ To enable after first deploy:
 
 ## Integrations
 
-- **Spark**: `SparkSubmitOperator` → `spark://spark-master:7077`
+- **Spark**: `SparkSubmitOperator` → `spark://spark-master-internal:7077`
 - **MinIO**: `S3Hook` with `minio_s3` connection
 - **PostgreSQL**: `PostgresOperator` with `pg_main` connection
 - **n8n**: REST API triggers via `SimpleHttpOperator`

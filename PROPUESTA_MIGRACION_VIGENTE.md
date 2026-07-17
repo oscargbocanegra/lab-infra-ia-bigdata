@@ -456,7 +456,7 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Excepción inicial: `airflow_airflow_init=0/0` es one-shot y no se considera degradado.
 - Decisión: diagnosticar únicamente RAG API antes de modificar healthchecks o recursos.
 - Criterio práctico: no exigir healthcheck idéntico a todos los servicios; aceptar verificaciones funcionales equivalentes o excepciones justificadas del laboratorio.
-- Estado P1-R7: En curso; progreso maestro `8/15 = 53,3 %`.
+- Estado P1-R7: técnicamente completado; el cierre administrativo está en PR #19.
 
 ### Checkpoint P1-R7 — diagnóstico RAG API (2026-07-17)
 
@@ -517,7 +517,8 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Estado runtime: `rag-api`, `minio`, `n8n`, `ollama`, `spark`, `jupyterhub`,
   Traefik y Portainer convergieron; Ollama requirió esperar la recreación de la
   imagen y terminó `1/1`.
-- Pendiente de cierre administrativo: actualización mediante commit/PR.
+- Cierre administrativo: cambios versionados y PR #19 abierto con checks
+  automáticos exitosos.
 - Medición posterior: master1 reportó 24 GiB disponibles y `/srv` al 1%;
   master2 reportó 25 GiB disponibles, `/srv/fastdata` al 7% y
   `/srv/datalake` al 3%; la RTX 2080 Ti estaba sin carga (0/11264 MiB).
@@ -534,8 +535,19 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - La tarea defectuosa de MinIO fue recreada sin eliminar su persistencia. Los
   secretos quedaron montados correctamente.
 - Los límites y healthchecks de P1-R7 fueron aplicados por grupos y medidos.
-- Permanecen fuera de esta ejecución la refactorización stateful P1-R8 y las
-  fases P2, además del cierre administrativo mediante commit/PR.
+- Permanecen fuera de esta ejecución la refactorización stateful P1-R8 y la
+  transformación completa Bronze → Silver → Gold de P2-R1.
+
+### Avance consolidado — 2026-07-17
+
+- Checklist documentado: `104` elementos completados de `170` (`61,2 %`);
+  existe un elemento marcado como riesgo aceptado y `65` pendientes.
+- Hitos maestros: `8/15` (`53,3 %`) completados antes de contabilizar P2-R1.
+- P2-R1 tiene completados los prerrequisitos de buckets, ingesta Bronze,
+  Spark distribuido y validación Bronze en Airflow; las transformaciones y
+  auditoría permanecen pendientes.
+- El porcentaje de hito no se mezcla con el porcentaje de checklist: el
+  primero mide bloques principales y el segundo tareas detalladas.
 
 ## P1-R8 — Refactorización stateful (posterior a la recuperación funcional)
 
