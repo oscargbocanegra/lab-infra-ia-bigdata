@@ -579,9 +579,9 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - [x] Crear proyecto de ingesta batch de ejemplo.
 - [x] Crear transformación Bronze a Silver mínima con Airflow/pandas.
 - [x] Crear transformación Silver a Gold mínima con Airflow/pandas.
-- [ ] Orquestar el pipeline completo con Airflow.
+- [x] Orquestar el pipeline mínimo con Airflow.
 - [ ] Ejecutar desde JupyterHub y desde Airflow.
-- [ ] Registrar auditoría de ejecución en PostgreSQL.
+- [x] Registrar auditoría de ejecución en PostgreSQL.
 - [ ] Publicar datasets y lineage en OpenMetadata.
 - [ ] Crear plantilla reutilizable para nuevas fuentes.
 - [ ] Documentar particionamiento, reejecución y manejo de errores.
@@ -620,8 +620,13 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   servicios stateful ni credenciales.
 - Evidencia: `silver/users/2026-07-17/users.csv` y
   `gold/users/2026-07-17/summary.csv` creados en MinIO.
-- Pendiente: completar la variante distribuida con Spark cuando la imagen tenga
-  soporte S3A y registrar auditoría/lineage.
+- El DAG ahora registra cada promoción en la tabla
+  `lab_medallion_audit` de la base Airflow.
+- Evidencia runtime: ejecución `manual__2026-07-17T04:12:22+00:00` con tareas
+  `promote` y `audit` exitosas; auditoría registrada para `users`, partición
+  `2026-07-17`, con una fila procesada.
+- Pendiente: ejecutar validación Silver, completar la variante distribuida con
+  Spark cuando la imagen tenga soporte S3A y registrar lineage.
 
 ## P2-R2 — OpenSearch y observabilidad
 

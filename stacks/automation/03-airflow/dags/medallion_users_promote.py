@@ -9,6 +9,8 @@ import os
 from airflow.decorators import dag, task
 import boto3
 import pandas as pd
+import psycopg2
+from sqlalchemy.engine import make_url
 
 MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://10.0.2.28:9000")
 
@@ -67,7 +69,49 @@ def medallion_users_promote():
         )
         return {"source": source, "silver": silver_key, "gold": gold_key, "rows": len(frame)}
 
-    promote("{{ params.date }}")
+    result = promote("{{ params.date }}")
+
+    @task
+    def audit(result: dict, date: str) -> None:
+        connection_url = os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"]
+        parsed = make_url(connection_url)
+        with psycopg2.connect(
+            host=parsed.host,
+            port=parsed.port,
+            dbname=parsed.database,
+            user=parsed.username,
+            password=parsed.password,
+        ) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS lab_medallion_audit (
+                        id BIGSERIAL PRIMARY KEY,
+                        dataset TEXT NOT NULL,
+                        partition_date DATE NOT NULL,
+                        silver_key TEXT NOT NULL,
+                        gold_key TEXT NOT NULL,
+                        rows_processed INTEGER NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )
+                    """
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO lab_medallion_audit
+                        (dataset, partition_date, silver_key, gold_key, rows_processed)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        "users",
+                        date,
+                        result["silver"],
+                        result["gold"],
+                        result["rows"],
+                    ),
+                )
+
+    audit(result, "{{ params.date }}")
 
 
 medallion_users_promote()
