@@ -613,11 +613,15 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   `gold/users/<date>/summary.csv`.
 - La implementación usa boto3/pandas disponibles en Airflow; no requiere
   modificar la imagen Spark ni introducir soporte S3A prematuramente.
-- Runtime: el DAG fue detectado correctamente por Airflow y quedó encolado,
-  pero no se obtuvo todavía un estado final; no se marca como completado.
-- Pendiente: resolver el despacho de esta tarea Celery, confirmar los objetos
-  Silver/Gold y completar la variante distribuida con Spark cuando la imagen
-  tenga soporte S3A.
+- Runtime: `medallion_users_promote` completó exitosamente en Airflow.
+- Causa del fallo inicial: el DAG estaba presente en `master1`, pero faltaba en
+  `/srv/fastdata/airflow/dags` de `master2`, que es la ruta montada por Celery.
+- Corrección: sincronización del DAG en `master2`; no se modificaron imágenes,
+  servicios stateful ni credenciales.
+- Evidencia: `silver/users/2026-07-17/users.csv` y
+  `gold/users/2026-07-17/summary.csv` creados en MinIO.
+- Pendiente: completar la variante distribuida con Spark cuando la imagen tenga
+  soporte S3A y registrar auditoría/lineage.
 
 ## P2-R2 — OpenSearch y observabilidad
 
