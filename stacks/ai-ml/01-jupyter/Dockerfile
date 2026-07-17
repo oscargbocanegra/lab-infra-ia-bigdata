@@ -21,6 +21,11 @@ FROM jupyter/datascience-notebook:python-3.11
 # ── Install as root to write to system Python ────────────────────────────────
 USER root
 
+# PySpark launches a local JVM gateway before it submits work to the cluster.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
 # ── Server extensions (baked in — no more runtime pip install) ───────────────
 # Previously installed in init-kernels.sh on every boot (~2-3 min).
 # Now installed once at image build time.
@@ -35,7 +40,8 @@ RUN pip install --no-cache-dir \
     "langchain-ollama>=0.2.0,<1.0" \
     "itables" \
     "ydata-profiling>=4.6.0" \
-    "ipywidgets"
+    "ipywidgets" \
+    "pyspark==3.5.3"
 
 # ── Switch back to notebook user ─────────────────────────────────────────────
 USER ${NB_UID}
