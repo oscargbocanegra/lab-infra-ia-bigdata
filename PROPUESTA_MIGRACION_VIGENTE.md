@@ -577,8 +577,8 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 
 - [x] Definir buckets o prefijos `bronze`, `silver` y `gold` en MinIO.
 - [x] Crear proyecto de ingesta batch de ejemplo.
-- [ ] Crear transformación Bronze a Silver con Spark.
-- [ ] Crear transformación Silver a Gold con Spark.
+- [x] Crear transformación Bronze a Silver mínima con Airflow/pandas.
+- [x] Crear transformación Silver a Gold mínima con Airflow/pandas.
 - [ ] Orquestar el pipeline completo con Airflow.
 - [ ] Ejecutar desde JupyterHub y desde Airflow.
 - [ ] Registrar auditoría de ejecución en PostgreSQL.
@@ -604,6 +604,20 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Rollback: redeploy del manifiesto Spark anterior y `docker service update
   --force airflow_airflow_worker`; no se eliminaron volúmenes, buckets ni
   secretos.
+
+### Incremento P2-R1 — promoción mínima de capas (2026-07-17)
+
+- Se agregó el DAG `medallion_users_promote`.
+- Lee un CSV de `bronze/users/<date>/`, normaliza columnas y elimina duplicados.
+- Publica `silver/users/<date>/users.csv` y
+  `gold/users/<date>/summary.csv`.
+- La implementación usa boto3/pandas disponibles en Airflow; no requiere
+  modificar la imagen Spark ni introducir soporte S3A prematuramente.
+- Runtime: el DAG fue detectado correctamente por Airflow y quedó encolado,
+  pero no se obtuvo todavía un estado final; no se marca como completado.
+- Pendiente: resolver el despacho de esta tarea Celery, confirmar los objetos
+  Silver/Gold y completar la variante distribuida con Spark cuando la imagen
+  tenga soporte S3A.
 
 ## P2-R2 — OpenSearch y observabilidad
 
