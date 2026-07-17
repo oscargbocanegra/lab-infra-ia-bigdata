@@ -628,6 +628,20 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Se preparó el validador Silver para aceptar CSV del flujo mínimo y usar por
   defecto `users/profiles`, pero su despliegue y ejecución quedaron pendientes
   por indisponibilidad temporal de SSH hacia `master1`/`master2`.
+
+### Checkpoint P2-R1 — validación Silver (2026-07-17)
+
+- El validador Silver fue adaptado para consumir CSV o Parquet, manteniendo
+  compatibilidad con futuras particiones Parquet.
+- El primer intento detectó correctamente que la muestra Bronze no incluía el
+  campo obligatorio `email`; se corrigió la muestra, se regeneraron Silver y
+  Gold y se repitió el control.
+- La serialización del reporte de gobernanza fue ajustada para convertir tipos
+  NumPy a valores JSON nativos.
+- Evidencia runtime: `governance_silver_validate`,
+  `manual__2026-07-17T05:05:22+00:00`, finalizó en `success`.
+- No se modificaron secretos, imágenes ni servicios stateful; los reintentos
+  anteriores fallidos se conservan como evidencia del contrato de datos.
 - Pendiente: ejecutar validación Silver, completar la variante distribuida con
   Spark cuando la imagen tenga soporte S3A y registrar lineage.
 
