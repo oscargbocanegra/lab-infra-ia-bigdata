@@ -89,8 +89,8 @@ SILVER_SCHEMAS: dict[str, dict[str, Any]] = {
     catchup=False,
     tags=["governance", "quality", "silver"],
     params={
-        "domain": Param("commerce", type="string", description="Data domain"),
-        "table": Param("sales", type="string", description="Table name"),
+        "domain": Param("users", type="string", description="Data domain"),
+        "table": Param("profiles", type="string", description="Table name"),
         "date": Param(
             default=datetime.now().strftime("%Y-%m-%d"),
             type="string",
@@ -107,27 +107,35 @@ SILVER_SCHEMAS: dict[str, dict[str, Any]] = {
 def governance_silver_validate():
     @task
     def load_silver_partition(domain: str, table: str, date: str) -> dict:
-        """Load all parquet files from silver/<domain>/<table>/<date>/"""
+        """Load CSV or parquet files from the Silver partition."""
         s3 = _get_minio_client()
-        prefix = f"{domain}/{table}/{date}/"
+        prefix = (
+            f"{domain}/{date}/"
+            if domain == "users" and table == "profiles"
+            else f"{domain}/{table}/{date}/"
+        )
 
         response = s3.list_objects_v2(Bucket=MINIO_BUCKET_SILVER, Prefix=prefix)
         files = [
             obj["Key"]
             for obj in response.get("Contents", [])
-            if obj["Key"].endswith(".parquet")
+            if obj["Key"].endswith((".parquet", ".csv"))
         ]
 
         if not files:
             raise AirflowException(
-                f"No parquet files found in silver/{domain}/{table}/{date}/"
+                f"No CSV or parquet files found in silver/{prefix}"
             )
 
         # Load all parts into single DataFrame
         frames = []
         for key in files:
             obj = s3.get_object(Bucket=MINIO_BUCKET_SILVER, Key=key)
-            frames.append(pd.read_parquet(pd.io.common.BytesIO(obj["Body"].read())))
+            content = obj["Body"].read()
+            if key.endswith(".csv"):
+                frames.append(pd.read_csv(pd.io.common.BytesIO(content)))
+            else:
+                frames.append(pd.read_parquet(pd.io.common.BytesIO(content)))
 
         df = pd.concat(frames, ignore_index=True)
         log.info("Loaded %d rows from silver/%s/%s/%s/", len(df), domain, table, date)
