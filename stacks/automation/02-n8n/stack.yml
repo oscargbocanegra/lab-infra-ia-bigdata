@@ -47,6 +47,13 @@ services:
     volumes:
       - /srv/fastdata/n8n:/home/node/.n8n
 
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:5678/healthz', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
     secrets:
       - pg_n8n_pass
       - n8n_encryption_key
@@ -62,6 +69,13 @@ services:
         constraints:
           - node.hostname == master2
           - node.labels.tier == compute
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
       restart_policy:
             condition: any
             delay: 5s

@@ -126,11 +126,11 @@ c.SwarmSpawner.extra_placement_spec = {
     ]
 }
 
-# Reservas bajas mientras conviven los Jupyter standalone.
-c.SwarmSpawner.cpu_guarantee = 0.25
+# Reserva y límite iniciales por usuario del laboratorio.
+c.SwarmSpawner.cpu_guarantee = 0.5
 c.SwarmSpawner.cpu_limit = 4.0
-c.SwarmSpawner.mem_guarantee = "512M"
-c.SwarmSpawner.mem_limit = "8G"
+c.SwarmSpawner.mem_guarantee = "1G"
+c.SwarmSpawner.mem_limit = "6G"
 
 c.SwarmSpawner.volumes = {
     "/srv/fastdata/jupyterhub/users/{username}/work": {

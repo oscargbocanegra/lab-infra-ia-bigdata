@@ -117,6 +117,13 @@ services:
       placement:
         constraints:
           - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
       restart_policy:
         condition: any
         delay: 5s
