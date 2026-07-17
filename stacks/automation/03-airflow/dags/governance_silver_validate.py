@@ -123,9 +123,7 @@ def governance_silver_validate():
         ]
 
         if not files:
-            raise AirflowException(
-                f"No CSV or parquet files found in silver/{prefix}"
-            )
+            raise AirflowException(f"No CSV or parquet files found in silver/{prefix}")
 
         # Load all parts into single DataFrame
         frames = []

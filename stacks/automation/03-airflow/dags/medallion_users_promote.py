@@ -38,9 +38,7 @@ def medallion_users_promote():
     def promote(date: str) -> dict:
         s3 = _s3()
         prefix = f"users/{date}/"
-        objects = s3.list_objects_v2(Bucket="bronze", Prefix=prefix).get(
-            "Contents", []
-        )
+        objects = s3.list_objects_v2(Bucket="bronze", Prefix=prefix).get("Contents", [])
         source = next(
             (item["Key"] for item in objects if item["Key"].endswith(".csv")),
             None,
@@ -48,17 +46,28 @@ def medallion_users_promote():
         if source is None:
             raise ValueError(f"No CSV found in bronze/{prefix}")
 
-        frame = pd.read_csv(io.BytesIO(s3.get_object(Bucket="bronze", Key=source)["Body"].read()))
+        frame = pd.read_csv(
+            io.BytesIO(s3.get_object(Bucket="bronze", Key=source)["Body"].read())
+        )
         frame.columns = [column.strip().lower() for column in frame.columns]
         frame = frame.drop_duplicates().reset_index(drop=True)
         frame["ingested_date"] = date
 
         silver_key = f"users/{date}/users.csv"
         silver_body = frame.to_csv(index=False).encode("utf-8")
-        s3.put_object(Bucket="silver", Key=silver_key, Body=silver_body, ContentType="text/csv")
+        s3.put_object(
+            Bucket="silver", Key=silver_key, Body=silver_body, ContentType="text/csv"
+        )
 
         summary = pd.DataFrame(
-            [{"dataset": "users", "partition_date": date, "rows": len(frame), "columns": len(frame.columns)}]
+            [
+                {
+                    "dataset": "users",
+                    "partition_date": date,
+                    "rows": len(frame),
+                    "columns": len(frame.columns),
+                }
+            ]
         )
         gold_key = f"users/{date}/summary.csv"
         s3.put_object(
@@ -67,7 +76,12 @@ def medallion_users_promote():
             Body=summary.to_csv(index=False).encode("utf-8"),
             ContentType="text/csv",
         )
-        return {"source": source, "silver": silver_key, "gold": gold_key, "rows": len(frame)}
+        return {
+            "source": source,
+            "silver": silver_key,
+            "gold": gold_key,
+            "rows": len(frame),
+        }
 
     result = promote("{{ params.date }}")
 
