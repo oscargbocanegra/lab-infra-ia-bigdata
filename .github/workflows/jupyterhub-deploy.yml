@@ -98,9 +98,9 @@ jobs:
           test -d /srv/fastdata/jupyterhub/hub
           sudo stat -c '%U:%G %a %n' /srv/fastdata/jupyterhub/hub
 
-          do
+          for SERVICE in jupyterhub_jupyterhub postgres_postgres; do
             REPLICAS="$(
-              docker service ls                 --filter "name=${SERVICE}"                 --format '{{.Replicas}}'
+              docker service ls --filter "name=${SERVICE}" --format '{{.Replicas}}'
             )"
             test "${REPLICAS}" = "1/1"
             echo "${SERVICE}: ${REPLICAS}"
