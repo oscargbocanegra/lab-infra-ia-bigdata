@@ -73,23 +73,26 @@ services:
 
     # Arranca el master en foreground usando spark-class directamente
     # eventLog dir: filesystem local compartido con history server vía volumen
-    command: ["bash", "-c", "mkdir -p /opt/spark/history && exec /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"]
+    command: ["bash", "-c", "mkdir -p /opt/spark/history && exec /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master-internal --port 7077 --webui-port 8080"]
 
     environment:
       <<: *spark-env
-      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_HOST: spark-master-internal
       SPARK_MASTER_PORT: "7077"
       SPARK_MASTER_WEBUI_PORT: "8080"
 
     networks:
-      - internal
-      - public
+      internal:
+        aliases:
+          - spark-master-internal
+      public: {}
 
     volumes:
       # Directorio compartido con history server para event logs
       - /srv/fastdata/spark-history:/opt/spark/history
 
     deploy:
+      endpoint_mode: dnsrr
       replicas: 1
       placement:
         constraints:
@@ -127,16 +130,16 @@ services:
     user: root
 
     # Arranca el worker en foreground — spark-class es el proceso principal
-    # La URL del master usa guión (spark-master) para que Java la acepte como hostname válido
-    command: ["bash", "-c", "mkdir -p /opt/spark/history && exec /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://spark-master:7077"]
+    # La URL interna usa un alias con guiones para que Java la acepte como hostname válido
+    command: ["bash", "-c", "mkdir -p /opt/spark/history && exec /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://spark-master-internal:7077"]
 
     environment:
       <<: *spark-env
       SPARK_WORKER_WEBUI_PORT: "8081"
       # Recursos que el worker ofrece al master
-      # 10 CPUs y 14GB: deja headroom para Jupyter+Ollama+MinIO
-      SPARK_WORKER_CORES: "10"
-      SPARK_WORKER_MEMORY: "14g"
+      # 8 CPUs y 8GB: deja headroom para Jupyter+Ollama+MinIO
+      SPARK_WORKER_CORES: "8"
+      SPARK_WORKER_MEMORY: "8g"
 
     networks:
       - internal
@@ -159,10 +162,10 @@ services:
           - node.hostname == master2
       resources:
         limits:
-          cpus: '12.0'
-          memory: 16G
+          cpus: '8.0'
+          memory: 10G
         reservations:
-          cpus: '2.0'
+          cpus: '1.0'
           memory: 2G
       restart_policy:
         condition: any
@@ -195,8 +198,8 @@ services:
       <<: *spark-env
 
     networks:
-      - internal
       - public
+      - internal
 
     volumes:
       # Lee los event logs escritos por master/worker desde master1

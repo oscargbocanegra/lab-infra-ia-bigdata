@@ -23,6 +23,13 @@ services:
       - internal
     deploy:
       mode: global
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
       restart_policy:
         condition: any
     volumes:
@@ -44,6 +51,13 @@ services:
       placement:
         constraints:
           - node.labels.tier == control
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
       restart_policy:
         condition: any
         delay: 5s

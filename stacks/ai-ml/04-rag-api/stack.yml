@@ -115,6 +115,17 @@ services:
         max-file: "3"
         labels: "com.docker.stack.namespace"
 
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "from urllib.request import urlopen; response = urlopen('http://127.0.0.1:8000/health', timeout=3); raise SystemExit(0 if response.status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
     deploy:
       replicas: 1
       placement:
