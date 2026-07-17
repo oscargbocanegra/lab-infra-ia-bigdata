@@ -29,6 +29,7 @@ from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
 import boto3
+import numpy as np
 import pandas as pd
 
 log = logging.getLogger(__name__)
@@ -269,7 +270,13 @@ def governance_silver_validate():
         s3.put_object(
             Bucket=MINIO_BUCKET_GOVERNANCE,
             Key=key,
-            Body=json.dumps(combined, indent=2).encode("utf-8"),
+            Body=json.dumps(
+                combined,
+                indent=2,
+                default=lambda value: (
+                    value.item() if isinstance(value, np.generic) else str(value)
+                ),
+            ).encode("utf-8"),
             ContentType="application/json",
         )
         log.info("Silver validation result saved to governance/%s", key)
