@@ -657,6 +657,14 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   `PYSPARK_DISTRIBUTED_SMOKE_OK`.
 - La imagen publicada e inmutable para las sesiones single-user es
   `giovannotti/lab-jupyter:sha-1269366`.
+- Reconciliación: el workflow `Deploy JupyterHub`
+  (`29561842408`) validó preflight, redeploy, convergencia, imagen, placement
+  y endpoints del Hub.
+- Evidencia de sesión real: `jupyterhub-user-ogiovanni` fue recreada en
+  `master2` con `sha-1269366`; el smoke distribuido contra Spark finalizó con
+  `JUPYTERHUB_PYSPARK_SESSION_SMOKE_OK`.
+- La sesión activa de `odavid` se conserva sin interrupción en su imagen
+  previa y tomará la nueva imagen al recrearse desde JupyterHub.
 - Rollback: conservar la imagen single-user anterior en
   `JUPYTERHUB_SINGLEUSER_IMAGE`, redeplegar el stack JupyterHub y recrear solo
   las sesiones single-user. No se modificaron datos, secretos ni volúmenes.
