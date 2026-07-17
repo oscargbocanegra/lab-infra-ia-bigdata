@@ -14,7 +14,7 @@ services:
       JUPYTERHUB_COOKIE_SECRET_SOURCE_FILE: /run/secrets/jupyterhub_cookie_secret
       JUPYTERHUB_HUB_CONNECT_URL: http://jupyterhub:8081
       JUPYTERHUB_NETWORK_NAME: internal
-      JUPYTERHUB_SINGLEUSER_IMAGE: giovannotti/lab-jupyter:sha-0cbf11c
+      JUPYTERHUB_SINGLEUSER_IMAGE: giovannotti/lab-jupyter:sha-1269366
       JUPYTERHUB_SINGLEUSER_ENTRYPOINT_CONFIG: jupyterhub_singleuser_entrypoint_v1
       JUPYTERHUB_SINGLEUSER_INIT_KERNELS_CONFIG: jupyterhub_singleuser_init_kernels_v1
       JUPYTERHUB_MINIO_ACCESS_SECRET: minio_access_key

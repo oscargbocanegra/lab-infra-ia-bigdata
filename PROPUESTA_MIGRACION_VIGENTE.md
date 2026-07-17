@@ -655,6 +655,8 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   `spark://spark-master-internal:7077` mediante la red Swarm `internal`.
 - El job fue distribuido por el Master y la ejecución terminó con
   `PYSPARK_DISTRIBUTED_SMOKE_OK`.
+- La imagen publicada e inmutable para las sesiones single-user es
+  `giovannotti/lab-jupyter:sha-1269366`.
 - Rollback: conservar la imagen single-user anterior en
   `JUPYTERHUB_SINGLEUSER_IMAGE`, redeplegar el stack JupyterHub y recrear solo
   las sesiones single-user. No se modificaron datos, secretos ni volúmenes.
