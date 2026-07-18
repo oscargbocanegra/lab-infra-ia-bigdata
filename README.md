@@ -692,6 +692,7 @@ The script verifies:
 | [`docs/runbooks/runbook_ufw_docker.md`](docs/runbooks/runbook_ufw_docker.md) | UFW + Docker Swarm architecture, DOCKER-USER chain rules, troubleshooting `ERR_CONNECTION_TIMED_OUT` |
 | [`docs/runbooks/`](docs/runbooks/) | Day-2 operations: deploy, troubleshoot, and maintain each service — including DBeaver SSH Tunnel setup |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Planned phases: Observability (Prometheus + Grafana), backups, hardening |
+| [`.github/agents/lab-infra-ia-bigdata.agent.md`](.github/agents/lab-infra-ia-bigdata.agent.md) | Project operations agent contract for cluster-safe AI execution (impact, rollback, evidence, PR closure) |
 
 ---
 
