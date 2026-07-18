@@ -58,6 +58,10 @@ services:
       # Logging
       - GF_LOG_LEVEL=warn
 
+      # Lab-first simplification: keep alerting disabled until explicit tuning.
+      - GF_UNIFIED_ALERTING_ENABLED=false
+      - GF_ALERTING_ENABLED=false
+
     secrets:
       - grafana_admin_user
       - grafana_admin_password
@@ -74,8 +78,6 @@ services:
         target: /etc/grafana/provisioning/dashboards/provider.yml
       - source: grafana_dashboard_system_overview_v2
         target: /etc/grafana/provisioning/dashboards/system-overview.json
-      - source: grafana_alerting_v2
-        target: /etc/grafana/provisioning/alerting/alerts.yml
 
     networks:
       - internal
@@ -122,9 +124,6 @@ configs:
     file: ./provisioning/dashboards/provider.yml
   grafana_dashboard_system_overview_v2:
     file: ./dashboards/system-overview.json
-  grafana_alerting_v2:
-    file: ./provisioning/alerting/alerts.yml
-
 networks:
   internal:
     external: true

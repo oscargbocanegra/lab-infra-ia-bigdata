@@ -165,5 +165,7 @@ docker stack rm grafana
 - Frecuencia recomendada: **60s** para operación normal del laboratorio.
 - Dashboards adicionales (stateful, GPU dedicado, agentes) se dejan como
   artefactos opcionales y solo se montan cuando exista una necesidad concreta.
+- Grafana Alerting queda deshabilitado por defecto en este perfil mínimo; se
+  activa recién cuando el bloque de alertas del plan esté implementado.
 
 > Swarm Configs are immutable. To update provisioning files, run `docker stack rm grafana` then redeploy.
