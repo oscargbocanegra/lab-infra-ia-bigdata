@@ -688,7 +688,9 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Fluent Bit está desplegado en modo global y envía logs Docker a OpenSearch.
 - La plantilla `docker-logs-template` y la política ISM `docker-logs-retention-7d`
   quedaron aplicadas con éxito.
-- Los registros Docker ahora llevan `node` y labels de stack/servicio/tarea.
+- Los registros Docker ahora llevan `node`, `container_id` y enriquecimiento
+  semántico (`service`, `stack`, `node`, `container`, `environment`,
+  `log_dataset`) con fallback seguro para laboratorio.
 - Fluent Bit calcula `log.dataset` (almacenado como `log_dataset`) y campos
   semánticos equivalentes para `service`, `stack`, `node` y `container`.
 - Los índices `docker-logs-*` usan retención de 7 días y cero réplicas para el
