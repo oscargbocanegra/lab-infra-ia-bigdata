@@ -52,9 +52,8 @@ secrets:
 
 services:
   rag-api:
-    # Image built by GitHub Actions (self-hosted runner on master1) and pushed to Docker Hub.
-    # CI/CD: .github/workflows/deploy.yml builds + pushes giovannotti/lab-rag-api:latest
-    image: giovannotti/lab-rag-api:latest
+    # Image pinned by digest for reproducible deploys in lab mode.
+    image: giovannotti/lab-rag-api:latest@sha256:cc0c818fa5397ebfa46f26ff10f5a2fdd5c4d7647fecab8940de1dfbc7dbda5b
 
     environment:
       # ── Ollama — direct host port on master2 (GPU inference) ─
