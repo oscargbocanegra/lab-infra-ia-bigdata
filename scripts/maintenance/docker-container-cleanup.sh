@@ -212,15 +212,11 @@ while IFS= read -r candidate_id; do
 
     echo "CANDIDATE_REMAINING=${candidate_id}"
 
-    CANDIDATES_REMAINING=$(
-      (CANDIDATES_REMAINING + 1)
-    )
+    CANDIDATES_REMAINING=$((CANDIDATES_REMAINING + 1))
   else
     echo "CANDIDATE_REMOVED=${candidate_id}"
 
-    CANDIDATES_REMOVED=$(
-      (CANDIDATES_REMOVED + 1)
-    )
+    CANDIDATES_REMOVED=$((CANDIDATES_REMOVED + 1))
   fi
 done <"${CANDIDATE_IDS_FILE}"
 
