@@ -152,11 +152,31 @@ check_tcp "Spark Master" "spark_spark_master" "7077"
 # =============================================================================
 section "Endpoints HTTPS via Traefik (LAN)"
 
+TRAEFIK_CHECK_IP="${TRAEFIK_CHECK_IP:-}"
+if [ -z "${TRAEFIK_CHECK_IP}" ]; then
+  node_ips="$(hostname -I 2>/dev/null || true)"
+  TRAEFIK_CHECK_IP="${node_ips%% *}"
+fi
+
+if [ -z "${TRAEFIK_CHECK_IP}" ]; then
+  warn "No se pudo detectar IP LAN para checks HTTPS; se usará resolución DNS local."
+fi
+
 check_https() {
   local label="$1"
   local url="$2"
   local code
-  code=$(curl -sk -o /dev/null -w "%{http_code}" "${url}" 2>/dev/null || echo "000")
+  local host_path
+  local host
+  host_path="${url#https://}"
+  host="${host_path%%/*}"
+
+  if [ -n "${TRAEFIK_CHECK_IP}" ]; then
+    code=$(curl -sk --resolve "${host}:443:${TRAEFIK_CHECK_IP}" -o /dev/null -w "%{http_code}" "${url}" 2>/dev/null || echo "000")
+  else
+    code=$(curl -sk -o /dev/null -w "%{http_code}" "${url}" 2>/dev/null || echo "000")
+  fi
+
   if [[ "$code" =~ ^(200|301|302|401|403)$ ]]; then
     pass "${label}: ${url} → HTTP ${code}"
   else
