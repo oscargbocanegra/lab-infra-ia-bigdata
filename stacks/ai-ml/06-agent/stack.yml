@@ -52,9 +52,8 @@ secrets:
 
 services:
   agent:
-    # Image built by GitHub Actions (self-hosted runner on master1) and pushed to Docker Hub.
-    # CI/CD: .github/workflows/deploy.yml builds + pushes giovannotti/lab-agent:latest
-    image: giovannotti/lab-agent:latest
+    # Image pinned by digest for reproducible deploys in lab mode.
+    image: giovannotti/lab-agent:latest@sha256:18a837a183d3cc53c92f2cb0ced9d2c8911f7f527eb3cbcad043e8d87a159c94
 
     environment:
       # ── Ollama — GPU inference on master2 ───────────────────

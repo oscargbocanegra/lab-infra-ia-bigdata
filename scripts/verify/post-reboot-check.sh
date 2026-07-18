@@ -28,6 +28,12 @@ NC='\033[0m'
 PASS=0
 FAIL=0
 
+REPORT_DIR="${LAB_REPORT_DIR:-${HOME}/lab-reports}"
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+REPORT_PATH="${REPORT_DIR}/post-reboot-check-${TIMESTAMP}.txt"
+mkdir -p "${REPORT_DIR}"
+exec > >(tee "${REPORT_PATH}") 2>&1
+
 pass() { echo -e "${GREEN}✅ PASS${NC} — $1"; ((PASS++)); }
 fail() { echo -e "${RED}❌ FAIL${NC} — $1"; ((FAIL++)); }
 warn() { echo -e "${YELLOW}⚠️  WARN${NC} — $1"; }
@@ -187,6 +193,7 @@ echo ""
 
 if [ $FAIL -eq 0 ]; then
   echo -e "${GREEN}🎉 Cluster 100% operativo post-reboot${NC}"
+  echo "REPORT=${REPORT_PATH}"
   exit 0
 else
   echo -e "${RED}⚠️  Hay ${FAIL} checks fallidos — revisar arriba${NC}"
@@ -195,5 +202,6 @@ else
   echo "  docker service ls                           # ver estado de todos los servicios"
   echo "  docker service ps <nombre_servicio>         # ver historial de tareas"
   echo "  docker service logs <nombre_servicio> -f    # ver logs en tiempo real"
+  echo "REPORT=${REPORT_PATH}"
   exit 1
 fi

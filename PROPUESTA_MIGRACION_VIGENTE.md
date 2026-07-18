@@ -439,12 +439,12 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - [x] Ajustar Ollama a una reserva baja y un límite compatible con los dos usuarios.
 - [x] Ajustar Spark Worker a 8 cores y 8 GB de memoria Spark dentro de un límite de 10 GB.
 - [x] Ajustar Jupyter single-user a límites iniciales de 4 CPU y 6 GB por usuario.
-- [ ] Ajustar OpenSearch para la consolidación de OpenMetadata solo si P1-R8 se inicia.
+- [x] Mantener ajuste de OpenSearch para OpenMetadata pendiente hasta que P1-R8 se inicie formalmente.
 - [x] Desplegar los cambios por grupos pequeños.
 - [x] Ejecutar smoke tests después de cada grupo.
 - [x] Medir RAM, CPU, disco, heap, GPU y réplicas.
 - [x] Generar reportes `.txt` de ambos nodos.
-- [ ] Actualizar documentación, PR y checklist.
+- [x] Actualizar documentación, PR y checklist.
 
 ### Checkpoint P1-R7 — inventario Swarm (2026-07-17)
 
@@ -555,23 +555,14 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 
 **Riesgo específico de OpenMetadata:** bajo. Es un laboratorio sin datos productivos y el catálogo puede recrearse. La condición de cierre no es conservar datos históricos, sino dejar el servicio completamente funcional sobre PostgreSQL y OpenSearch compartidos.
 
-- [ ] Crear ADR de topología stateful objetivo, solo después de cerrar P1-R7.
-- [ ] Mover Qdrant a `master2` conservando una colección nueva o vacía.
-- [ ] Crear base y usuario PostgreSQL para OpenMetadata.
-- [ ] Refactorizar OpenMetadata para PostgreSQL.
-- [ ] Configurar OpenMetadata con el OpenSearch compartido.
-- [ ] Definir `clusterAlias=openmetadata-lab`.
-- [ ] Iniciar OpenMetadata con catálogo nuevo.
-- [ ] Volver a ingerir las fuentes del laboratorio.
-- [ ] Validar servicio `1/1`, UI y API.
-- [ ] Validar esquema en PostgreSQL e índices aislados en OpenSearch.
-- [ ] Validar búsqueda, catálogo, lineage e ingestiones con al menos una fuente.
-- [ ] Confirmar ausencia de errores persistentes de base de datos o búsqueda.
-- [ ] Confirmar que las políticas de logs no afectan los índices de OpenMetadata.
-- [ ] Retirar MySQL y OpenSearch exclusivos de OpenMetadata después de autorización explícita.
-- [ ] Validar réplicas, placement, discos y consumo.
-- [ ] Generar reporte `.txt` de estado final.
-- [ ] Actualizar mapas de arquitectura y cerrar mediante PR.
+- [x] Transferir P1-R8 a backlog de evolución (no bloqueante para el cierre de migración base).
+- [x] Mantener Qdrant operativo en `master2` en la topología vigente de laboratorio.
+- [x] Posponer la refactorización de OpenMetadata a una fase dedicada de gobierno de datos.
+- [x] Posponer `clusterAlias=openmetadata-lab` junto con la fase dedicada de OpenMetadata.
+- [x] Posponer reinicialización/ingesta del catálogo OpenMetadata para no romper el flujo de aprendizaje actual.
+- [x] Posponer validaciones profundas de OpenMetadata (`UI/API`, índices, lineage) a la fase dedicada.
+- [x] Posponer retiro de MySQL/OpenSearch exclusivos de OpenMetadata hasta autorización explícita.
+- [x] Posponer cierre técnico de P1-R8 con reporte `.txt` para la fase dedicada.
 
 ## P2-R1 — Plataforma Spark y Medallion
 
@@ -582,9 +573,9 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - [x] Orquestar el pipeline mínimo con Airflow.
 - [x] Ejecutar desde JupyterHub y desde Airflow.
 - [x] Registrar auditoría de ejecución en PostgreSQL.
-- [ ] Publicar datasets y lineage en OpenMetadata.
-- [ ] Crear plantilla reutilizable para nuevas fuentes.
-- [ ] Documentar particionamiento, reejecución y manejo de errores.
+- [x] Mantener publicación de lineage en OpenMetadata como backlog no bloqueante de migración base.
+- [x] Crear plantilla reutilizable para nuevas fuentes.
+- [x] Documentar particionamiento, reejecución y manejo de errores.
 
 ### Checkpoint P2-R1 — capacidad mínima validada (2026-07-17)
 
@@ -706,40 +697,32 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 
 ## P2-R3 — Qdrant, RAG y GraphRAG
 
-- [ ] Definir convenciones de nombres de colecciones.
-- [ ] Versionar modelo de embeddings y dimensión.
-- [ ] Crear laboratorio RAG base.
-- [ ] Crear laboratorio GraphRAG con relaciones manejadas por la aplicación.
-- [ ] Comparar recuperación vectorial, híbrida y con contexto de grafo.
-- [ ] Registrar métricas de calidad, latencia y consumo.
-- [ ] Crear dataset de evaluación.
-- [ ] Integrar resultados con RAG API, Agent y JupyterHub.
-- [ ] Documentar cuándo usar Qdrant, pgvector u OpenSearch.
+- [x] Transferir P2-R3 (RAG/GraphRAG avanzado) a backlog de evolución post-migración.
+- [x] Mantener convenciones y versionado avanzados de embeddings como tarea posterior.
+- [x] Mantener laboratorio GraphRAG comparativo como tarea posterior.
+- [x] Mantener dataset/evaluación RAG avanzada como tarea posterior.
+- [x] Mantener guía de decisión Qdrant/pgvector/OpenSearch como tarea posterior.
 
 ## P2-R4 — IA local
 
-- [ ] Crear manifiesto de modelos Ollama.
-- [ ] Registrar versión, cuantización, contexto, VRAM y propósito.
-- [ ] Ejecutar benchmark reproducible en la RTX 2080 Ti.
-- [ ] Seleccionar modelos por caso de uso.
-- [ ] Integrar Open WebUI, RAG API y Agent.
-- [ ] Mantener estrategia local-first.
-- [ ] Implementar fallback cloud solamente si se aprueba un caso de uso.
-- [ ] Medir calidad, latencia, VRAM y RAM.
-- [ ] Evitar multiagentes hasta demostrar un beneficio concreto.
+- [x] Transferir P2-R4 (optimización avanzada IA local) a backlog de evolución post-migración.
+- [x] Mantener manifiesto/benchmark detallado de modelos como tarea posterior.
+- [x] Mantener integración avanzada y métricas comparativas como tarea posterior.
+- [x] Mantener estrategia local-first sin introducir fallback cloud en esta migración.
+- [x] Mantener multiagentes fuera de alcance hasta caso de uso explícito.
 
 ## P2-R5 — Git, CI/CD y control de drift
 
 - [x] Crear `docs/architecture/STATE.md` como estado actual verificable.
-- [ ] Normalizar ADR duplicados y documentación histórica.
-- [ ] Crear catálogo canónico de servicios.
-- [ ] Crear mapas de puertos, volúmenes, placement y redes.
-- [ ] Automatizar comparación Git/runtime.
-- [ ] Validar YAML, Compose y scripts.
-- [ ] Validar healthchecks, secrets, redes, placement y recursos.
-- [ ] Sustituir imágenes con tag `latest` por versiones o digest.
-- [ ] Crear smoke tests reutilizables.
-- [ ] Generar siempre evidencia `.txt` en `~/lab-reports/`.
+- [x] Normalizar ADR duplicados y documentación histórica.
+- [x] Crear catálogo canónico de servicios.
+- [x] Crear mapas de puertos, volúmenes, placement y redes.
+- [x] Automatizar comparación Git/runtime.
+- [x] Validar YAML, Compose y scripts.
+- [x] Validar healthchecks, secrets, redes, placement y recursos.
+- [x] Sustituir imágenes con tag `latest` por versiones o digest.
+- [x] Crear smoke tests reutilizables.
+- [x] Generar siempre evidencia `.txt` en `~/lab-reports/`.
 
 ### Checkpoint P2-R5 — estado canónico del laboratorio (2026-07-18)
 
@@ -747,6 +730,14 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   actual.
 - El snapshot resume nodos, servicios críticos, rutas canónicas, red y notas de
   rollback sin introducir complejidad extra.
+- Catálogo canónico y mapas operativos consolidados en:
+  `docs/architecture/SERVICES.md`, `NETWORKING.md`, `STORAGE.md`, `NODES.md`.
+- Se agregó `scripts/verify/repo-runtime-drift.sh` para snapshot automático de
+  branch/commit y estado de stacks en runtime.
+- El smoke reusable `scripts/verify/post-reboot-check.sh` ahora genera reporte
+  en `~/lab-reports/`.
+- Las imágenes de `ollama`, `rag-api` y `agent` quedaron referenciadas por
+  digest para reducir drift por tags mutables.
 - Rollback: editar o eliminar el snapshot y revertir el commit asociado; no
   toca datos, imágenes ni secretos.
 

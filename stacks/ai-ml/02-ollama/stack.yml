@@ -9,7 +9,7 @@ version: "3.8"
 # Security: LAN whitelist + BasicAuth
 #
 # UPGRADE HISTORY:
-#   0.19.0  → latest  (2026-04) Required for Gemma 4 support (412 error fix)
+#   0.19.0  → pinned digest (2026-07) for reproducible runtime
 # ============================================================
 
 secrets:
@@ -18,7 +18,7 @@ secrets:
 
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest@sha256:6345fbc18bd73a1e16404be681dbc6fd291a027cab43ed541abe78c4c81051b0
     hostname: ollama
     
     networks:
