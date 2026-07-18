@@ -64,7 +64,7 @@ groups:
         condition: disk_threshold
         data:
           - refId: A
-            datasourceUid: prometheus
+            datasourceUid: PBFA97CFB590B2093
             relativeTimeRange:
               from: 300
               to: 0
@@ -116,7 +116,7 @@ groups:
         condition: service_threshold
         data:
           - refId: A
-            datasourceUid: prometheus
+            datasourceUid: PBFA97CFB590B2093
             relativeTimeRange:
               from: 120
               to: 0
@@ -164,7 +164,7 @@ groups:
         condition: ragas_threshold
         data:
           - refId: A
-            datasourceUid: prometheus
+            datasourceUid: PBFA97CFB590B2093
             relativeTimeRange:
               from: 3600
               to: 0

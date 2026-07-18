@@ -74,7 +74,7 @@ services:
         target: /etc/grafana/provisioning/dashboards/provider.yml
       - source: grafana_dashboard_system_overview_v2
         target: /etc/grafana/provisioning/dashboards/system-overview.json
-      - source: grafana_alerting
+      - source: grafana_alerting_v2
         target: /etc/grafana/provisioning/alerting/alerts.yml
 
     networks:
@@ -122,7 +122,7 @@ configs:
     file: ./provisioning/dashboards/provider.yml
   grafana_dashboard_system_overview_v2:
     file: ./dashboards/system-overview.json
-  grafana_alerting:
+  grafana_alerting_v2:
     file: ./provisioning/alerting/alerts.yml
 
 networks:
