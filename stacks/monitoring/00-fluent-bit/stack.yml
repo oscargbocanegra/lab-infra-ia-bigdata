@@ -94,13 +94,13 @@ services:
     # Inline config via command — keeps everything in this file
     # Full config injected via Docker Configs below
     configs:
-      - source: fluent_bit_config_v2
+      - source: fluent_bit_config_v3
         target: /fluent-bit/etc/fluent-bit.conf
       - source: fluent_bit_parsers_v3
         target: /fluent-bit/etc/parsers_docker.conf
 
 configs:
-  fluent_bit_config_v2:
+  fluent_bit_config_v3:
     file: ./fluent-bit.conf
   fluent_bit_parsers_v3:
     file: ./parsers_docker.conf
