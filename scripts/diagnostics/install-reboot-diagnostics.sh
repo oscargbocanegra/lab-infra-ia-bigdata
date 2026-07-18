@@ -33,6 +33,14 @@ install -m 0644 \
   /etc/systemd/system/lab-power-marker.service
 
 install -m 0644 \
+  "${SCRIPT_DIR}/systemd/lab-report-boot.service" \
+  /etc/systemd/system/lab-report-boot.service
+
+install -m 0644 \
+  "${SCRIPT_DIR}/systemd/lab-report-boot.timer" \
+  /etc/systemd/system/lab-report-boot.timer
+
+install -m 0644 \
   "${SCRIPT_DIR}/systemd/lab-reboot-analysis.service" \
   /etc/systemd/system/lab-reboot-analysis.service
 
@@ -46,12 +54,19 @@ install -m 0644 \
 
 systemd-analyze verify \
   /etc/systemd/system/lab-power-marker.service \
+  /etc/systemd/system/lab-report-boot.service \
+  /etc/systemd/system/lab-report-boot.timer \
   /etc/systemd/system/lab-reboot-analysis.service \
   /etc/systemd/system/lab-reboot-analysis.timer
 
+LEGACY_BOOT_UNIT="/etc/systemd/system/lab-report-boot.service"
 LEGACY_UNIT="/etc/systemd/system/analyze-reboot.service"
 LEGACY_SCRIPT="/opt/node_maintenance/analyze_reboot.sh"
 LEGACY_BACKUP_ROOT="/var/lib/lab-health/legacy-backup"
+
+if [[ -e "${LEGACY_BOOT_UNIT}" ]]; then
+  systemctl disable --now lab-report-boot.service 2>/dev/null || true
+fi
 
 if [[ -e "${LEGACY_UNIT}" || -e "${LEGACY_SCRIPT}" ]]; then
   LEGACY_TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -73,9 +88,11 @@ if [[ -e "${LEGACY_UNIT}" || -e "${LEGACY_SCRIPT}" ]]; then
 fi
 
 systemctl daemon-reload
+systemctl reset-failed lab-report-boot.service 2>/dev/null || true
 systemctl reset-failed analyze-reboot.service 2>/dev/null || true
 
 systemctl enable --now lab-power-marker.service
+systemctl enable --now lab-report-boot.timer
 systemctl enable --now lab-reboot-analysis.timer
 
 echo "REBOOT_DIAGNOSTICS_INSTALL=SUCCESS"

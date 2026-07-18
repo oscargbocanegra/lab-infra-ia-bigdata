@@ -1,0 +1,15 @@
+[Unit]
+Description=Lab report diagnostico diferido — master1
+Documentation=file:/usr/local/share/lab-infra/docs/runbooks/REBOOT_DIAGNOSTICS.md
+After=network-online.target docker.service lab-reboot-analysis.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lab-report.sh
+User=ogiovanni
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lab-report-boot
+RemainAfterExit=no
+TimeoutStartSec=300
