@@ -156,5 +156,16 @@ docker stack rm grafana
 - `stack.yml` — service definition, secrets, configs, placement
 - `provisioning/datasources/prometheus.yml` — Prometheus datasource (auto-loaded)
 - `provisioning/dashboards/provider.yml` — dashboard file provider config
+- `dashboards/system-overview.json` — dashboard único de operación (nodos, recursos, GPU, contenedores y tráfico)
+
+## Minimal dashboard strategy (lab-first)
+
+- Se provisiona **un solo dashboard base** (`system-overview.json`) para limitar
+  la carga de consultas en Prometheus y el renderizado en Grafana.
+- Frecuencia recomendada: **60s** para operación normal del laboratorio.
+- Dashboards adicionales (stateful, GPU dedicado, agentes) se dejan como
+  artefactos opcionales y solo se montan cuando exista una necesidad concreta.
+- Grafana Alerting queda deshabilitado por defecto en este perfil mínimo; se
+  activa recién cuando el bloque de alertas del plan esté implementado.
 
 > Swarm Configs are immutable. To update provisioning files, run `docker stack rm grafana` then redeploy.

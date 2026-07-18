@@ -295,7 +295,7 @@ governance/
 - [x] OpenSearch index pattern: `agent-traces-*` (auto-created by agent on first query)
 - [x] OpenSearch index pattern: `ragas-results-*` (auto-created by eval DAG, data written 2026-04-07)
 - [x] OpenSearch index pattern: `model-benchmarks-*` (auto-created by benchmark DAG, data written 2026-04-07)
-- [x] Grafana dashboard: Agent Overview — `dashboards/agent-observability.json` (latency, tool distribution, RAGAS trend, model leaderboard). Requires Grafana stack redeploy.
+- [x] Grafana dashboard: Agent Overview (latency, tool distribution, RAGAS trend, model leaderboard). It remains optional and is no longer provisioned by default in the minimal dashboard strategy.
 - [ ] OpenSearch Dashboards: `top_queries-*` index pattern → use `source.query.bool.filter.range.@timestamp.from` as time field
 
 ---

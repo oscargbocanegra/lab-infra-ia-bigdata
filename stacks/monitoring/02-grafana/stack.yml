@@ -58,6 +58,10 @@ services:
       # Logging
       - GF_LOG_LEVEL=warn
 
+      # Lab-first simplification: keep alerting disabled until explicit tuning.
+      - GF_UNIFIED_ALERTING_ENABLED=false
+      - GF_ALERTING_ENABLED=false
+
     secrets:
       - grafana_admin_user
       - grafana_admin_password
@@ -68,16 +72,12 @@ services:
         target: /var/lib/grafana
 
     configs:
-      - source: grafana_datasources
+      - source: grafana_datasources_v2
         target: /etc/grafana/provisioning/datasources/prometheus.yml
-      - source: grafana_datasource_opensearch
-        target: /etc/grafana/provisioning/datasources/opensearch.yml
       - source: grafana_dashboard_provider
         target: /etc/grafana/provisioning/dashboards/provider.yml
-      - source: grafana_dashboard_agent
-        target: /etc/grafana/provisioning/dashboards/agent-observability.json
-      - source: grafana_alerting
-        target: /etc/grafana/provisioning/alerting/alerts.yml
+      - source: grafana_dashboard_system_overview_v2
+        target: /etc/grafana/provisioning/dashboards/system-overview.json
 
     networks:
       - internal
@@ -118,17 +118,12 @@ services:
         - "com.docker.service.name=grafana"
 
 configs:
-  grafana_datasources:
+  grafana_datasources_v2:
     file: ./provisioning/datasources/prometheus.yml
-  grafana_datasource_opensearch:
-    file: ./provisioning/datasources/opensearch.yml
   grafana_dashboard_provider:
     file: ./provisioning/dashboards/provider.yml
-  grafana_dashboard_agent:
-    file: ./dashboards/agent-observability.json
-  grafana_alerting:
-    file: ./provisioning/alerting/alerts.yml
-
+  grafana_dashboard_system_overview_v2:
+    file: ./dashboards/system-overview.json
 networks:
   internal:
     external: true

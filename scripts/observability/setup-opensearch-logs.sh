@@ -205,7 +205,15 @@ template_body='{
         "docker_compose_service": {"type": "keyword"},
         "com.docker.stack.namespace": {"type": "keyword"},
         "com.docker.swarm.service.name": {"type": "keyword"},
-        "com.docker.swarm.task.name": {"type": "keyword"}
+        "com.docker.swarm.task.name": {"type": "keyword"},
+        "com_docker_stack_namespace": {"type": "keyword"},
+        "com_docker_swarm_service_name": {"type": "keyword"},
+        "com_docker_swarm_task_name": {"type": "keyword"},
+        "service_name": {"type": "keyword"},
+        "stack_name": {"type": "keyword"},
+        "node_name": {"type": "keyword"},
+        "environment": {"type": "keyword"},
+        "log_dataset": {"type": "keyword"}
       }
     }
   }

@@ -4,7 +4,7 @@
   "description": "Single-pane view of the 2-node lab cluster. Shows node health, resource usage, container status, GPU, and alerts at a glance.",
   "tags": ["lab", "overview", "operations"],
   "timezone": "browser",
-  "refresh": "30s",
+  "refresh": "60s",
   "schemaVersion": 38,
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
