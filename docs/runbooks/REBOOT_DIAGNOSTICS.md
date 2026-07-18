@@ -7,6 +7,8 @@ Registrar si el apagado anterior fue limpio o inesperado y generar evidencia del
 ## Componentes
 
 - `lab-power-marker.service`
+- `lab-report-boot.service`
+- `lab-report-boot.timer`
 - `lab-reboot-analysis.service`
 - `lab-reboot-analysis.timer`
 
@@ -27,14 +29,16 @@ Ejecutar en cada nodo:
 ## Verificación
 
     systemctl status lab-power-marker.service --no-pager
+    systemctl status lab-report-boot.timer --no-pager
     systemctl status lab-reboot-analysis.timer --no-pager
-    systemctl list-timers lab-reboot-analysis.timer --no-pager
+    systemctl list-timers lab-report-boot.timer lab-reboot-analysis.timer --no-pager
     sudo systemctl start lab-reboot-analysis.service
     sudo ls -lah /var/log/lab-health/reboot
 
 ## Criterios de éxito
 
 - marcador activo;
+- reporte diferido activo;
 - timer activo;
 - análisis manual exitoso;
 - reporte con `REBOOT_ANALYSIS_STATUS=COMPLETE`;
@@ -42,6 +46,7 @@ Ejecutar en cada nodo:
 
 ## Rollback seguro
 
+    sudo systemctl disable --now lab-report-boot.timer
     sudo systemctl disable --now lab-reboot-analysis.timer
     sudo systemctl disable --now lab-power-marker.service
 

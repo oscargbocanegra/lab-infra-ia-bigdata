@@ -1,0 +1,11 @@
+[Unit]
+Description=Run lab report after boot
+
+[Timer]
+OnBootSec=12min
+AccuracySec=1min
+Persistent=false
+Unit=lab-report-boot.service
+
+[Install]
+WantedBy=timers.target
