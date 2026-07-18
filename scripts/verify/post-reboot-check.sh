@@ -34,8 +34,8 @@ REPORT_PATH="${REPORT_DIR}/post-reboot-check-${TIMESTAMP}.txt"
 mkdir -p "${REPORT_DIR}"
 exec > >(tee "${REPORT_PATH}") 2>&1
 
-pass() { echo -e "${GREEN}✅ PASS${NC} — $1"; ((PASS++)); }
-fail() { echo -e "${RED}❌ FAIL${NC} — $1"; ((FAIL++)); }
+pass() { echo -e "${GREEN}✅ PASS${NC} — $1"; PASS=$((PASS + 1)); }
+fail() { echo -e "${RED}❌ FAIL${NC} — $1"; FAIL=$((FAIL + 1)); }
 warn() { echo -e "${YELLOW}⚠️  WARN${NC} — $1"; }
 section() { echo -e "\n${BLUE}══ $1 ══${NC}"; }
 
