@@ -399,6 +399,7 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-07-18 | CI/CD debt removed: upgraded GitHub Actions to Node 24-compatible versions (`actions/checkout@v5`, `docker/login-action@v4`) to eliminate Node 20 deprecation warnings. |
 | 2026-07-18 | Operations agent promoted to first-class repo asset under `.github/agents/`, with explicit pre-change checklist, evidence rules, and runtime-safe closure criteria. |
 | 2026-07-18 | Deploy governance hardened: production environment approval + queue discipline validated. Stale waiting Deploy #51 closed and Deploy #60 completed successfully on `main`. |
 | 2026-07-18 | CI/CD docs refreshed to reflect current deploy flow (three image builds, protected environment, convergence checks, CLI approval path). |
