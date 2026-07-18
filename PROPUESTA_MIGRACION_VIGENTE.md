@@ -708,7 +708,7 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 
 ## P2-R5 — Git, CI/CD y control de drift
 
-- [ ] Crear `docs/architecture/STATE.md` como estado actual verificable.
+- [x] Crear `docs/architecture/STATE.md` como estado actual verificable.
 - [ ] Normalizar ADR duplicados y documentación histórica.
 - [ ] Crear catálogo canónico de servicios.
 - [ ] Crear mapas de puertos, volúmenes, placement y redes.
@@ -718,6 +718,15 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - [ ] Sustituir imágenes con tag `latest` por versiones o digest.
 - [ ] Crear smoke tests reutilizables.
 - [ ] Generar siempre evidencia `.txt` en `~/lab-reports/`.
+
+### Checkpoint P2-R5 — estado canónico del laboratorio (2026-07-18)
+
+- Se creó `docs/architecture/STATE.md` como snapshot verificable del runtime
+  actual.
+- El snapshot resume nodos, servicios críticos, rutas canónicas, red y notas de
+  rollback sin introducir complejidad extra.
+- Rollback: editar o eliminar el snapshot y revertir el commit asociado; no
+  toca datos, imágenes ni secretos.
 
 ---
 
