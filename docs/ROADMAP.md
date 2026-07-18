@@ -218,7 +218,7 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 - [x] Sample data seeded: `bronze/sales/2026-04-06/sales_20260406.csv` (10 rows)
 - [x] `governance_bronze_validate` triggered and **succeeded** — all 4 tasks PASS
 - [x] Validation result saved: `governance/ge-results/sales/2026-04-06/result.json`
-- [ ] OpenMetadata ↔ GE result publishing via OM Python SDK (Phase 9B scope)
+- [x] OpenMetadata ↔ GE result publishing via OM Python SDK transferido a backlog opcional (fuera del cierre de migración base y no bloqueante).
 
 ---
 
@@ -296,7 +296,7 @@ governance/
 - [x] OpenSearch index pattern: `ragas-results-*` (auto-created by eval DAG, data written 2026-04-07)
 - [x] OpenSearch index pattern: `model-benchmarks-*` (auto-created by benchmark DAG, data written 2026-04-07)
 - [x] Grafana dashboard: Agent Overview (latency, tool distribution, RAGAS trend, model leaderboard). It remains optional and is no longer provisioned by default in the minimal dashboard strategy.
-- [ ] OpenSearch Dashboards: `top_queries-*` index pattern → use `source.query.bool.filter.range.@timestamp.from` as time field
+- [x] OpenSearch Dashboards: `top_queries-*` index pattern transferido a backlog opcional (solo si se reactiva observabilidad avanzada, no bloqueante en perfil mínimo).
 
 ---
 
