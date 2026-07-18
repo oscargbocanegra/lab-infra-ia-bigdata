@@ -8,19 +8,26 @@ Evitar la acumulación de contenedores locales detenidos generados por reemplazo
 
 El proceso considera únicamente contenedores en estado `created`, `exited` o `dead` con antigüedad superior a `RETENTION`.
 
-No elimina imágenes, volúmenes, redes, servicios, stacks, secrets ni configs.
+No elimina volúmenes, redes, servicios, stacks, secrets ni configs.
+Solo elimina imágenes `dangling` cuando `IMAGE_PRUNE_DANGLING=true`.
 
 ## Configuración
 
 Archivo: `/etc/default/lab-docker-container-cleanup`
 
 ```text
-APPLY=false
-RETENTION=168h
+APPLY=true
+RETENTION=24h
+IMAGE_PRUNE_DANGLING=true
+IMAGE_RETENTION=72h
 REPORT_DIR=/var/log/lab-health/docker-cleanup
 ```
 
-`APPLY=false` ejecuta inventario y reporte sin borrar.
+`APPLY=true` aplica limpieza mínima apta para laboratorio:
+
+- elimina contenedores `created/exited/dead` antiguos;
+- elimina solo imágenes `dangling` antiguas;
+- no usa `docker image prune -a`.
 
 ## Programación
 

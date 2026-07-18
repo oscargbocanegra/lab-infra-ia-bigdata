@@ -11,6 +11,8 @@ fi
 
 : "${APPLY:=false}"
 : "${RETENTION:=168h}"
+: "${IMAGE_PRUNE_DANGLING:=true}"
+: "${IMAGE_RETENTION:=${RETENTION}}"
 : "${REPORT_DIR:=/var/log/lab-health/docker-cleanup}"
 
 mkdir -p "${REPORT_DIR}"
@@ -43,6 +45,8 @@ echo "HOST=$(hostname)"
 echo "DATE=$(date --iso-8601=seconds)"
 echo "APPLY=${APPLY}"
 echo "RETENTION=${RETENTION}"
+echo "IMAGE_PRUNE_DANGLING=${IMAGE_PRUNE_DANGLING}"
+echo "IMAGE_RETENTION=${IMAGE_RETENTION}"
 echo "REPORT=${REPORT}"
 
 docker info >/dev/null
@@ -68,6 +72,11 @@ CREATED_BEFORE="$(
 echo "DEAD_BEFORE=${DEAD_BEFORE}"
 echo "EXITED_BEFORE=${EXITED_BEFORE}"
 echo "CREATED_BEFORE=${CREATED_BEFORE}"
+DANGLING_BEFORE="$(
+  docker images -q --filter dangling=true |
+  wc -l
+)"
+echo "DANGLING_IMAGES_BEFORE=${DANGLING_BEFORE}"
 
 docker system df
 
@@ -177,6 +186,7 @@ if [[ "${APPLY}" != "true" ]]; then
   echo
   echo "CLEANUP_MODE=DRY_RUN"
   echo "CONTAINERS_REMOVED=0"
+  echo "DANGLING_IMAGES_AFTER=${DANGLING_BEFORE}"
   echo "IMAGES_REMOVED=0"
   echo "VOLUMES_REMOVED=0"
   echo "NETWORKS_REMOVED=0"
@@ -189,6 +199,20 @@ echo "===== ELIMINAR CONTENEDORES DETENIDOS ANTIGUOS ====="
 docker container prune \
   --force \
   --filter "until=${RETENTION}"
+
+if [[ "${IMAGE_PRUNE_DANGLING}" == "true" ]]; then
+  echo
+  echo "===== ELIMINAR IMÁGENES DANGLING ANTIGUAS ====="
+
+  docker image prune \
+    --force \
+    --filter "dangling=true" \
+    --filter "until=${IMAGE_RETENTION}"
+else
+  echo
+  echo "===== ELIMINAR IMÁGENES DANGLING ANTIGUAS ====="
+  echo "DANGLING_IMAGE_PRUNE=SKIPPED"
+fi
 
 echo
 echo "===== VERIFICAR CANDIDATOS INICIALES ====="
@@ -245,6 +269,11 @@ CREATED_AFTER="$(
 echo "DEAD_AFTER=${DEAD_AFTER}"
 echo "EXITED_AFTER=${EXITED_AFTER}"
 echo "CREATED_AFTER=${CREATED_AFTER}"
+DANGLING_AFTER="$(
+  docker images -q --filter dangling=true |
+  wc -l
+)"
+echo "DANGLING_IMAGES_AFTER=${DANGLING_AFTER}"
 
 docker system df
 
@@ -262,7 +291,11 @@ fi
 
 echo "UNRESOLVED_DEAD_METADATA=NO"
 echo "CLEANUP_MODE=APPLY"
-echo "IMAGES_REMOVED=0"
+IMAGES_REMOVED=$((DANGLING_BEFORE - DANGLING_AFTER))
+if ((IMAGES_REMOVED < 0)); then
+  IMAGES_REMOVED=0
+fi
+echo "IMAGES_REMOVED=${IMAGES_REMOVED}"
 echo "VOLUMES_REMOVED=0"
 echo "NETWORKS_REMOVED=0"
 echo "DOCKER_CONTAINER_CLEANUP=SUCCESS"

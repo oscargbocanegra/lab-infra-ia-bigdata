@@ -25,8 +25,10 @@ if [[ ! -f /etc/default/lab-docker-container-cleanup ]]; then
   sudo tee \
     /etc/default/lab-docker-container-cleanup \
     >/dev/null <<'CONFIG'
-APPLY=false
-RETENTION=168h
+APPLY=true
+RETENTION=24h
+IMAGE_PRUNE_DANGLING=true
+IMAGE_RETENTION=72h
 REPORT_DIR=/var/log/lab-health/docker-cleanup
 CONFIG
 fi
