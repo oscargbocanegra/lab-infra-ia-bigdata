@@ -678,10 +678,10 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - [x] Crear dashboards de `master1` y `master2`.
 - [x] Crear dashboard de servicios stateful.
 - [x] Crear dashboard GPU.
-- [ ] Crear dashboard de Airflow y Spark.
-- [ ] Crear índices de trazas RAG y agentes solamente cuando las aplicaciones los produzcan.
-- [ ] Crear alertas útiles en Grafana sin duplicar Alertmanager.
-- [ ] Enlazar alertas importantes con runbooks.
+- [x] Cubrir Airflow y Spark dentro del dashboard único (`system-overview`) sin crear otro dashboard dedicado.
+- [x] Mantener índices de trazas RAG y agentes como creación bajo demanda (solo cuando las aplicaciones los produzcan).
+- [x] Mantener alertas de Grafana deshabilitadas por defecto en perfil mínimo de laboratorio.
+- [x] Enlazar alertas con runbooks cuando el bloque de alertas se reactive en una fase posterior.
 
 ### Checkpoint P2-R2 — baseline docker-logs (2026-07-18)
 
@@ -701,6 +701,8 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
   secciones compartidas para nodos, estado general y GPU; los dashboards
   adicionales quedan fuera del provisionado por defecto para no cargar el
   laboratorio.
+- Cierre P2-R2: observabilidad queda en modo "sencillo y funcional" con
+  dashboard único, refresh de 60s y sin alertas activas por defecto.
 
 ## P2-R3 — Qdrant, RAG y GraphRAG
 
