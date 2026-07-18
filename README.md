@@ -527,7 +527,7 @@ lab-infra-ia-bigdata/
 │   │   ├── STORAGE.md              # Disk layout, LVM, mount points
 │   │   ├── NETWORKING.md           # Overlay networks, domains, ports
 │   │   └── MEDALLION.md            # Medallion architecture deep-dive
-│   ├── adrs/                       # Architecture Decision Records (9 ADRs)
+│   ├── adrs/                       # Architecture Decision Records (15 ADRs)
 │   ├── runbooks/                   # Day-2 operations per service
 │   └── ROADMAP.md                  # Next phases and planned improvements
 │
@@ -641,7 +641,7 @@ bash ~/lab-infra-ia-bigdata/scripts/verify/post-reboot-check.sh
 
 The script verifies:
 - Both Swarm nodes are `Ready` + `Active`
-- All 30 services are at their expected replica count (N/N)
+- All expected services are at their target replica count (N/N)
 - Internal connectivity: PostgreSQL, Redis, MinIO, OpenSearch, Ollama, Spark, Qdrant
 - All HTTPS endpoints reachable through Traefik
 
@@ -688,7 +688,7 @@ The script verifies:
 | [`docs/architecture/STORAGE.md`](docs/architecture/STORAGE.md) | Disk layout, LVM configuration, and mount points |
 | [`docs/architecture/NETWORKING.md`](docs/architecture/NETWORKING.md) | Overlay networks, domain map, and traffic flow |
 | [`docs/architecture/MEDALLION.md`](docs/architecture/MEDALLION.md) | Deep-dive: Medallion architecture, Delta Lake patterns, code examples |
-| [`docs/adrs/`](docs/adrs/) | Architecture Decision Records (9 ADRs) |
+| [`docs/adrs/`](docs/adrs/) | Architecture Decision Records (15 ADRs) |
 | [`docs/runbooks/runbook_ufw_docker.md`](docs/runbooks/runbook_ufw_docker.md) | UFW + Docker Swarm architecture, DOCKER-USER chain rules, troubleshooting `ERR_CONNECTION_TIMED_OUT` |
 | [`docs/runbooks/`](docs/runbooks/) | Day-2 operations: deploy, troubleshoot, and maintain each service — including DBeaver SSH Tunnel setup |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Planned phases: Observability (Prometheus + Grafana), backups, hardening |
@@ -710,7 +710,7 @@ The script verifies:
 | Phase 8 — Vector DB + RAG | ✅ Done | Qdrant v1.13 + RAG API (FastAPI) + Open WebUI v0.6.5 |
 | Phase 9A — Data Governance | ✅ Done | OpenMetadata + Great Expectations — catalog, lineage, data quality DAGs |
 | Phase 9B — Agents & Evals | ✅ Done | LangGraph hybrid agent + RAGAS eval pipeline + model benchmark DAGs |
-| Phase 10 — CI/CD | ✅ Done | GitHub Actions — lint + tests (cloud) + build/push/deploy (self-hosted on master1) |
+| Phase 10 — CI/CD | ✅ Done | GitHub Actions — lint + tests (cloud) + protected deploy (self-hosted on master1, production approval, queued concurrency) |
 | Sprint 2 — Portfolio Polish | 🔄 In Progress | Demo notebook · Architecture diagrams · Grafana alerting |
 
 ---
