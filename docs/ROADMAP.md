@@ -1,6 +1,6 @@
 # Lab Infrastructure — Roadmap
 
-> Last updated: 2026-04-08
+> Last updated: 2026-07-18
 
 ---
 
@@ -330,13 +330,15 @@ tests/
 
 **Workflow:** `.github/workflows/deploy.yml`
 
-- Runs on push to `main` only
+- Runs on push to `main` and supports manual `workflow_dispatch`
 - Runner: `self-hosted` tag (GitHub Actions runner installed on master1)
-- Steps: build both images → tag `latest` + `sha-<short>` → push to Docker Hub → `docker stack deploy` both stacks → health check
+- Protected by GitHub Environment `production` (explicit approval before execution)
+- Steps: build `lab-jupyter`, `lab-rag-api`, `lab-agent` → tag `latest` + `sha-<short>` → push to Docker Hub → deploy `rag-api` and `agent` stacks → convergence + health checks
 
 **Images published:**
 | Image | Docker Hub |
 |---|---|
+| `giovannotti/lab-jupyter` | `:latest` + `:sha-XXXXXXX` |
 | `giovannotti/lab-rag-api` | `:latest` + `:sha-XXXXXXX` |
 | `giovannotti/lab-agent` | `:latest` + `:sha-XXXXXXX` |
 
@@ -397,6 +399,10 @@ Re-evaluate when more than 3 users are needed.
 
 | Date | Change |
 |------|--------|
+| 2026-07-18 | Deploy governance hardened: production environment approval + queue discipline validated. Stale waiting Deploy #51 closed and Deploy #60 completed successfully on `main`. |
+| 2026-07-18 | CI/CD docs refreshed to reflect current deploy flow (three image builds, protected environment, convergence checks, CLI approval path). |
+| 2026-07-18 | Verification scripts aligned to minimal profile and Traefik HTTPS smoke stabilized for post-reboot checks. |
+| 2026-07-18 | Maintenance automation updated with minimal dangling-image cleanup policy and corrected candidate counters. |
 | 2026-04-08 | ADR-010: Migrate to gemma4:26b MoE — replaces gemma3:4b + qwen2.5-coder:7b + qwen3.5 + nomic-embed-text. Global model pattern via /etc/lab/lab.env |
 | 2026-04-08 | Ollama upgrade latest (was 0.19.0) — required for gemma4 pull support |
 | 2026-04-07 | Phase 10 complete ✅ — GitHub Actions CI/CD (ci.yml + deploy.yml), 20 unit tests, pyproject.toml, cicd.md runbook |

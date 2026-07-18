@@ -11,7 +11,17 @@ Two workflows handle the full automation pipeline:
 | Workflow | File | Trigger | Runner |
 |---|---|---|---|
 | CI — Lint + Tests | `.github/workflows/ci.yml` | push / PR (any branch) | GitHub cloud (`ubuntu-latest`) |
-| CD — Build + Deploy | `.github/workflows/deploy.yml` | push to `main` | self-hosted (`master1`) |
+| CD — Build + Deploy | `.github/workflows/deploy.yml` | push to `main` + manual `workflow_dispatch` | self-hosted (`master1`) |
+
+---
+
+## Deployment governance (production environment)
+
+Deployments run under the protected GitHub Environment `production`.
+
+- Every run requires explicit approval before the first build step starts.
+- Concurrency group is `deploy-production` with queueing enabled (no auto-cancel).
+- This protects `master1` from unreviewed code execution and preserves traceability for every deployment window.
 
 ---
 
@@ -129,14 +139,15 @@ pytest tests/agent/ -v
 1. **Checkout** code on master1
 2. **Compute tags** — `latest` + `sha-<git-short>` (e.g. `sha-a1b2c3d`)
 3. **Build** `giovannotti/lab-rag-api` image (with `--cache-from` for speed)
-4. **Build** `giovannotti/lab-agent` image
-5. **Docker login** to Docker Hub with `DOCKER_USERNAME` + `DOCKER_TOKEN`
-6. **Push** both images × 2 tags
-7. **Deploy** `rag-api` stack: `docker stack deploy -c stacks/ai-ml/04-rag-api/stack.yml rag-api --with-registry-auth --prune`
-8. **Deploy** `agent` stack: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent --with-registry-auth --prune`
-9. **Wait** 20 seconds for containers to start
-10. **Health check** both services via `curl --resolve` (handles self-signed TLS cert)
-11. **Step Summary** — prints image tags and service URLs to GitHub Actions summary page
+4. **Build** `giovannotti/lab-jupyter` image
+5. **Build** `giovannotti/lab-agent` image
+6. **Docker login** to Docker Hub with `DOCKER_USERNAME` + `DOCKER_TOKEN`
+7. **Push** all three images × 2 tags
+8. **Deploy** `rag-api` stack: `docker stack deploy -c stacks/ai-ml/04-rag-api/stack.yml rag-api --with-registry-auth --prune`
+9. **Deploy** `agent` stack: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent --with-registry-auth --prune`
+10. **Wait for service convergence** (replica-aware checks, up to timeout)
+11. **Health check** both services via `curl --resolve` (handles self-signed TLS cert)
+12. **Step Summary** — prints image tags and service URLs to GitHub Actions summary page
 
 ### Image tagging strategy
 
@@ -155,6 +166,8 @@ ssh <user>@192.168.80.100
 # Then update the stack manually:
 docker service update --image giovannotti/lab-rag-api:sha-<previous-sha> rag-api_rag-api
 docker service update --image giovannotti/lab-agent:sha-<previous-sha>   agent_agent
+# Jupyter single-user image (used by JupyterHub sessions):
+# update stacks/ai-ml/02-jupyterhub/.env and redeploy JupyterHub if needed
 ```
 
 ---
@@ -177,7 +190,7 @@ Most likely a missing mock. Check `tests/rag_api/conftest.py` or `tests/agent/co
 
 1. Check that `DOCKER_TOKEN` secret is set and not expired
 2. Verify the token has **Read & Write** permissions on Docker Hub
-3. Verify Docker Hub repos exist: `giovannotti/lab-rag-api` and `giovannotti/lab-agent`
+3. Verify Docker Hub repos exist: `giovannotti/lab-jupyter`, `giovannotti/lab-rag-api`, and `giovannotti/lab-agent`
 
 ### CD fails: self-hosted runner offline
 
@@ -186,6 +199,27 @@ ssh <user>@192.168.80.100
 cd ~/actions-runner
 sudo ./svc.sh status
 sudo ./svc.sh start
+```
+
+### CD stays in `waiting` or `queued`
+
+Most commonly the run is waiting for production environment approval.
+
+```bash
+# Inspect pending deployments
+gh api repos/oscargbocanegra/lab-infra-ia-bigdata/actions/runs/<RUN_ID>/pending_deployments
+
+# Approve production deployment from CLI
+gh api -X POST repos/oscargbocanegra/lab-infra-ia-bigdata/actions/runs/<RUN_ID>/pending_deployments \
+  -f state=approved \
+  -f comment='Approved from operations runbook' \
+  -F environment_ids[]=<ENVIRONMENT_ID>
+```
+
+If an obsolete run is blocking the queue, cancel it first:
+
+```bash
+gh run cancel <RUN_ID>
 ```
 
 ### CD fails: health check timeout
@@ -213,6 +247,7 @@ docker service logs agent_agent     --tail 50
 
 | Image | URL |
 |---|---|
+| `giovannotti/lab-jupyter` | https://hub.docker.com/r/giovannotti/lab-jupyter |
 | `giovannotti/lab-rag-api` | https://hub.docker.com/r/giovannotti/lab-rag-api |
 | `giovannotti/lab-agent` | https://hub.docker.com/r/giovannotti/lab-agent |
 
@@ -227,5 +262,6 @@ docker service logs agent_agent     --tail 50
 | `pyproject.toml` | ruff + pytest configuration |
 | `tests/rag_api/` | Unit tests for lab-rag-api |
 | `tests/agent/` | Unit tests for lab-agent |
+| `stacks/ai-ml/01-jupyter/` | Jupyter image Docker build context |
 | `stacks/ai-ml/04-rag-api/stack.yml` | RAG API Swarm stack |
 | `stacks/ai-ml/06-agent/stack.yml` | Agent Swarm stack |
