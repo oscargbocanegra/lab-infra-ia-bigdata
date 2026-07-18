@@ -671,16 +671,34 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 
 ## P2-R2 — OpenSearch y observabilidad
 
-- [ ] Crear plantilla para `docker-logs-*`.
-- [ ] Enriquecer logs con servicio, stack, nodo y dataset.
-- [ ] Definir política ISM de laboratorio.
-- [ ] Crear dashboards de `master1` y `master2`.
-- [ ] Crear dashboard de servicios stateful.
-- [ ] Crear dashboard GPU.
+- [x] Crear plantilla para `docker-logs-*`.
+- [x] Enriquecer logs con servicio, stack y nodo.
+- [x] Enriquecer logs con dataset.
+- [x] Definir política ISM de laboratorio.
+- [x] Crear dashboards de `master1` y `master2`.
+- [x] Crear dashboard de servicios stateful.
+- [x] Crear dashboard GPU.
 - [ ] Crear dashboard de Airflow y Spark.
 - [ ] Crear índices de trazas RAG y agentes solamente cuando las aplicaciones los produzcan.
 - [ ] Crear alertas útiles en Grafana sin duplicar Alertmanager.
 - [ ] Enlazar alertas importantes con runbooks.
+
+### Checkpoint P2-R2 — baseline docker-logs (2026-07-18)
+
+- Fluent Bit está desplegado en modo global y envía logs Docker a OpenSearch.
+- La plantilla `docker-logs-template` y la política ISM `docker-logs-retention-7d`
+  quedaron aplicadas con éxito.
+- Los registros Docker ahora llevan `node` y labels de stack/servicio/tarea.
+- Fluent Bit calcula `log.dataset` (almacenado como `log_dataset`) y campos
+  semánticos equivalentes para `service`, `stack`, `node` y `container`.
+- Los índices `docker-logs-*` usan retención de 7 días y cero réplicas para el
+  laboratorio.
+- Rollback: deshabilitar el stack Fluent Bit y borrar la plantilla/política en
+  OpenSearch si se necesitara volver atrás.
+- Se consolidó la presentación en un dashboard único (`system-overview`) con
+  secciones compartidas para nodos, estado general y GPU; los dashboards
+  adicionales quedan fuera del provisionado por defecto para no cargar el
+  laboratorio.
 
 ## P2-R3 — Qdrant, RAG y GraphRAG
 

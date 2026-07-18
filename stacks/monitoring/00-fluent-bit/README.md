@@ -156,6 +156,24 @@ are stored in `docker-logs-*` and enriched with:
 - `event_category=reboot_diagnostics`
 - `source_path`
 
+Docker container logs are enriched with:
+
+- `node`
+- `container_id`
+- `com.docker.stack.namespace`
+- `com.docker.swarm.service.name`
+- `com.docker.swarm.task.name`
+- `service_name`
+- `stack_name`
+- `node_name`
+- `container_name`
+- `environment`
+- `log_dataset`
+
+> `log.dataset`, `service.name`, `stack.name`, `node.name` and `container.name`
+> are generated in Fluent Bit and stored as underscore-safe fields
+> (`log_dataset`, `service_name`, etc.) because `Replace_Dots On` is enabled.
+
 The offset database is persisted at:
 
 ```text

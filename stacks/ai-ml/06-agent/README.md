@@ -99,7 +99,7 @@ docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent --with-registry-aut
 
 - **Traces:** OpenSearch index `agent-traces-YYYY.MM.DD` — every request logged with latency, tool used, model
 - **Logs:** json-file → Fluent Bit → OpenSearch `docker-logs-YYYY.MM.DD`
-- **Grafana:** Agent Overview dashboard (`dashboards/agent-observability.json`)
+- **Grafana:** observability is centered on the shared `system-overview` dashboard; an agent-specific dashboard can be mounted later only if needed.
 
 ## Evaluation DAGs (Airflow)
 

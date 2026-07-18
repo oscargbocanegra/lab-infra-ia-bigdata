@@ -89,6 +89,7 @@ services:
       # We pass OpenSearch host via env so it's easy to override
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
+      - LAB_ENV=lab
 
     # Inline config via command — keeps everything in this file
     # Full config injected via Docker Configs below
