@@ -1,492 +1,302 @@
-# OpenSearch + Dashboards — Search and Analytics Engine
+# OpenSearch — Search, Analytics & ML Platform
 
 ## Overview
 
-OpenSearch is an open-source search and analytics engine (Elasticsearch fork) for log analytics, full-text search, and data visualization. Includes **OpenSearch Dashboards** (web UI similar to Kibana) for visualization and management.
+OpenSearch is an open-source, Apache 2.0-licensed search and analytics engine (Elasticsearch fork) used in this lab for **log analytics, full-text search, agent trace storage, and machine learning inference** via the ML Commons plugin.
 
-**Hardware:** OpenSearch sobre NVMe en master2; Dashboards en master1
-**API Endpoint:** `https://opensearch.sexydad`  
-**UI Endpoint:** `https://dashboards.sexydad`  
-**Security:** BasicAuth + LAN Whitelist (Security plugin disabled for lab simplicity)
+| Component | Version | Placement |
+|---|---|---|
+| OpenSearch Engine | `2.19.4` | master2 (NVMe, compute tier) |
+| OpenSearch Dashboards | `2.19.4` | master1 (control tier) |
+| ML Commons plugin | `2.19.4.0` | bundled, enabled |
 
-> **Note:** To access from your local machine:
->
-> 1. **Add to your hosts file:**
->    ```
->    <master1-ip>  opensearch.sexydad dashboards.sexydad
->    ```
->
-> 2. **Disable SSL verification** (self-signed certificate):
->    - **Postman:** Settings → General → SSL certificate verification (OFF)
->    - **cURL:** Use flag `-k`
->    - **Browser:** Accept the self-signed certificate warning on first visit to `https://dashboards.sexydad`
+**API endpoint:** `https://opensearch.sexydad`  
+**Dashboard UI:** `https://dashboards.sexydad`  
+**Security model:** BasicAuth via Traefik + LAN whitelist. Security plugin disabled for lab simplicity.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Lab Cluster                          │
+│                                                         │
+│  master1                       master2                  │
+│  ┌─────────────────────┐       ┌───────────────────┐    │
+│  │ OpenSearch Dashboards│       │  OpenSearch Node  │    │
+│  │   :5601 (internal)  │──────▶│  :9200 (internal) │    │
+│  │   Traefik ingress   │       │  NVMe storage     │    │
+│  │   ML Dashboard UI   │       │  ML Commons       │    │
+│  └─────────────────────┘       │  k-NN + Neural    │    │
+│                                │  Search plugins   │    │
+│                                └───────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Data volumes (master2):**
+- `/srv/fastdata/opensearch` — indices, cluster state, ML model cache (NVMe)
+
+---
+
+## ML Commons
+
+OpenSearch 2.19.4 ships with `opensearch-ml 2.19.4.0` bundled. This lab has ML Commons fully enabled for local model inference and semantic search workflows.
+
+### Enabled capabilities
+
+| Capability | Status |
+|---|---|
+| Register models from OpenSearch Model Hub | ✅ |
+| Register models from URL | ✅ |
+| Register models from local file | ✅ |
+| Deploy models on data nodes (no dedicated ml node) | ✅ |
+| Text embedding inference | ✅ |
+| k-NN / Neural Search integration | ✅ |
+| ML Dashboard in OpenSearch Dashboards | ✅ |
+
+### Active persistent cluster settings
+
+```json
+{
+  "plugins.ml_commons.only_run_on_ml_node": false,
+  "plugins.ml_commons.allow_registering_model_via_url": true,
+  "plugins.ml_commons.allow_registering_model_via_local_file": true,
+  "plugins.ml_commons.native_memory_threshold": 99,
+  "plugins.ml_commons.jvm_heap_memory_threshold": 95
+}
+```
+
+### Quickstart — register and deploy a text embedding model
+
+```bash
+# 1. Register from OpenSearch Model Hub (all-MiniLM-L6-v2, ~23 MB)
+curl -sk -X POST "http://opensearch:9200/_plugins/_ml/models/_register" \
+  --json '{
+    "name": "huggingface/sentence-transformers/all-MiniLM-L6-v2",
+    "version": "1.0.1",
+    "model_format": "TORCH_SCRIPT"
+  }'
+# → returns { "task_id": "<id>" }
+
+# 2. Poll task until COMPLETED
+curl -sk "http://opensearch:9200/_plugins/_ml/tasks/<task_id>"
+# → returns { "model_id": "<model_id>", "state": "COMPLETED" }
+
+# 3. Deploy the model
+curl -sk -X POST "http://opensearch:9200/_plugins/_ml/models/<model_id>/_deploy" --json '{}'
+# → returns { "task_id": "<deploy_task_id>" }
+
+# 4. Verify deployed
+curl -sk "http://opensearch:9200/_plugins/_ml/stats"
+# → "ml_deployed_model_count": 1
+```
+
+### Run inference (text embedding)
+
+```bash
+curl -sk -X POST "http://opensearch:9200/_plugins/_ml/models/<model_id>/_predict" \
+  --json '{
+    "parameters": {
+      "texts": ["Lab Infra AI & Big Data Platform"]
+    }
+  }'
+```
+
+### ML Dashboard
+
+Access via `https://dashboards.sexydad` → **Machine Learning** section in the left navigation:
+- **Deployed Models** — manage deployed models and their status
+- **Model Groups** — organize models by use case
+- **Connectors** — integrate external model providers (optional)
+
+---
 
 ## Prerequisites
 
-- ✅ Networks: `internal` and `public`
-- ✅ Directory: `/srv/fastdata/opensearch` on **master2** (compute/data)
-- ✅ Secrets: `opensearch_basicauth` and `dashboards_basicauth` created
-- ✅ Traefik middlewares: `opensearch-auth@docker` and `dashboards-auth@docker`
-- ✅ System config: `vm.max_map_count=262144` on master2
+- Networks: `internal` and `public` (external Swarm networks)
+- Directory: `/srv/fastdata/opensearch` on master2 (UID 1000)
+- Secrets: `opensearch_basicauth`, `dashboards_basicauth`
+- System: `vm.max_map_count=262144` on master2
+
+---
 
 ## Deployment
 
-### 1. Prepare data directory
+### First-time setup
 
 ```bash
-# On master2 (compute/data)
-ssh <admin-user>@<master2-ip>
-sudo mkdir -p /srv/fastdata/opensearch
-sudo chown -R 1000:1000 /srv/fastdata/opensearch
-sudo chmod 755 /srv/fastdata/opensearch
-```
+# 1. Prepare data directory on master2
+ssh <admin>@<master2-ip> "sudo mkdir -p /srv/fastdata/opensearch && sudo chown -R 1000:1000 /srv/fastdata/opensearch"
 
-> OpenSearch runs as UID 1000, hence the specific chown.
+# 2. Set vm.max_map_count (required by OpenSearch)
+ssh <admin>@<master2-ip> "sudo sysctl -w vm.max_map_count=262144 && echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf"
 
-### 2. Configure system settings (one-time on master2)
-
-```bash
-# Increase virtual memory (required by OpenSearch)
-sudo sysctl -w vm.max_map_count=262144
-echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-```
-
-### 3. Create BasicAuth secrets
-
-```bash
-# Reuse the same credentials as Jupyter
-docker secret create opensearch_basicauth secrets/jupyter_basicauth
-docker secret create dashboards_basicauth secrets/jupyter_basicauth
-```
-
-### 4. Add Traefik middlewares
-
-Add labels in [stacks/core/00-traefik/stack.yml](../../core/00-traefik/stack.yml):
-
-```yaml
-# OpenSearch API
-- traefik.http.middlewares.opensearch-auth.basicauth.usersfile=/run/secrets/opensearch_basicauth
-
-# OpenSearch Dashboards UI
-- traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth
-```
-
-Then redeploy Traefik:
-
-```bash
-docker stack deploy -c stacks/core/00-traefik/stack.yml traefik
-```
-
-### 5. Deploy OpenSearch + Dashboards
-
-```bash
+# 3. Deploy stack
 docker stack deploy -c stacks/data/11-opensearch/stack.yml opensearch
+
+# 4. Verify
+docker service ls | grep opensearch
 ```
 
-### 6. Verify deployment
+### Post-deploy: apply ML Commons cluster settings
+
+After a fresh cluster deploy, apply the persistent ML settings (already set in production, required on fresh clusters):
 
 ```bash
-# Check services
-docker service ls | grep opensearch
-
-# Check OpenSearch
-docker service ps opensearch_opensearch
-docker service logs opensearch_opensearch -f
-
-# Check Dashboards
-docker service ps opensearch_dashboards
-docker service logs opensearch_dashboards -f
+curl -sk -X PUT "http://opensearch:9200/_cluster/settings" \
+  --json '{
+    "persistent": {
+      "plugins.ml_commons.only_run_on_ml_node": false,
+      "plugins.ml_commons.allow_registering_model_via_url": true,
+      "plugins.ml_commons.allow_registering_model_via_local_file": true,
+      "plugins.ml_commons.native_memory_threshold": 99,
+      "plugins.ml_commons.jvm_heap_memory_threshold": 95
+    }
+  }'
 ```
 
----
-
-## OpenSearch Dashboards Web UI
-
-**URL:** `https://dashboards.sexydad`
-
-### Features
-
-- **Discover:** Explore and search your data in real time
-- **Visualize:** Create charts, tables, maps and visualizations
-- **Dashboards:** Combine multiple visualizations into interactive dashboards
-- **Dev Tools:** Console for running queries directly
-- **Management:** Manage indexes, index patterns, and configurations
-
-### First Access
-
-1. Open your browser at `https://dashboards.sexydad`
-2. Accept the self-signed certificate warning
-3. Enter BasicAuth credentials (`<admin-user>` / `<your-password>`)
-4. On first access you will see the OpenSearch Dashboards welcome screen
-
-### Quick Start Guide
-
-1. **Create Index Pattern:**
-   - Go to Management → Stack Management → Index Patterns
-   - Create an index pattern for your data (e.g. `logs-*`)
-
-2. **Explore Data:**
-   - Go to Discover
-   - Select your index pattern
-   - Filter, search, and explore your documents
-
-3. **Create Visualizations:**
-   - Go to Visualize
-   - Create line charts, bar charts, pie charts, etc.
-
-4. **Build Dashboards:**
-   - Go to Dashboards
-   - Combine your visualizations into interactive dashboards
+> **Note:** These settings are stored in cluster state (persistent across restarts). The `stack.yml` also includes them as env vars for reproducibility on fresh deployments.
 
 ---
 
-## Authentication
+## Resource Allocation
 
-All requests require **BasicAuth** (enforced by Traefik):
+| Service | CPU Reserved | CPU Limit | Memory Reserved | Memory Limit | JVM Heap |
+|---|---|---|---|---|---|
+| opensearch | 1.0 | 3.0 | 3 GB | 6 GB | 2 GB |
+| dashboards | 0.5 | 2.0 | 1 GB | 3 GB | — |
 
-- **Username:** `<admin-user>` or `<second-user>`
-- **Password:** `<your-password>`
+The 2 GB JVM heap provides sufficient headroom for ML model loading alongside normal indexing workloads.
+
+---
+
+## Indices in production
+
+| Index pattern | Purpose | Retention |
+|---|---|---|
+| `docker-logs-YYYY.MM.DD` | Container logs via Fluent Bit | 7 days (ISM) |
+| `agent-traces-*` | LangGraph agent execution traces | — |
+| `ragas-results-*` | RAGAS evaluation metrics | — |
+| `model-benchmarks-*` | LLM benchmark leaderboard | — |
 
 ---
 
 ## API Reference
 
-Base URL: `https://opensearch.sexydad`
-
-### 1. Cluster Health
-
+### Cluster health
 ```bash
-curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cluster/health
+curl -sk http://opensearch:9200/_cluster/health | jq .
 ```
 
-**Response:**
-```json
-{
-  "cluster_name": "lab-opensearch",
-  "status": "green",
-  "number_of_nodes": 1,
-  "number_of_data_nodes": 1
-}
-```
-
-### 2. Create Index
-
+### ML Commons stats
 ```bash
-curl -k -u <admin-user>:<your-password> -X PUT https://opensearch.sexydad/my-index \
-  -H "Content-Type: application/json"
+curl -sk http://opensearch:9200/_plugins/_ml/stats | jq .
 ```
 
-### 3. Index Document
-
+### List deployed models
 ```bash
-curl -k -u <admin-user>:<your-password> -X POST https://opensearch.sexydad/my-index/_doc \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Test Document",
-    "content": "This is a test",
-    "timestamp": "2026-02-04T00:00:00Z"
-  }'
+curl -sk http://opensearch:9200/_plugins/_ml/models/_search --json '{"query":{"term":{"model_state":"DEPLOYED"}}}'
 ```
 
-### 4. Search Documents
-
+### Common operations
 ```bash
-curl -k -u <admin-user>:<your-password> -X GET https://opensearch.sexydad/my-index/_search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": {
-      "match": {
-        "content": "test"
-      }
-    }
-  }'
-```
-
-### 5. List Indices
-
-```bash
-curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cat/indices?v
-```
-
-### 6. Delete Index
-
-```bash
-curl -k -u <admin-user>:<your-password> -X DELETE https://opensearch.sexydad/my-index
-```
-
----
-
-## Usage from Python
-
-### Basic Connection
-
-```python
-from opensearchpy import OpenSearch
-import urllib3
-
-# Disable SSL warnings (self-signed cert)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-client = OpenSearch(
-    hosts=[{'host': 'opensearch.sexydad', 'port': 443}],
-    http_auth=('<admin-user>', '<your-password>'),
-    use_ssl=True,
-    verify_certs=False,
-    ssl_show_warn=False
-)
-
-# Test connection
-print(client.info())
-print(client.cluster.health())
-```
-
-### From Jupyter (Internal Network)
-
-```python
-from opensearchpy import OpenSearch
-
-# No auth needed on internal network
-client = OpenSearch(
-    hosts=[{'host': 'opensearch', 'port': 9200}],
-    use_ssl=False
-)
-
 # Create index
-client.indices.create(index='logs', ignore=400)
+curl -sk -X PUT "http://opensearch:9200/my-index"
 
 # Index document
-doc = {
-    'timestamp': '2026-02-04T10:00:00',
-    'level': 'INFO',
-    'message': 'Application started'
-}
-client.index(index='logs', body=doc)
+curl -sk -X POST "http://opensearch:9200/my-index/_doc" \
+  --json '{"title":"test","timestamp":"2026-07-20T00:00:00Z"}'
 
 # Search
-results = client.search(
-    index='logs',
-    body={
-        'query': {
-            'match': {'level': 'INFO'}
-        }
-    }
-)
-print(results['hits']['hits'])
-```
+curl -sk -X POST "http://opensearch:9200/my-index/_search" \
+  --json '{"query":{"match_all":{}}}'
 
-### Bulk Indexing
-
-```python
-from opensearchpy import OpenSearch, helpers
-
-client = OpenSearch(
-    hosts=[{'host': 'opensearch', 'port': 9200}],
-    use_ssl=False
-)
-
-# Prepare documents
-docs = [
-    {
-        '_index': 'logs',
-        '_source': {
-            'timestamp': f'2026-02-04T10:0{i}:00',
-            'level': 'INFO',
-            'message': f'Message {i}'
-        }
-    }
-    for i in range(10)
-]
-
-# Bulk index
-helpers.bulk(client, docs)
+# List indices
+curl -sk "http://opensearch:9200/_cat/indices?v"
 ```
 
 ---
 
-## Postman Configuration
-
-### Setup
-1. Create new request
-2. Set Auth Type: **Basic Auth**
-   - Username: `<admin-user>`
-   - Password: `<your-password>`
-3. Base URL: `https://opensearch.sexydad`
-4. Disable SSL verification
-
-### Example Collections
-
-**Collection 1: Cluster Health**
-```
-GET https://opensearch.sexydad/_cluster/health
-```
-
-**Collection 2: Create Index**
-```
-PUT https://opensearch.sexydad/test-index
-Content-Type: application/json
-```
-
-**Collection 3: Search**
-```
-POST https://opensearch.sexydad/test-index/_search
-Content-Type: application/json
-
-Body:
-{
-  "query": {
-    "match_all": {}
-  }
-}
-```
-
----
-
-## Configuration
-
-### OpenSearch (Engine)
-- **CPUs:** 1.0 reserved, 3.0 limit
-- **Memory:** 2GB reserved, 6GB limit
-- **JVM Heap:** 1GB (-Xms1g -Xmx1g)
-
-### Dashboards (UI)
-- **CPUs:** 0.5 reserved, 2.0 limit
-- **Memory:** 1GB reserved, 3GB limit
-
-### Storage
-- **Location:** `/srv/fastdata/opensearch` (NVMe on master2)
-- **Type:** Bind mount
-- **Owner:** UID 1000 (opensearch user)
-- **Node:** master2 (compute/data)
-
-### Security
-- **Plugin:** Disabled (DISABLE_SECURITY_PLUGIN=true)
-- **External Auth:** BasicAuth via Traefik
-- **Network:** LAN Whitelist + BasicAuth
-
----
-
-## Integration Examples
-
-### With Python (pandas)
-
-```python
-import pandas as pd
-from opensearchpy import OpenSearch, helpers
-
-client = OpenSearch([{'host': 'opensearch', 'port': 9200}], use_ssl=False)
-
-# Read data from OpenSearch
-results = client.search(index='logs', body={'query': {'match_all': {}}}, size=1000)
-df = pd.DataFrame([hit['_source'] for hit in results['hits']['hits']])
-print(df.head())
-
-# Write DataFrame to OpenSearch
-data = [
-    {'_index': 'metrics', '_source': row.to_dict()}
-    for _, row in df.iterrows()
-]
-helpers.bulk(client, data)
-```
-
-### With n8n Workflows
-
-Use HTTP Request node:
-- URL: `http://opensearch:9200/my-index/_search`
-- Method: POST
-- Authentication: None (internal network)
-- Body: JSON query
-
-### With Airflow DAGs
+## Python SDK
 
 ```python
 from opensearchpy import OpenSearch
 
-def index_to_opensearch(**context):
-    client = OpenSearch([{'host': 'opensearch', 'port': 9200}], use_ssl=False)
+# Internal network (from Jupyter, Airflow, n8n)
+client = OpenSearch(
+    hosts=[{"host": "opensearch", "port": 9200}],
+    use_ssl=False
+)
 
-    doc = {
-        'dag_id': context['dag'].dag_id,
-        'execution_date': str(context['execution_date']),
-        'status': 'success'
-    }
+# Verify cluster
+print(client.cluster.health())
 
-    client.index(index='airflow-logs', body=doc)
-```
-
----
-
-## Monitoring
-
-### Check cluster status
-```bash
-curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cluster/health?pretty
-```
-
-### View node stats
-```bash
-curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_nodes/stats?pretty
-```
-
-### Check indices
-```bash
-curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cat/indices?v
+# ML inference (requires deployed model)
+model_id = "<deployed_model_id>"
+response = client.transport.perform_request(
+    "POST",
+    f"/_plugins/_ml/models/{model_id}/_predict",
+    body={"parameters": {"texts": ["example query"]}}
+)
+print(response)
 ```
 
 ---
 
 ## Troubleshooting
 
-### Dashboards not loading
+### ML Circuit Breaker opens on model deploy
+
+If deploy fails with `Memory Circuit Breaker is open`:
 
 ```bash
-# Check Dashboards service
-docker service ps opensearch_dashboards --no-trunc
-docker service logs opensearch_dashboards -f
+# Check JVM heap usage
+curl -sk "http://opensearch:9200/_nodes/stats/jvm" | jq '.nodes[].jvm.mem.heap_used_percent'
 
-# Common issue: Waiting for OpenSearch
-# Solution: Ensure OpenSearch is running first
-docker service ps opensearch_opensearch
-curl -k -u <admin-user>:<your-password> https://opensearch.sexydad/_cluster/health
+# If consistently >90%, increase JVM heap in stack.yml:
+# OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g  (current setting)
+
+# Adjust threshold (persistent)
+curl -sk -X PUT "http://opensearch:9200/_cluster/settings" \
+  --json '{"persistent":{"plugins.ml_commons.jvm_heap_memory_threshold":95}}'
 ```
 
 ### Service not starting
 
 ```bash
-# Check logs
-docker service logs opensearch_opensearch -f
+# Verify vm.max_map_count on master2
+ssh master2 "sysctl vm.max_map_count"   # must be 262144
 
-# Common issues:
-# 1. vm.max_map_count too low
-ssh <master2-ip> "sysctl vm.max_map_count"
+# Check data directory permissions
+ssh master2 "ls -la /srv/fastdata/opensearch"  # owner: 1000:1000
 
-# 2. Permissions on data directory
-ssh <master2-ip> "ls -la /srv/fastdata/opensearch"
-
-# 3. Memory issues
-docker service ps opensearch_opensearch --no-trunc
+# View service logs
+docker service logs opensearch_opensearch --tail 50
 ```
 
-### Memory errors
+### Dashboards not connecting to OpenSearch
 
-If you see memory errors, reduce JVM heap in stack.yml:
-```yaml
-- "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"  # Reduce to 1GB
+```bash
+docker service logs opensearch_dashboards --tail 30
+# Ensure OPENSEARCH_HOSTS points to internal hostname (not localhost)
 ```
-
-### Reset data
-
-Resetting OpenSearch data is destructive and requires the literal authorization
-`CONFIRMO BORRADO`, a verified backup or snapshot, and an approved recovery plan.
-Do not remove the bind-mount contents during routine troubleshooting.
 
 ---
 
-## Notes
+## Rollback
 
-- **Single-node:** Configured as single-node (`discovery.type=single-node`)
-- **Security Plugin:** Disabled to simplify the internal lab
-- **Dashboards:** Includes full graphical interface (similar to Kibana)
-- **Deployment:** OpenSearch runs on master2; Dashboards remains on master1
-- **NVMe Storage:** Active OpenSearch data resides on master2
-- **Production:** For production, enable the security plugin, configure a multi-node cluster, and use NVMe
-- **Backups:** Consider regular snapshots if data is critical
+```bash
+# Redeploy previous stack definition from git history
+git log --oneline stacks/data/11-opensearch/stack.yml
+git show <sha>:stacks/data/11-opensearch/stack.yml | docker stack deploy -c - opensearch
+```
+
+---
+
+## Security notes
+
+- Security plugin is **disabled** (`DISABLE_SECURITY_PLUGIN=true`) for lab simplicity.
+- All external access goes through Traefik with BasicAuth + LAN whitelist.
+- Internal services communicate without authentication over the `internal` overlay network.
+- For production: enable the security plugin, configure TLS between nodes, and use role-based access control.

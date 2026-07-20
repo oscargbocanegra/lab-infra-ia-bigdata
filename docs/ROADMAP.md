@@ -15,12 +15,33 @@ Phase 4: Operational stacks (Traefik, Portainer, Postgres,
 Phase 5: Big Data + Automation (MinIO, Spark, Airflow)            ✅
 Phase 6.1: Centralized logs (Fluent Bit → OpenSearch)             ✅
 Phase 6.2: Metrics (Prometheus + Grafana + exporters)             ✅
+Phase 6.3: OpenSearch ML Commons (embeddings + ML Dashboard)      ✅
 Phase 7:   Hardening + Backups                                    ✅
 Phase 8:   Vector DB + RAG + Chat UI                              ✅
 Phase 9A:  Data Governance (OpenMetadata + Great Expectations)    ✅
 Phase 9B:  Agents & Evals (LangGraph + RAGAS + Benchmarks)        ✅
 Phase 10:  CI/CD (GitHub Actions + self-hosted runner + tests)    ✅
 ```
+
+---
+
+## Phase 6.3: OpenSearch ML Commons ✅
+
+**Stack:** `stacks/data/11-opensearch/stack.yml`
+
+Activated OpenSearch ML Commons on the existing single-node OpenSearch 2.19.4 cluster, enabling local text embedding inference and the ML Dashboard UI without any version migration or additional services.
+
+**What was enabled:**
+
+| Capability | Details |
+|---|---|
+| ML plugin | `opensearch-ml 2.19.4.0` (bundled, free) |
+| Model registry | Hub, URL, and local file |
+| Inference on data nodes | `only_run_on_ml_node=false` |
+| Memory tuning | JVM heap 2 GB, threshold 95% |
+| Validated model | `all-MiniLM-L6-v2 v1.0.1 TORCH_SCRIPT` |
+
+**Access:** `https://dashboards.sexydad` → Machine Learning section.
 
 ---
 

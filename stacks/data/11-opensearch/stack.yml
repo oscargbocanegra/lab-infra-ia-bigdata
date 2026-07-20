@@ -36,8 +36,8 @@ services:
       - DISABLE_SECURITY_PLUGIN=true
       - DISABLE_INSTALL_DEMO_CONFIG=true
       
-      # Memory Settings (reduced for lab environment)
-      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      # Memory Settings — 2 GB heap allows ML Commons model loading
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
       
       # Network
       - network.host=0.0.0.0
@@ -45,6 +45,14 @@ services:
       
       # Performance
       - bootstrap.memory_lock=true
+
+      # ML Commons — single-node lab configuration
+      # Allows ML tasks to run on data/ingest nodes (no dedicated ml node needed)
+      - plugins.ml_commons.only_run_on_ml_node=false
+      - plugins.ml_commons.allow_registering_model_via_url=true
+      - plugins.ml_commons.allow_registering_model_via_local_file=true
+      - plugins.ml_commons.native_memory_threshold=99
+      - plugins.ml_commons.jvm_heap_memory_threshold=95
     
     volumes:
       # Persistent data on master2 NVMe (/srv/fastdata → LVM sobre NVMe)
@@ -73,7 +81,7 @@ services:
       resources:
         reservations:
           cpus: '1.0'
-          memory: 2G
+          memory: 3G
         limits:
           cpus: '3.0'
           memory: 6G
