@@ -1,8 +1,8 @@
 # Propuesta maestra de migración, refactorización y mejora
 ## IT-Lab IA & Big Data
 
-**Versión:** 2.2
-**Fecha de actualización:** 2026-07-16
+**Versión:** 2.3
+**Fecha de actualización:** 2026-07-18
 **Estado:** vigente — ejecución incremental orientada a funcionamiento
 **Aprobada por el usuario:** 2026-07-16
 **Repositorio fuente de verdad:** `oscargbocanegra/lab-infra-ia-bigdata`
@@ -741,6 +741,24 @@ healthchecks y recursos necesarios para mantener estable el laboratorio.
 - Rollback: editar o eliminar el snapshot y revertir el commit asociado; no
   toca datos, imágenes ni secretos.
 
+### Checkpoint P2-R5 — cierre operativo CI/CD y agente (2026-07-18)
+
+- Se cerró el deploy atascado histórico `#51` y se validó continuidad de la
+  cola de despliegue con ejecuciones exitosas `#60`, `#61`, `#62`, `#63` y
+  `#64`.
+- Se actualizó y publicó el agente operativo del proyecto en
+  `.github/agents/lab-infra-ia-bigdata.agent.md` con checklist previo,
+  validaciones mínimas y reglas de evidencia runtime.
+- Se mejoró discoverability documental del agente en `README.md` y se registró
+  su incorporación en el roadmap.
+- Se cerró la deuda CI por deprecación de Node 20 en Actions:
+  `actions/checkout@v5`, `docker/login-action@v4` y
+  `actions/setup-python@v6`.
+- Cierres GitHub asociados y verificados: PR `#47`, `#49`, `#51`, `#53` en
+  `merged`; issues `#46`, `#48`, `#50`, `#52` en `closed`.
+- Estado final: ramas de trabajo eliminadas tras merge y `main` como única rama
+  activa local/remota.
+
 ---
 
 # 8. Orden de ejecución
@@ -825,11 +843,10 @@ recuperar la ruta funcional mínima y luego evolucionarla para que:
 - Authentik y la complejidad SSO queden descartados.
 - Cada mejora sea reproducible, verificable y documentada.
 
-La actividad operativa vigente es **P1-R7 — Recuperación funcional,
-healthchecks y recursos**. P1-R6 quedó finalizada con política IPv4 exacta,
-producto funcional y riesgo residual documentado. La parte operativa de P1-R7
-quedó verificada; permanece pendiente únicamente el cierre administrativo
-mediante commit/PR. P1-R8 y las fases P2 continúan deliberadamente diferidas.
+Estado vigente: P1-R6 y P1-R7 se encuentran cerradas operativa y
+administrativamente; P2-R5 quedó actualizado con cierre de deuda CI/CD y
+coherencia repo-runtime-documentación. P1-R8 y los bloques evolutivos de P2
+permanecen diferidos por decisión de alcance del laboratorio.
 
 ---
 
@@ -843,3 +860,33 @@ mediante commit/PR. P1-R8 y las fases P2 continúan deliberadamente diferidas.
 - [x] Propuesta aprobada por el usuario el 2026-07-16.
 
 La aprobación autoriza el uso de esta propuesta como plan documental vigente. No autoriza por sí sola eliminaciones, reinicios ni cambios destructivos; cada ejecución seguirá sus controles específicos.
+
+---
+
+## P2-R6 — ML Commons en OpenSearch
+
+**Objetivo:** habilitar ML Commons en el nodo único de OpenSearch 2.19.4 para soportar embeddings, búsqueda semántica y el ML Dashboard de OpenSearch Dashboards.
+
+- [x] Verificar `opensearch-ml 2.19.4.0` ya instalado en la imagen.
+- [x] Confirmar que no se requiere migración de versión; todas las capacidades ML son gratuitas en 2.19.4.
+- [x] Aplicar configuración persistente de clúster: `only_run_on_ml_node=false`, `allow_registering_model_via_url=true`, `allow_registering_model_via_local_file=true`, `native_memory_threshold=99`, `jvm_heap_memory_threshold=95`.
+- [x] Incrementar heap JVM de 1 GB a 2 GB (`-Xms2g -Xmx2g`) para soportar carga de modelos.
+- [x] Actualizar reserva de memoria del servicio de 2 GB a 3 GB.
+- [x] Registrar y desplegar modelo de validación `all-MiniLM-L6-v2 v1.0.1 TORCH_SCRIPT` desde el hub de OpenSearch.
+- [x] Confirmar modelo en estado `DEPLOYED` y estadísticas ML activas.
+- [x] Añadir variables de entorno ML al `stack.yml` para reproducibilidad en redespliegues.
+- [x] Actualizar README profesional con sección ML Commons, quickstart y referencia de API.
+- [x] Actualizar ROADMAP.md y PROPUESTA_MIGRACION_VIGENTE.md.
+- [x] Abrir issue, crear rama, fusionar PR y sincronizar nodos.
+
+### Checkpoint P2-R6 — ML Commons habilitado (2026-07-20)
+
+- OpenSearch 2.19.4 con `opensearch-ml 2.19.4.0` bundled; sin migración de versión necesaria.
+- Configuración persistente de clúster aplicada vía `/_cluster/settings`.
+- Solución a Content-Type en SSH: usar `curlimages/curl:latest` con flag `--json @file` (curl 8.21), evitando la pérdida de cabeceras por quoting SSH.
+- Memoria Circuit Breaker: `jvm_heap_memory_threshold=95` con heap de 2 GB resuelve el bloqueo de despliegue que ocurría con 1 GB y umbral 70%.
+- Modelo de validación `ipDTgZ8BA4AK8UhKzTEA` desplegado y en estado `DEPLOYED` en nodo `master2`.
+- `stack.yml` actualizado con heap 2 GB, reserva 3 GB y vars ML reproducibles.
+- ML Dashboard accesible en `https://dashboards.sexydad` → sección Machine Learning.
+- Rollback: revertir heap a `-Xms1g -Xmx1g` y reserva a 2 GB en `stack.yml`; resetear configuración del clúster vía API.
+- Estado P2-R6: completado.
