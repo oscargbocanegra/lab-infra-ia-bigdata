@@ -170,6 +170,7 @@ c.SwarmSpawner.volumes = {
 c.SwarmSpawner.environment = {
     "JUPYTER_ENABLE_LAB": "yes",
     "OLLAMA_HOST": "http://ollama:11434",
+    "OLLAMA_BASE_URL": "http://ollama:11434",
     "SPARK_MASTER_URL": "spark://spark_master:7077",
     "JARVIS_MODEL": "ollama:qwen2.5-coder:14b",
     "NVIDIA_VISIBLE_DEVICES": "0",
@@ -181,7 +182,7 @@ c.SwarmSpawner.environment = {
 
 singleuser_entrypoint_config_name = env(
     "JUPYTERHUB_SINGLEUSER_ENTRYPOINT_CONFIG",
-    "jupyterhub_singleuser_entrypoint_v1",
+    "jupyterhub_singleuser_entrypoint_v2",
 )
 
 singleuser_init_kernels_config_name = env(
