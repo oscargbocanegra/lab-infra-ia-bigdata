@@ -3,7 +3,7 @@
 ## Reference Data
 
 | Parameter | Value |
-|-----------|-------|
+| --------- | ----- |
 | **Stack** | `ollama` |
 | **Service** | `ollama_ollama` |
 | **Node** | master2 (`tier=compute` + `gpu=nvidia`) |
@@ -11,6 +11,30 @@
 | **Persistence** | `/srv/datalake/models/ollama` (HDD) |
 | **External URL** | `https://ollama.sexydad` (BasicAuth required) |
 | **Internal URL** | `http://ollama:11434` (no auth, overlay internal) |
+
+### JupyterHub and notebook clients
+
+Kernels launched by JupyterHub run inside the Swarm overlay network. They must
+use `http://ollama:11434` and do not need Basic Auth. The published
+`192.168.80.200:11434` endpoint is reserved for clients on
+`192.168.80.0/24`; a timeout from a JupyterHub kernel usually means the
+host-published route is being used from the wrong network, before HTTP
+authentication is evaluated.
+
+```python
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/")
+response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=15)
+response.raise_for_status()
+```
+
+Use Basic Auth only with `https://ollama.sexydad` or another externally
+protected endpoint. If the internal URL times out, verify the service and
+overlay DNS from the single-user container before changing UFW rules:
+
+```bash
+getent hosts ollama
+curl -v --max-time 15 http://ollama:11434/api/tags
+```
 
 ---
 
@@ -129,6 +153,61 @@ nvidia-smi   # Check available VRAM
 # 2. Use smaller models (llama3:8b instead of 70b)
 # 3. Use lower quantization (Q4 instead of Q8)
 ```
+
+### Symptom: ConnectTimeout desde JupyterHub (`192.168.80.200:11434`)
+
+**Error exacto:**
+```
+ConnectTimeout: HTTPConnectionPool(host='192.168.80.200', port=11434):
+Max retries exceeded with url: /api/tags
+(Caused by ConnectTimeoutError(..., 'Connection to 192.168.80.200 timed out.'))
+```
+
+**Causa:** El notebook usa la IP publicada del host (`192.168.80.200:11434`) que
+es accesible desde equipos en `192.168.80.0/24` (Postman, curl local), pero
+**no** desde dentro del network namespace del contenedor Swarm. Los kernels de
+JupyterHub corren en la red overlay `internal` y deben usar el DNS del servicio.
+
+**Fix inmediato — actualizar `apis.env`:**
+
+```bash
+# Desde la terminal de JupyterHub (o desde master2 vía SSH)
+sed -i 's|^OLLAMA_BASE_URL=.*|OLLAMA_BASE_URL=http://ollama:11434|' \
+  ~/work/.config/llm/apis.env
+
+# Verificar
+grep OLLAMA_BASE_URL ~/work/.config/llm/apis.env
+# Debe mostrar: OLLAMA_BASE_URL=http://ollama:11434
+```
+
+**Fix desde Python (celda de notebook):**
+
+```python
+import re
+from pathlib import Path
+
+env_path = Path.home() / "work" / ".config" / "llm" / "apis.env"
+content = env_path.read_text()
+updated = re.sub(
+    r"^(OLLAMA_BASE_URL\s*=\s*).*$",
+    r"\g<1>http://ollama:11434",
+    content,
+    flags=re.MULTILINE,
+)
+env_path.write_text(updated)
+print("✅ OLLAMA_BASE_URL corregida — reiniciá el kernel")
+```
+
+**Notas adicionales:**
+
+- `OLLAMA_USERNAME` / `OLLAMA_PASSWORD` no son requeridas para el endpoint
+  interno. Hacerlas `required` en el código rompe el caso de uso interno.
+  Dejarlas opcionales y aplicar `auth` solo si están presentes.
+- Si el DNS `ollama` no resuelve, el servicio `ollama_ollama` no está corriendo
+  o el contenedor no está en la red `internal`. Verificar con
+  `getent hosts ollama` desde la terminal de JupyterHub.
+- Template de referencia: `notebooks/config/apis.env.template`
+- Notebook de diagnóstico: `notebooks/ollama_test.ipynb`
 
 ---
 
