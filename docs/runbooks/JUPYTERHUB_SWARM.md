@@ -70,6 +70,41 @@ Validar:
 - lectura y escritura en `/home/jovyan/work`;
 - persistencia después de Stop/Start.
 
+## Incidente conocido: timeout a 192.168.80.200:11434 desde notebook
+
+Síntoma típico:
+
+        ConnectTimeout ... host='192.168.80.200', port=11434 ... /api/tags
+
+Causa raíz:
+
+- `jupyter_jupyter_ai_config.json` persistido en el home del usuario con
+    `fields.base_url` legacy (`http://192.168.80.200:11434`).
+- Desde single-user en red `internal`, el endpoint correcto es
+    `http://ollama:11434`.
+
+Remediación:
+
+1. Desplegar JupyterHub con el bootstrap `jupyterhub_singleuser_entrypoint_v2`.
+2. Reiniciar el servidor del usuario en JupyterHub.
+3. Verificar dentro del single-user:
+
+        python - <<'PY'
+        import json
+        from pathlib import Path
+        p = Path('/home/jovyan/.jupyter/jupyter_jupyter_ai_config.json')
+        print(json.loads(p.read_text()).get('fields', {}).get('base_url'))
+        PY
+
+Resultado esperado:
+
+        http://ollama:11434
+
+Validación de conectividad interna:
+
+        getent hosts ollama
+        curl --max-time 15 http://ollama:11434/api/tags
+
 ## Rollback
 
 1. Revertir el commit que causó la degradación.

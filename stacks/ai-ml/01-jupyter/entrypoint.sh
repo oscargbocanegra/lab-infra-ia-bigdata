@@ -26,6 +26,7 @@ export AWS_ENDPOINT_URL=http://minio:9000
 #                  → Environment → JARVIS_MODEL → cambiar valor → Update
 # Fallback: qwen2.5-coder:7b si la variable no está seteada
 JARVIS_MODEL="${JARVIS_MODEL:-ollama:qwen2.5-coder:7b}"
+OLLAMA_HOST="${OLLAMA_HOST:-http://ollama:11434}"
 JUPYTER_CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p "$JUPYTER_CONFIG_DIR"
 
@@ -34,7 +35,7 @@ mkdir -p "$JUPYTER_CONFIG_DIR"
 cat > "$JUPYTER_CONFIG_DIR/jupyter_lab_config.py" << EOF
 # ── jupyter-ai: Ollama provider (LAN, sin cloud) ──────────────
 # Modelo activo: ${JARVIS_MODEL}
-# Endpoint: http://ollama:11434 (red internal de Docker Swarm)
+# Endpoint: ${OLLAMA_HOST} (red internal de Docker Swarm)
 # NOTA: initial_language_model es el traitlet correcto en jupyter-ai 2.x
 c.AiExtension.initial_language_model = "${JARVIS_MODEL}"
 c.AiExtension.allowed_providers = ["ollama"]
@@ -48,17 +49,49 @@ echo "==> [jupyter-ai] jupyter_lab_config.py escrito (modelo: ${JARVIS_MODEL}) �
 # Nombre correcto según la doc oficial de jupyter-ai 2.x
 # Solo se crea si no existe para respetar cambios del usuario
 AI_CONFIG="$JUPYTER_CONFIG_DIR/jupyter_jupyter_ai_config.json"
-if [ ! -f "$AI_CONFIG" ]; then
-    cat > "$AI_CONFIG" << 'EOF'
-{
-  "model_provider_id": "ollama:qwen2.5-coder:7b",
-  "fields": {
-    "base_url": "http://ollama:11434"
-  }
+python - "$AI_CONFIG" "$OLLAMA_HOST" "$JARVIS_MODEL" << 'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+ollama_host = sys.argv[2]
+default_model = sys.argv[3] if len(sys.argv) > 3 else "ollama:qwen2.5-coder:7b"
+legacy_hosts = {
+    "http://192.168.80.200:11434",
+    "http://master2:11434",
 }
-EOF
-    echo "==> [jupyter-ai] jupyter_ai_config.json creado ✓"
-fi
+
+payload = {}
+if path.exists():
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        payload = {}
+
+if not isinstance(payload, dict):
+    payload = {}
+
+fields = payload.get("fields")
+if not isinstance(fields, dict):
+    fields = {}
+
+current_base_url = str(fields.get("base_url", "")).strip()
+if not current_base_url or current_base_url in legacy_hosts:
+    fields["base_url"] = ollama_host
+
+model_provider_id = str(payload.get("model_provider_id", "")).strip()
+if not model_provider_id or model_provider_id.startswith("ollama:"):
+    payload["model_provider_id"] = default_model
+
+payload["fields"] = fields
+
+path.write_text(
+    json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+echo "==> [jupyter-ai] jupyter_ai_config.json validado/actualizado (base_url=${OLLAMA_HOST}) ✓"
 
 echo "==> Ejecutando init de kernels..."
 

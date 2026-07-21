@@ -313,7 +313,7 @@ Capacidades disponibles:
 
 El bootstrap single-user se entrega mediante:
 
-- `jupyterhub_singleuser_entrypoint_v1`;
+- `jupyterhub_singleuser_entrypoint_v2`;
 - `jupyterhub_singleuser_init_kernels_v1`.
 
 Para exponer los kernels persistentes se mantiene:
