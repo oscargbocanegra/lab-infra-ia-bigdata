@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">Lab Infra AI and Big Data platform architecture</title>
+  <desc id="desc">Two-node Docker Swarm architecture with Traefik ingress on master1 and GPU, data, and stateful workloads on master2.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1"><stop stop-color="#0f4c81"/><stop offset="1" stop-color="#1677b8"/></linearGradient>
+    <linearGradient id="green" x1="0" x2="1"><stop stop-color="#176b57"/><stop offset="1" stop-color="#2a9d78"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-opacity=".18"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 z" fill="#52606d"/></marker>
+    <style>
+      .title{font:700 28px Arial,sans-serif;fill:#152536}.subtitle{font:400 15px Arial,sans-serif;fill:#52606d}
+      .node{font:700 19px Arial,sans-serif;fill:#fff}.nodeSub{font:400 13px Arial,sans-serif;fill:#e7f1f8}
+      .group{font:700 16px Arial,sans-serif;fill:#203040}.item{font:400 14px Arial,sans-serif;fill:#273746}
+      .small{font:400 12px Arial,sans-serif;fill:#52606d}.arrow{stroke:#52606d;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1400" height="820" fill="#f7fafc"/>
+  <text x="60" y="55" class="title">Lab Infra — AI &amp; Big Data Platform</text>
+  <text x="60" y="82" class="subtitle">Private two-node Docker Swarm · HTTPS LAN ingress · GPU-enabled AI · data and observability services</text>
+  <rect x="55" y="115" width="1290" height="650" rx="20" fill="#fff" stroke="#d9e2ec" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="85" y="150" width="1230" height="72" rx="12" fill="#eef5fb" stroke="#c7d9e8"/>
+  <text x="110" y="180" class="group">LAN clients</text><text x="110" y="203" class="item">Browsers · API clients · DBeaver · notebooks</text>
+  <rect x="450" y="163" width="390" height="48" rx="24" fill="url(#blue)"/>
+  <text x="645" y="193" text-anchor="middle" class="node">Traefik · TLS · LAN whitelist</text>
+  <path d="M310 186 H440" class="arrow"/><path d="M850 186 H1030" class="arrow"/>
+  <text x="1020" y="180" class="small">HTTPS :443</text>
+  <rect x="100" y="270" width="540" height="430" rx="16" fill="#f0f7fc" stroke="#9fc4df" stroke-width="2"/>
+  <rect x="760" y="270" width="540" height="430" rx="16" fill="#eff9f5" stroke="#9ed5c3" stroke-width="2"/>
+  <rect x="125" y="292" width="490" height="58" rx="10" fill="url(#blue)"/><text x="370" y="318" text-anchor="middle" class="node">master1 · Swarm manager / control</text><text x="370" y="340" text-anchor="middle" class="nodeSub">gateway · coordination · user-facing control services</text>
+  <rect x="785" y="292" width="490" height="58" rx="10" fill="url(#green)"/><text x="1030" y="318" text-anchor="middle" class="node">master2 · Swarm worker / compute</text><text x="1030" y="340" text-anchor="middle" class="nodeSub">GPU · storage · stateful and data workloads</text>
+  <text x="135" y="385" class="group">Ingress &amp; applications</text>
+  <text x="135" y="414" class="item">Portainer · JupyterHub · Qdrant · RAG API</text><text x="135" y="438" class="item">Agent · Open WebUI · Airflow web / Flower</text>
+  <text x="135" y="480" class="group">Analytics &amp; observability</text>
+  <text x="135" y="509" class="item">Spark master / history · OpenMetadata</text><text x="135" y="533" class="item">OpenSearch Dashboards · Prometheus · Grafana</text><text x="135" y="557" class="item">Fluent Bit (global log collector)</text>
+  <text x="135" y="599" class="group">Overlay networks</text><text x="135" y="627" class="item">public · internal · jupyterhub-user</text>
+  <text x="795" y="385" class="group">AI &amp; data plane</text>
+  <text x="795" y="414" class="item">Ollama (NVIDIA GPU) · n8n · MinIO</text><text x="795" y="438" class="item">PostgreSQL / pgvector · OpenSearch</text>
+  <text x="795" y="480" class="group">Distributed compute</text>
+  <text x="795" y="509" class="item">Spark worker · Airflow worker</text><text x="795" y="533" class="item">JupyterHub single-user sessions</text>
+  <text x="795" y="575" class="group">Persistent media</text>
+  <text x="795" y="604" class="item">NVMe: databases · indexes · runtime state</text><text x="795" y="628" class="item">HDD: MinIO lake · Ollama models · datasets</text>
+  <text x="795" y="670" class="small">RTX 2080 Ti · nvidia.com/gpu=1 · gpu=nvidia</text>
+  <path d="M645 222 V255 H370 V282" class="arrow"/><path d="M645 222 V255 H1030 V282" class="arrow"/>
+  <path d="M640 500 H752" class="arrow"/><text x="665" y="488" class="small">overlay services</text>
+  <rect x="360" y="730" width="680" height="28" rx="14" fill="#e8eef3"/><text x="700" y="749" text-anchor="middle" class="small">Source of truth: stacks/**/stack.yml · secrets stay outside Git</text>
+</svg>
