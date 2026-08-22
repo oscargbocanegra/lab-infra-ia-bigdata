@@ -1,47 +1,47 @@
-# Redes, dominios y flujo de tráfico
+# Networking, domains, and traffic flow
 
-> Revisado 2026-08-22.
+> Reviewed 2026-08-22.
 
-## Topología
+## Topology
 
 ```text
-LAN (sin exposición pública)
-  -> master1:80/443 -> Traefik -> redes overlay
-  -> master2:5432 (PostgreSQL) y :11434 (Ollama), solo clientes LAN autorizados
+LAN (no public exposure)
+  -> master1:80/443 -> Traefik -> overlay networks
+  -> master2:5432 (PostgreSQL) and :11434 (Ollama), authorized LAN clients only
 ```
 
-## Redes Swarm
+## Swarm networks
 
-| Red | Tipo | Uso |
+| Network | Type | Purpose |
 |---|---|---|
-| `public` | overlay externa, attachable | Traefik y servicios con router |
-| `internal` | overlay externa, attachable | tráfico privado backend |
-| `jupyterhub-user` | overlay externa | Hub y sesiones single-user |
-| `ingress` | overlay nativa | routing mesh de Swarm |
+| `public` | external, attachable overlay | Traefik and routed services |
+| `internal` | external, attachable overlay | private backend traffic |
+| `jupyterhub-user` | external overlay | Hub and single-user sessions |
+| `ingress` | native overlay | Swarm routing mesh |
 
-Crear las redes externas antes de desplegar y no sustituirlas por nombres de proyecto.
+Create external networks before deployment; do not replace them with project-scoped names.
 
-## Dominios publicados
+## Published domains
 
-Todos resuelven al IP de `master1` mediante DNS local o `/etc/hosts`:
+All names resolve to the `master1` IP through local DNS or `/etc/hosts`:
 
 ```text
 traefik, portainer, jupyterhub, qdrant, rag-api, chat, agent, n8n, ollama,
 opensearch, dashboards, minio, minio-api, openmetadata, spark-master,
-spark-worker, spark-history, airflow, airflow-flower, prometheus y grafana
+spark-worker, spark-history, airflow, airflow-flower, prometheus and grafana
 ```
 
-La convención de nombres es `aifabric.<servicio>`. Traefik termina TLS, aplica `lan-whitelist` y, cuando corresponde, BasicAuth.
+Names follow the `aifabric.<service>`. Traefik terminates TLS, applies `lan-whitelist`, and uses BasicAuth where required.
 
-## Puertos
+## Ports
 
-| Puerto | Nodo | Servicio | Exposición |
+| Port | Node | Service | Exposure |
 |---:|---|---|---|
 | 80/443 | master1 | Traefik | LAN, `mode: host` |
-| 5432 | master2 | PostgreSQL | LAN directa controlada |
-| 11434 | master2 | Ollama | LAN directa controlada |
-| 9000/9001 | interno | MinIO API/console | overlay/Traefik |
-| 9200/5601 | interno | OpenSearch/Dashboards | overlay/Traefik |
-| 7077/8080/8081/18080 | interno | Spark master/worker/history | overlay/Traefik |
+| 5432 | master2 | PostgreSQL | controlled direct LAN access |
+| 11434 | master2 | Ollama | controlled direct LAN access |
+| 9000/9001 | internal | MinIO API/console | overlay/Traefik |
+| 9200/5601 | internal | OpenSearch/Dashboards | overlay/Traefik |
+| 7077/8080/8081/18080 | internal | Spark master/worker/history | overlay/Traefik |
 
-No se publican puertos de backend adicionales salvo los declarados explícitamente en los stacks.
+No additional backend ports are published unless explicitly declared in the stacks.

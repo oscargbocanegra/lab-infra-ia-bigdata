@@ -1,29 +1,29 @@
-# Arquitectura Medallion
+# Medallion architecture
 
-> Revisado 2026-08-21. Patrón objetivo implementado sobre MinIO y Spark; las tablas y DAGs concretos se versionan por proyecto.
+> Reviewed 2026-08-22. Target pattern implemented on MinIO and Spark; concrete tables and DAGs are versioned per project.
 
-## Capas
+## Layers
 
 ```text
-fuentes -> Bronze (raw) -> Spark/validación -> Silver (curado) -> Gold (consumo)
-                         Airflow orquesta y Jupyter explora
+sources -> Bronze (raw) -> Spark/validation -> Silver (curated) -> Gold (consumption)
+                         Airflow orchestrates and Jupyter supports exploration
 ```
 
-- **Bronze**: datos recibidos sin transformar.
-- **Silver**: datos tipados, deduplicados y enriquecidos, preferentemente Delta/Parquet.
-- **Gold**: agregados, KPIs y features consumibles.
+- **Bronze**: data received without transformation.
+- **Silver**: typed, deduplicated, and enriched data, preferably Delta/Parquet.
+- **Gold**: aggregates, KPIs, and consumable features.
 
-MinIO vive en `master2` (`/srv/datalake/minio`). Spark declara las extensiones Delta y usa el worker de `master2`; Airflow ejecuta DAGs de gobierno, promoción y evaluación.
+MinIO runs on `master2` (`/srv/datalake/minio`). Spark declares Delta extensions and uses the worker on `master2`; Airflow runs governance, promotion, and evaluation DAGs.
 
-## Buckets y responsabilidades
+## Buckets and responsibilities
 
-| Bucket/prefijo | Uso |
+| Bucket/prefix | Purpose |
 |---|---|
-| `bronze/` | aterrizaje raw |
-| `silver/` | datasets curados |
-| `gold/` | productos analíticos y ML |
-| `governance/` | resultados de validación/catálogo si se habilitan |
-| `airflow-logs/` | reservado para logs remotos (Airflow está configurado con logging local por defecto) |
-| `spark-warehouse/` | warehouse y eventos según configuración |
+| `bronze/` | raw landing zone |
+| `silver/` | curated datasets |
+| `gold/` | analytics and ML products |
+| `governance/` | validation/catalog results, if enabled |
+| `airflow-logs/` | reserved for remote logs (Airflow is configured for local logging by default) |
+| `spark-warehouse/` | warehouse and events as configured |
 
-No asumir que un bucket existe solo por aparecer en un ejemplo: comprobarlo en MinIO antes de ejecutar un DAG.
+Do not assume a bucket exists merely because it appears in an example; verify it in MinIO before running a DAG.

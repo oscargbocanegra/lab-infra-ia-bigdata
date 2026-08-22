@@ -1,32 +1,32 @@
-# Gobierno de datos
+# Data governance
 
-> Revisado 2026-08-21. Describe componentes declarados, no una garantía de que cada conector esté configurado en runtime.
+> Reviewed 2026-08-22. Describes declared components; it does not guarantee that every connector is configured at runtime.
 
-## Componentes actuales
+## Current components
 
-- OpenMetadata (`stacks/data/13-openmetadata`) con servidor, MySQL y OpenSearch dedicados en `master1`.
-- Airflow (`stacks/automation/03-airflow`) con DAGs de validación y promoción.
-- MinIO para objetos y capas Bronze/Silver/Gold.
-- OpenSearch principal para logs y búsquedas operativas en `master2`.
+- OpenMetadata (`stacks/data/13-openmetadata`) with dedicated server, MySQL, and OpenSearch services on `master1`.
+- Airflow (`stacks/automation/03-airflow`) with validation and promotion DAGs.
+- MinIO for objects and Bronze/Silver/Gold data layers.
+- Primary OpenSearch for logs and operational search on `master2`.
 
-Los conectores YAML de OpenMetadata cubren PostgreSQL, MinIO y Airflow. Great Expectations no está desplegado como servicio independiente; cualquier validación debe ejecutarse dentro de un DAG o imagen que la incluya.
+OpenMetadata YAML connectors cover PostgreSQL, MinIO, and Airflow. Great Expectations is not deployed as an independent service; any validation must run inside a DAG or image that includes it.
 
-## Convención de datos
+## Data convention
 
 ```text
-bronze/<fuente>/<fecha>/raw.*
-silver/<dominio>/<tabla>/<fecha>/part-*.parquet
-gold/<producto>/<fecha>/part-*.parquet
+bronze/<source>/<date>/raw.*
+silver/<domain>/<table>/<date>/part-*.parquet
+gold/<product>/<date>/part-*.parquet
 ```
 
-La convención es operativa y debe acompañarse de propietarios, esquema, retención y evidencia de calidad.
+The convention is operational and must include ownership, schema, retention, and quality evidence.
 
-## Verificación
+## Verification
 
 ```bash
 docker stack services openmetadata
 docker service logs openmetadata_openmetadata-server --tail 100
-# comprobar conectores desde la UI/API antes de declarar lineage
+# verify connectors through the UI/API before declaring lineage
 ```
 
-Relacionado: [`MEDALLION.md`](MEDALLION.md), [`DATABASES.md`](DATABASES.md) y ADR-007.
+Related: [`MEDALLION.md`](MEDALLION.md), [`DATABASES.md`](DATABASES.md), [`DATABASES.md`](DATABASES.md), and ADR-007.

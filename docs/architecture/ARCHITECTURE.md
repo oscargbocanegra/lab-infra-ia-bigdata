@@ -1,25 +1,25 @@
-# Arquitectura vigente
+# Current architecture
 
-> Fuente de verdad: `stacks/**/stack.yml`. Revisada el 2026-08-21.
+> Source of truth: `stacks/**/stack.yml`. Reviewed 2026-08-22.
 
-## Topología
+## Topology
 
-El laboratorio es un Docker Swarm privado de dos nodos. `master1` es manager/leader y `master2` es worker con `tier=compute`, `storage=primary` y `gpu=nvidia`.
+The lab is a private two-node Docker Swarm. `master1` is the manager/leader and `master2` is the worker, labeled `tier=compute`, `storage=primary`, and `gpu=nvidia`.
 
 ```text
 master1 (control)
   Traefik, Portainer, JupyterHub, Qdrant, RAG API, Agent, Open WebUI,
   Airflow (Redis/web/scheduler/flower), Spark master/history, OpenMetadata,
-  OpenSearch Dashboards, Prometheus, Grafana y Fluent Bit.
+  OpenSearch Dashboards, Prometheus, Grafana and Fluent Bit.
 
 master2 (compute/data/GPU)
   PostgreSQL/pgvector, n8n, Ollama, MinIO, OpenSearch, Spark worker,
-  Airflow worker, sesiones single-user dinámicas de JupyterHub y Fluent Bit.
+  Airflow worker, dynamic JupyterHub single-user sessions and Fluent Bit.
 ```
 
-Las restricciones exactas están en `deploy.placement.constraints` de cada stack.
+The exact placement constraints are defined in each stack's `deploy.placement.constraints`.
 
-## Flujo de datos
+## Data flow
 
 ```text
 LAN --HTTPS--> Traefik
@@ -29,17 +29,17 @@ Fluent Bit (global) --> OpenSearch --> Dashboards
 Prometheus --> node-exporter/cAdvisor/NVIDIA exporter --> Grafana
 ```
 
-## Redes
+## Networks
 
-- `public`: Traefik y backends con routers HTTP.
-- `internal`: tráfico privado entre servicios.
-- `ingress`: publicación nativa de Swarm.
-- `jupyterhub-user`: red externa para sesiones dinámicas.
+- `public`: Traefik and HTTP-routed backends.
+- `internal`: Private service-to-service traffic.
+- `ingress`: Swarm native routing.
+- `jupyterhub-user`: external network for dynamic sessions.
 
-Las redes externas deben existir antes del despliegue. El aislamiento se complementa con TLS, BasicAuth, whitelist LAN y Swarm Secrets.
+External networks must exist before deployment. Isolation is reinforced by TLS, BasicAuth, the LAN allowlist, and Swarm Secrets.
 
-## Persistencia y seguridad
+## Persistence and security
 
-NVMe de `master2`: PostgreSQL, OpenSearch, n8n, Airflow, Spark temporal y usuarios JupyterHub. HDD de `master2`: MinIO y modelos Ollama. `master1` guarda datos de control, Prometheus/Grafana y el Hub.
+`master2` NVMe: PostgreSQL, OpenSearch, n8n, Airflow, temporary Spark data and JupyterHub user data. `master2` HDD: MinIO and Ollama models. `master1` stores control-plane data, Prometheus/Grafana, and the Hub.
 
-OpenSearch es single-node con el plugin de seguridad desactivado; el acceso externo está protegido por Traefik. Los ADR conservan el contexto histórico, pero la configuración ejecutable siempre prevalece.
+OpenSearch runs as a single node with its security plugin disabled; Traefik protects external access. ADRs preserve historical context, but executable configuration always takes precedence.

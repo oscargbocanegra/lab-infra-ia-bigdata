@@ -1,27 +1,27 @@
-# Checklist operativo
+# Operational checklist
 
-> Revisado 2026-08-21. Este checklist verifica el estado del despliegue actual; no es un roadmap histórico.
+> Reviewed 2026-08-22. This checklist verifies the current deployment state; it is not a historical roadmap.
 
-## Preflight
+## Preflight checks
 
-- [ ] `docker node ls`: master1 manager/leader y master2 worker/ready.
-- [ ] Labels `tier`, `storage`, `gpu` presentes según [`NODES.md`](NODES.md).
-- [ ] Redes externas `public`, `internal` y `jupyterhub-user` creadas.
-- [ ] Secrets requeridos creados fuera de Git.
-- [ ] `/srv/fastdata` y `/srv/datalake` montados antes de iniciar Docker.
+- [ ] `docker node ls`: master1 manager/leader and master2 worker/ready.
+- [ ] Labels `tier`, `storage`, `gpu` present as defined in [`NODES.md`](NODES.md).
+- [ ] external networks `public`, `internal`, and `jupyterhub-user` created.
+- [ ] required secrets created outside Git.
+- [ ] `/srv/fastdata` and `/srv/datalake` mounted before Docker starts.
 
 ## Stacks
 
-| Área | Stack | Verificación |
+| Area | Stack | Verification |
 |---|---|---|
-| Entrada | `traefik`, `portainer` | `docker stack services <stack>`; HTTPS por `aifabric.<servicio>` |
-| Datos | `postgres`, `opensearch`, `minio`, `openmetadata` | health/API y volumen persistente |
-| IA | `jupyterhub`, `ollama`, `qdrant`, `rag-api`, `open-webui`, `agent` | Hub health, `/api/tags`, endpoints `/health` |
-| Automatización | `n8n`, `airflow` | webserver, scheduler, worker y Flower |
-| Analítica | `spark` | worker registrado y history accesible |
-| Observabilidad | `fluent-bit`, `prometheus`, `grafana`, `nvidia-exporter` | targets UP, dashboard y logs indexados |
+| Ingress | `traefik`, `portainer` | `docker stack services <stack>`; HTTPS through `aifabric.<service>` |
+| Data | `postgres`, `opensearch`, `minio`, `openmetadata` | health/API and persistent volume |
+| AI | `jupyterhub`, `ollama`, `qdrant`, `rag-api`, `open-webui`, `agent` | Hub health, `/api/tags`, endpoints `/health` |
+| Automation | `n8n`, `airflow` | webserver, scheduler, worker, and Flower |
+| Analytics | `spark` | registered worker and accessible history server |
+| Observability | `fluent-bit`, `prometheus`, `grafana`, `nvidia-exporter` | UP targets, dashboard, and indexed logs |
 
-## Comandos de aceptación
+## Acceptance commands
 
 ```bash
 docker stack ls
@@ -31,4 +31,4 @@ curl -k https://aifabric.jupyterhub/hub/health
 curl -k https://aifabric.ollama/api/tags
 ```
 
-Los estados `pending deploy` de la versión 2026-03-30 quedan obsoletos: MinIO, Spark y Airflow tienen stacks declarados y sus runbooks actuales deben usarse para validar la ejecución.
+The `pending deploy` states from the 2026-03-30 version are obsolete: MinIO, Spark, and Airflow have declared stacks, and their current runbooks must be used to validate execution.
