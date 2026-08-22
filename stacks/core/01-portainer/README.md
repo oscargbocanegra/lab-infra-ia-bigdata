@@ -10,7 +10,7 @@ Portainer CE provides a web UI to manage the Docker Swarm cluster, inspect servi
 | Agent Image | `portainer/agent:2.39.1` |
 | Node (server) | master1 (`tier=control`) |
 | Node (agent) | **global** — runs on ALL nodes (master1 + master2) |
-| URL | https://portainer.sexydad |
+| URL | https://aifabric.portainer |
 | Auth | Portainer's own user management (no BasicAuth middleware) |
 
 ## Architecture

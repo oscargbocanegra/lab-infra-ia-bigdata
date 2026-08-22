@@ -31,7 +31,7 @@ With 2 nodes, we need to decide where the reverse proxy (Traefik) runs to expose
 
 4. **`mode: host` on master1**: Guarantees that :443 is available directly on the master1 IP (`<master1-ip>`), without Swarm's routing mesh that can interfere with TLS certificates.
 
-5. **A single hostname for all `/etc/hosts`**: All `*.sexydad` entries point to `<master1-ip>`. Simple.
+5. **A single hostname for all `/etc/hosts`**: All `aifabric.<servicio>` entries point to `<master1-ip>`. Simple.
 
 ---
 

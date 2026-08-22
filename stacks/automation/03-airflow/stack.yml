@@ -19,8 +19,8 @@ version: "3.9"
 #       También accesible en master2 para el worker
 #
 # URLs:
-#   https://airflow.sexydad       → Webserver UI
-#   https://airflow-flower.sexydad → Flower (monitor workers)
+#   https://aifabric.airflow       → Webserver UI
+#   https://aifabric.airflow-flower → Flower (monitor workers)
 #
 # Secrets requeridos:
 #   pg_airflow_pass         → password DB airflow en Postgres
@@ -61,7 +61,7 @@ secrets:
     external: true
 
 configs:
-  airflow_entrypoint_v7:
+  airflow_entrypoint_v8:
     file: ./airflow-entrypoint.sh
 
 # ── Variables de entorno comunes a todos los componentes ─────
@@ -95,7 +95,7 @@ x-airflow-common-env: &airflow-env
   AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: "false"
 
   # ── URL pública ───────────────────────────────────────────
-  AIRFLOW__WEBSERVER__BASE_URL: https://airflow.sexydad
+  AIRFLOW__WEBSERVER__BASE_URL: https://aifabric.airflow
 
   # ── REST API auth ─────────────────────────────────────────
   # Enable basic_auth so the REST API can be called with user:password.
@@ -211,7 +211,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v7
+      - source: airflow_entrypoint_v8
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -234,7 +234,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v7
+      - source: airflow_entrypoint_v8
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -260,7 +260,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.airflow.rule=Host(`airflow.sexydad`)
+        - traefik.http.routers.airflow.rule=Host(`aifabric.airflow`)
         - traefik.http.routers.airflow.entrypoints=websecure
         - traefik.http.routers.airflow.tls=true
         - traefik.http.routers.airflow.service=airflow
@@ -281,7 +281,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v7
+      - source: airflow_entrypoint_v8
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -323,7 +323,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master2
     configs:
-      - source: airflow_entrypoint_v7
+      - source: airflow_entrypoint_v8
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -366,7 +366,7 @@ services:
     secrets: *airflow-secrets
     volumes: *airflow-volumes-master1
     configs:
-      - source: airflow_entrypoint_v7
+      - source: airflow_entrypoint_v8
         target: /airflow-entrypoint.sh
         mode: 0755
     networks:
@@ -392,7 +392,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.airflow-flower.rule=Host(`airflow-flower.sexydad`)
+        - traefik.http.routers.airflow-flower.rule=Host(`aifabric.airflow-flower`)
         - traefik.http.routers.airflow-flower.entrypoints=websecure
         - traefik.http.routers.airflow-flower.tls=true
         - traefik.http.routers.airflow-flower.service=airflow-flower

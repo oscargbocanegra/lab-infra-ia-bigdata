@@ -62,7 +62,7 @@ Deploy Qdrant as a dedicated vector database. Keep Postgres for structured metad
 **Pros:**
 - Purpose-built for ANN (Approximate Nearest Neighbor) search — HNSW index out of the box
 - Payload filtering: filter by `collection`, `filename`, or any metadata field without SQL joins
-- Built-in Web UI at `https://qdrant.sexydad/dashboard` — inspect collections, run test queries
+- Built-in Web UI at `https://aifabric.qdrant/dashboard` — inspect collections, run test queries
 - REST API (port 6333) + gRPC (port 6334) — both available from day one
 - Swarm-native Docker image (`qdrant/qdrant:v1.13.4`) — deploys as a standard stack service
 - Persistent storage on `/srv/fastdata/qdrant` (bind mount, 348 GB available)
@@ -112,7 +112,7 @@ the search behavior is unaffected.
 
 - ✅ Semantic search is fast and filtereable — Qdrant HNSW handles the vector workload
 - ✅ Per-collection filtering works natively via Qdrant payload filters (no SQL)
-- ✅ Web UI available at `https://qdrant.sexydad/dashboard` for collection inspection
+- ✅ Web UI available at `https://aifabric.qdrant/dashboard` for collection inspection
 - ✅ Postgres `documents` and `embeddings` tables serve as an audit trail and enable
   SQL-level analysis (chunk counts, model distribution, ingestion history)
 - ✅ Architecture demonstrates knowledge of two different vector storage paradigms
@@ -133,7 +133,7 @@ stacks/ai-ml/03-qdrant/stack.yml
 
 - Image: `qdrant/qdrant:v1.13.4`
 - Node: `master1` (tier=control)
-- REST: `https://qdrant.sexydad` (via Traefik) / `http://qdrant:6333` (internal overlay)
+- REST: `https://aifabric.qdrant` (via Traefik) / `http://qdrant:6333` (internal overlay)
 - gRPC: `http://qdrant:6334` (internal overlay)
 - Storage: `/srv/fastdata/qdrant` (bind mount)
 - Auth: Docker secret `qdrant_api_key`

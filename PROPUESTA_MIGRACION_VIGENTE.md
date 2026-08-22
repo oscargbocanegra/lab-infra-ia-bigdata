@@ -887,6 +887,6 @@ La aprobación autoriza el uso de esta propuesta como plan documental vigente. N
 - Memoria Circuit Breaker: `jvm_heap_memory_threshold=95` con heap de 2 GB resuelve el bloqueo de despliegue que ocurría con 1 GB y umbral 70%.
 - Modelo de validación `ipDTgZ8BA4AK8UhKzTEA` desplegado y en estado `DEPLOYED` en nodo `master2`.
 - `stack.yml` actualizado con heap 2 GB, reserva 3 GB y vars ML reproducibles.
-- ML Dashboard accesible en `https://dashboards.sexydad` → sección Machine Learning.
+- ML Dashboard accesible en `https://aifabric.dashboards` → sección Machine Learning.
 - Rollback: revertir heap a `-Xms1g -Xmx1g` y reserva a 2 GB en `stack.yml`; resetear configuración del clúster vía API.
 - Estado P2-R6: completado.

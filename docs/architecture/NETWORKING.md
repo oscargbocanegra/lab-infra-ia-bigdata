@@ -1,6 +1,6 @@
 # Redes, dominios y flujo de tráfico
 
-> Revisado 2026-08-21.
+> Revisado 2026-08-22.
 
 ## Topología
 
@@ -31,7 +31,7 @@ opensearch, dashboards, minio, minio-api, openmetadata, spark-master,
 spark-worker, spark-history, airflow, airflow-flower, prometheus y grafana
 ```
 
-El sufijo es `.sexydad`. Traefik termina TLS, aplica `lan-whitelist` y, cuando corresponde, BasicAuth.
+La convención de nombres es `aifabric.<servicio>`. Traefik termina TLS, aplica `lan-whitelist` y, cuando corresponde, BasicAuth.
 
 ## Puertos
 

@@ -98,7 +98,7 @@ services:
         - "traefik.docker.network=public"
         
         # HTTP Router
-        - "traefik.http.routers.opensearch.rule=Host(`opensearch.sexydad`)"
+        - "traefik.http.routers.opensearch.rule=Host(`aifabric.opensearch`)"
         - "traefik.http.routers.opensearch.entrypoints=websecure"
         - "traefik.http.routers.opensearch.tls=true"
         - "traefik.http.routers.opensearch.service=opensearch"
@@ -170,7 +170,7 @@ services:
         - "traefik.docker.network=public"
         
         # HTTP Router
-        - "traefik.http.routers.dashboards.rule=Host(`dashboards.sexydad`)"
+        - "traefik.http.routers.dashboards.rule=Host(`aifabric.dashboards`)"
         - "traefik.http.routers.dashboards.entrypoints=websecure"
         - "traefik.http.routers.dashboards.tls=true"
         - "traefik.http.routers.dashboards.service=dashboards"

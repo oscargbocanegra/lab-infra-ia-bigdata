@@ -49,8 +49,8 @@ if [[ "${NEEDS_ROTATE}" == "true" ]]; then
     -keyout "${KEY_FILE}" \
     -out "${CERT_FILE}" \
     -nodes \
-    -subj "/C=AR/ST=Buenos Aires/O=Lab/CN=*.sexydad" \
-    -addext "subjectAltName=DNS:*.sexydad,DNS:sexydad,IP:192.168.80.100"
+    -subj "/C=AR/ST=Buenos Aires/O=Lab/CN=aifabric.openmetadata" \
+    -addext "subjectAltName=DNS:aifabric,DNS:aifabric.agent,DNS:aifabric.airflow,DNS:aifabric.airflow-flower,DNS:aifabric.chat,DNS:aifabric.dashboards,DNS:aifabric.grafana,DNS:aifabric.jupyterhub,DNS:aifabric.minio,DNS:aifabric.minio-api,DNS:aifabric.n8n,DNS:aifabric.ollama,DNS:aifabric.openmetadata,DNS:aifabric.opensearch,DNS:aifabric.portainer,DNS:aifabric.prometheus,DNS:aifabric.qdrant,DNS:aifabric.rag-api,DNS:aifabric.spark-history,DNS:aifabric.spark-master,DNS:aifabric.spark-worker,DNS:aifabric.traefik,IP:192.168.80.100"
 
   chmod 600 "${KEY_FILE}"
   chmod 644 "${CERT_FILE}"

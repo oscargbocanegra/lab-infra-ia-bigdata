@@ -4,8 +4,8 @@ version: "3.9"
 # Stack: Lab Hybrid Agent — LangGraph RAG + Data Agent
 # ============================================================
 # Node:     master1 (tier=control)
-# URL:      https://agent.sexydad
-# Docs:     https://agent.sexydad/docs  (Swagger UI)
+# URL:      https://aifabric.agent
+# Docs:     https://aifabric.agent/docs  (Swagger UI)
 #
 # Purpose:
 #   Hybrid LangGraph agent that answers questions using two tools:
@@ -130,7 +130,7 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=public"
 
-        - "traefik.http.routers.agent.rule=Host(`agent.sexydad`)"
+        - "traefik.http.routers.agent.rule=Host(`aifabric.agent`)"
         - "traefik.http.routers.agent.entrypoints=websecure"
         - "traefik.http.routers.agent.tls=true"
         - "traefik.http.routers.agent.service=agent"

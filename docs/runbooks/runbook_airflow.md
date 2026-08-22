@@ -91,7 +91,7 @@ docker stack ps airflow --no-trunc
 ## First Login
 
 ```
-URL:      https://airflow.sexydad
+URL:      https://aifabric.airflow
 Username: admin
 Password: value of airflow_webserver_secret
 ```
@@ -216,7 +216,7 @@ spark_job = SparkSubmitOperator(
 docker stack ps airflow
 
 # View active workers in Flower
-# https://airflow-flower.sexydad
+# https://aifabric.airflow-flower
 
 # Scheduler logs (see which DAGs were scheduled)
 docker service logs airflow_airflow_scheduler -f --tail 50

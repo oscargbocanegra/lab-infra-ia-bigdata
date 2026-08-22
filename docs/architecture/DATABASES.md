@@ -109,8 +109,8 @@ SSL:      disabled (LAN only)
 
 | Endpoint | URL | Usage |
 |----------|-----|-------|
-| Console UI | `https://minio.sexydad` | Visual management, create buckets, browse objects |
-| S3 API | `https://minio-api.sexydad` | External client (mc, boto3 from laptop) |
+| Console UI | `https://aifabric.minio` | Visual management, create buckets, browse objects |
+| S3 API | `https://aifabric.minio-api` | External client (mc, boto3 from laptop) |
 | Internal API | `http://minio:9000` | Spark, Airflow, Jupyter (overlay `internal`) |
 
 ### Configuration for S3 clients
@@ -119,7 +119,7 @@ SSL:      disabled (LAN only)
 # PySpark / boto3 / s3fs
 endpoint_url = "http://minio:9000"        # internal (from Jupyter/Airflow)
 # or
-endpoint_url = "https://minio-api.sexydad"  # external (from laptop)
+endpoint_url = "https://aifabric.minio-api"  # external (from laptop)
 
 region_name = "us-east-1"                # MinIO uses us-east-1 by default
 path_style   = True                      # REQUIRED for MinIO
@@ -190,8 +190,8 @@ JVM heap:       -Xms1g -Xmx1g
 | Method | URL | Auth |
 |--------|-----|------|
 | Internal API (Jupyter, n8n) | `http://opensearch:9200` | No auth (security plugin disabled) |
-| External API (via Traefik) | `https://opensearch.sexydad` | BasicAuth (`opensearch_basicauth`) |
-| UI Dashboards | `https://dashboards.sexydad` | BasicAuth (`dashboards_basicauth`) |
+| External API (via Traefik) | `https://aifabric.opensearch` | BasicAuth (`opensearch_basicauth`) |
+| UI Dashboards | `https://aifabric.dashboards` | BasicAuth (`dashboards_basicauth`) |
 
 ### Predefined indexes
 
@@ -269,7 +269,7 @@ docker exec -it $(docker ps -q -f name=postgres_postgres) \
 
 ```bash
 # Configure mc (MinIO client)
-mc alias set lab https://minio-api.sexydad <access_key> <secret_key> --insecure
+mc alias set lab https://aifabric.minio-api <access_key> <secret_key> --insecure
 
 # List buckets
 mc ls lab/
@@ -285,7 +285,7 @@ mc ls lab/bronze/
 
 ```bash
 # From the LAN (with BasicAuth)
-curl -sk -u "<user>:<pass>" https://opensearch.sexydad/_cluster/health | python3 -m json.tool
+curl -sk -u "<user>:<pass>" https://aifabric.opensearch/_cluster/health | python3 -m json.tool
 
 # From Python (internal, no auth)
 from opensearchpy import OpenSearch

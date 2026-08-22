@@ -103,7 +103,7 @@ services:
         - "traefik.docker.network=public"
         
         # HTTP Router
-        - "traefik.http.routers.ollama.rule=Host(`ollama.sexydad`)"
+        - "traefik.http.routers.ollama.rule=Host(`aifabric.ollama`)"
         - "traefik.http.routers.ollama.entrypoints=websecure"
         - "traefik.http.routers.ollama.tls=true"
         - "traefik.http.routers.ollama.service=ollama"

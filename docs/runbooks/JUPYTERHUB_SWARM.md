@@ -9,7 +9,7 @@ Operar, verificar, desplegar y recuperar JupyterHub sin perder datos.
 - Hub: `master1`.
 - Single-users: `master2`.
 - Base de datos: PostgreSQL en `master2`.
-- Entrada LAN: Traefik mediante `jupyterhub.sexydad`.
+- Entrada LAN: Traefik mediante `aifabric.jupyterhub`.
 - Redes: `public` e `internal`.
 - Persistencia Hub: `/srv/fastdata/jupyterhub/hub`.
 - Persistencia usuarios: `/srv/fastdata/jupyterhub/users`.
@@ -50,7 +50,7 @@ En `master1`:
     docker service ls       --format '{{.Name}} {{.Replicas}} {{.Image}}' |
     grep -E '^jupyterhub'
 
-    curl       --fail       --silent       --show-error       --insecure       --resolve 'jupyterhub.sexydad:443:127.0.0.1'       https://jupyterhub.sexydad/hub/health
+    curl       --fail       --silent       --show-error       --insecure       --resolve 'aifabric.jupyterhub:443:127.0.0.1'       https://aifabric.jupyterhub/hub/health
 
 Resultado esperado:
 

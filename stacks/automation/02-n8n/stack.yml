@@ -23,10 +23,10 @@ services:
       - GENERIC_TIMEZONE=America/Bogota
 
       # Public URL (Traefik)
-      - N8N_HOST=n8n.sexydad
+      - N8N_HOST=aifabric.n8n
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://n8n.sexydad/
+      - WEBHOOK_URL=https://aifabric.n8n/
 
       # DB (Postgres)
       - DB_TYPE=postgresdb
@@ -84,7 +84,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.n8n.rule=Host(`n8n.sexydad`)
+        - traefik.http.routers.n8n.rule=Host(`aifabric.n8n`)
         - traefik.http.routers.n8n.entrypoints=websecure
         - traefik.http.routers.n8n.tls=true
         - traefik.http.routers.n8n.middlewares=lan-whitelist@docker

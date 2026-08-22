@@ -2,7 +2,7 @@
 
 ## Reference Data
 - **Stack**: `automation` (service `n8n_n8n`)
-- **URL**: `https://n8n.sexydad`
+- **URL**: `https://aifabric.n8n`
 - **Execution node**: `master2` (tier=compute)
 - **Persistence**: `/srv/fastdata/n8n` (on master2) → `/home/node/.n8n`
 - **Dependency**: Postgres (`postgres_postgres` on the internal network)
@@ -26,7 +26,7 @@ docker service ps n8n_n8n --no-trunc \
 ### 1.2 Verify endpoint (from LAN)
 ```bash
 # Should respond with 200/401 (if auth required) or redirect
-curl -I https://n8n.sexydad
+curl -I https://aifabric.n8n
 ```
 
 ### 1.3 Check recent logs (Signs of life)

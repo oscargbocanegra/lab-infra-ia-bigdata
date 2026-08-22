@@ -4,8 +4,8 @@ version: "3.9"
 # Stack: RAG API — FastAPI service for RAG pipelines
 # ============================================================
 # Node:     master1 (tier=control)
-# URL:      https://rag-api.sexydad
-# Docs:     https://rag-api.sexydad/docs  (Swagger UI)
+# URL:      https://aifabric.rag-api
+# Docs:     https://aifabric.rag-api/docs  (Swagger UI)
 #
 # Purpose:
 #   REST API that orchestrates the complete RAG workflow:
@@ -148,7 +148,7 @@ services:
         - "traefik.docker.network=public"
 
         # HTTP Router
-        - "traefik.http.routers.rag-api.rule=Host(`rag-api.sexydad`)"
+        - "traefik.http.routers.rag-api.rule=Host(`aifabric.rag-api`)"
         - "traefik.http.routers.rag-api.entrypoints=websecure"
         - "traefik.http.routers.rag-api.tls=true"
         - "traefik.http.routers.rag-api.service=rag-api"

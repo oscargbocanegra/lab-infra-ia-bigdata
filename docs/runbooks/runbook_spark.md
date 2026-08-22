@@ -11,9 +11,9 @@ Apache Spark is the lab's distributed processing engine. It runs batch jobs, ana
 ```
 Component          Node      Resources            URL
 ──────────────── ──────── ─────────────────── ──────────────────────────
-spark_master       master1  0.5 CPU / 1 GB     https://spark-master.sexydad
-spark_worker       master2  10 CPUs / 14 GB    https://spark-worker.sexydad
-spark_history      master1  0.25 CPU / 512 MB  https://spark-history.sexydad
+spark_master       master1  0.5 CPU / 1 GB     https://aifabric.spark-master
+spark_worker       master2  10 CPUs / 14 GB    https://aifabric.spark-worker
+spark_history      master1  0.25 CPU / 512 MB  https://aifabric.spark-history
 ```
 
 ---
@@ -61,7 +61,7 @@ docker service logs spark_spark_worker --tail 20
 ## Verify the worker registered
 
 ```bash
-# From the UI: https://spark-master.sexydad
+# From the UI: https://aifabric.spark-master
 # Should show 1 Worker Alive with 10 CPUs and 14 GB RAM
 
 # Or via logs:
@@ -183,13 +183,13 @@ df = spark.read.parquet("/data/datasets/ml_dataset.parquet")
 
 ```bash
 # Master UI (see active jobs, workers)
-# https://spark-master.sexydad
+# https://aifabric.spark-master
 
 # Worker UI (see running tasks)
-# https://spark-worker.sexydad
+# https://aifabric.spark-worker
 
 # History Server (see historical jobs)
-# https://spark-history.sexydad
+# https://aifabric.spark-history
 
 # Real-time logs
 docker service logs spark_spark_worker -f --tail 50

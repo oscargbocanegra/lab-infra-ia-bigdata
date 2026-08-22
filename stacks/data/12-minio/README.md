@@ -8,8 +8,8 @@ MinIO provides S3-compatible object storage for the cluster's data lake. It is t
 |----------|-------|
 | Image | `minio/minio:RELEASE.2024-11-07T00-52-20Z` |
 | Node | master2 (`tier=compute`, `hostname=master2`) |
-| Console UI | https://minio.sexydad |
-| S3 API Endpoint | https://minio-api.sexydad (or `http://minio:9000` from overlay) |
+| Console UI | https://aifabric.minio |
+| S3 API Endpoint | https://aifabric.minio-api (or `http://minio:9000` from overlay) |
 | Region | `us-east-1` (standard, for boto3/s3fs compatibility) |
 
 ## Credentials
@@ -58,7 +58,7 @@ import boto3
 s3 = boto3.client(
     "s3",
     endpoint_url="http://minio:9000",       # from overlay
-    # or "https://minio-api.sexydad"          # from LAN
+    # or "https://aifabric.minio-api"          # from LAN
     aws_access_key_id="<minio_access_key>",
     aws_secret_access_key="<minio_secret_key>",
     region_name="us-east-1",

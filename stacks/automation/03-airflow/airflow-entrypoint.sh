@@ -24,8 +24,8 @@ WEBSERVER_SECRET=$(tr -d '\r\n' < /run/secrets/airflow_webserver_secret)
 # rompan el parsing de la URL de conexión SQLAlchemy / Celery backend.
 PG_PASS_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "${PG_PASS}")
 
-export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://airflow:${PG_PASS_ENCODED}@postgres_postgres:5432/airflow"
-export AIRFLOW__CELERY__RESULT_BACKEND="db+postgresql://airflow:${PG_PASS_ENCODED}@postgres_postgres:5432/airflow"
+export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://airflow:${PG_PASS_ENCODED}@postgres:5432/airflow"
+export AIRFLOW__CELERY__RESULT_BACKEND="db+postgresql://airflow:${PG_PASS_ENCODED}@postgres:5432/airflow"
 export AIRFLOW__CORE__FERNET_KEY="${FERNET_KEY}"
 export AIRFLOW__WEBSERVER__SECRET_KEY="${WEBSERVER_SECRET}"
 

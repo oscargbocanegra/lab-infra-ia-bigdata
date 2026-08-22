@@ -8,7 +8,7 @@ High-performance vector similarity search engine for RAG pipelines.
 |---|---|
 | Image | `qdrant/qdrant:v1.13.4` |
 | Node | master1 (`tier=control`) |
-| Web UI | `https://qdrant.sexydad` |
+| Web UI | `https://aifabric.qdrant` |
 | REST API | `http://qdrant:6333` (internal) |
 | gRPC API | `http://qdrant:6334` (internal) |
 | Storage | `/srv/fastdata/qdrant` (bind mount) |
@@ -67,7 +67,7 @@ docker service ls --filter name=qdrant
 curl http://localhost:6333/healthz
 
 # Test via Traefik (HTTPS)
-curl -k https://qdrant.sexydad/healthz
+curl -k https://aifabric.qdrant/healthz
 ```
 
 ## Persistence

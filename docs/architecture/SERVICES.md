@@ -4,21 +4,21 @@
 
 | Stack | Servicios | Placement / entrada |
 |---|---:|---|
-| traefik | 1 | master1 / `traefik.sexydad` |
-| portainer | 2 | master1 + agent global / `portainer.sexydad` |
+| traefik | 1 | master1 / `aifabric.traefik` |
+| portainer | 2 | master1 + agent global / `aifabric.portainer` |
 | postgres | 1 | master2 / `:5432` LAN |
-| n8n | 1 | master2 / `n8n.sexydad` |
-| jupyterhub | 1 + usuarios dinámicos | Hub master1, usuarios master2 / `jupyterhub.sexydad` |
-| ollama | 1 | master2 + GPU / `ollama.sexydad`, `:11434` LAN |
-| qdrant, rag-api, open-webui, agent | 4 | master1 / `qdrant`, `rag-api`, `chat`, `agent`.sexydad |
-| airflow | 6 (init a 0) | control + worker master2 / `airflow`, `airflow-flower`.sexydad |
-| opensearch | 2 | OpenSearch master2, Dashboards master1 |
-| minio | 1 | master2 / `minio`, `minio-api`.sexydad |
-| openmetadata | 3 | master1 / `openmetadata.sexydad` |
-| spark | 3 | master1 + worker master2 / `spark-*.sexydad` |
+| n8n | 1 | master2 / `aifabric.n8n` |
+| jupyterhub | 1 + usuarios dinámicos | Hub master1, usuarios master2 / `aifabric.jupyterhub` |
+| ollama | 1 | master2 + GPU / `aifabric.ollama`, `:11434` LAN |
+| qdrant, rag-api, open-webui, agent | 4 | master1 / `aifabric.qdrant`, `aifabric.rag-api`, `aifabric.chat`, `aifabric.agent` |
+| airflow | 6 (init a 0) | control + worker master2 / `aifabric.airflow`, `aifabric.airflow-flower` |
+| opensearch | 2 | OpenSearch master2 / `aifabric.opensearch`; Dashboards master1 / `aifabric.dashboards` |
+| minio | 1 | master2 / `aifabric.minio`, `aifabric.minio-api` |
+| openmetadata | 3 | master1 / `aifabric.openmetadata` |
+| spark | 3 | master1 + worker master2 / `aifabric.spark-master`, `aifabric.spark-worker`, `aifabric.spark-history` |
 | fluent-bit | 1 global | ambos nodos |
-| prometheus | 5 | ambos nodos; UI master1 / `prometheus.sexydad` |
-| grafana | 1 | master1 / `grafana.sexydad` |
+| prometheus | 5 | ambos nodos; UI master1 / `aifabric.prometheus` |
+| grafana | 1 | master1 / `aifabric.grafana` |
 | nvidia-exporter | 1 | master2 |
 
 Total: **34 definiciones**; `airflow_init` no es un proceso permanente.

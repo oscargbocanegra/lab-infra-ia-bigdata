@@ -8,8 +8,8 @@ Apache Spark provides distributed data processing for PySpark jobs from Jupyter 
 |----------|-------|
 | Image | `apache/spark:3.5.3` |
 | Master URL | `spark://spark-master-internal:7077` |
-| Master UI | https://spark-master.sexydad |
-| History Server UI | https://spark-history.sexydad |
+| Master UI | https://aifabric.spark-master |
+| History Server UI | https://aifabric.spark-history |
 
 ## Components
 

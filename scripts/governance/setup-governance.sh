@@ -77,7 +77,7 @@ if command -v mc &>/dev/null; then
 
         # Configure mc alias
         mc alias set labminio http://localhost:9000 "$MINIO_ACCESS" "$MINIO_SECRET" --api S3v4 2>/dev/null || \
-        mc alias set labminio https://minio-api.sexydad "$MINIO_ACCESS" "$MINIO_SECRET" --api S3v4
+        mc alias set labminio https://aifabric.minio-api "$MINIO_ACCESS" "$MINIO_SECRET" --api S3v4
 
         # Create governance structure
         for bucket in governance bronze silver gold; do
@@ -199,14 +199,14 @@ echo "     # After bootstrap, force restart the server service:"
 echo "     docker service update --force openmetadata_openmetadata-server"
 echo ""
 echo "  3. Wait ~2 min after bootstrap, then open:"
-echo "     https://openmetadata.sexydad"
+echo "     https://aifabric.openmetadata"
 echo ""
 echo "  4. Login: admin / <om_admin_password>"
 echo ""
 echo "  5. Configure connectors via UI:"
 echo "     Settings → Services → Add Service"
 echo "     - Database: Postgres (<master2-ip>:5432)"
-echo "     - Storage:  MinIO (https://minio-api.sexydad)"
+echo "     - Storage:  MinIO (https://aifabric.minio-api)"
 echo "     - Pipeline: Airflow (http://airflow_airflow_webserver:8080)"
 echo ""
 echo "  6. Governance DAGs are auto-loaded from /srv/fastdata/airflow/dags/"

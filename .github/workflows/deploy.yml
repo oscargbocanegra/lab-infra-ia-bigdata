@@ -212,20 +212,20 @@ jobs:
 
       - name: Health check — rag-api
         run: |
-          echo "Checking https://rag-api.sexydad/health ..."
+          echo "Checking https://rag-api.aifabric/health ..."
           curl --fail --silent --show-error --max-time 15 \
-            --resolve "rag-api.sexydad:443:127.0.0.1" \
+            --resolve "rag-api.aifabric:443:127.0.0.1" \
             --insecure \
-            https://rag-api.sexydad/health | jq .
+            https://rag-api.aifabric/health | jq .
           echo "✅ rag-api is healthy"
 
       - name: Health check — agent
         run: |
-          echo "Checking https://agent.sexydad/health ..."
+          echo "Checking https://agent.aifabric/health ..."
           curl --fail --silent --show-error --max-time 15 \
-            --resolve "agent.sexydad:443:127.0.0.1" \
+            --resolve "agent.aifabric:443:127.0.0.1" \
             --insecure \
-            https://agent.sexydad/health | jq .
+            https://agent.aifabric/health | jq .
           echo "✅ agent is healthy"
 
       - name: Deployment summary

@@ -184,15 +184,15 @@ check_https() {
   fi
 }
 
-check_https "Traefik Dashboard"         "https://traefik.sexydad/dashboard/"
-check_https "Portainer"                 "https://portainer.sexydad"
-check_https "n8n"                       "https://n8n.sexydad"
-check_https "Grafana"                   "https://grafana.sexydad"
-check_https "OpenSearch API"            "https://opensearch.sexydad/_cluster/health"
-check_https "OpenSearch Dashboards"     "https://dashboards.sexydad"
-check_https "Ollama API"                "https://ollama.sexydad/api/tags"
-check_https "RAG API"                   "https://rag-api.sexydad/health"
-check_https "Agent API"                 "https://agent.sexydad/health"
+check_https "Traefik Dashboard"         "https://aifabric.traefik/dashboard/"
+check_https "Portainer"                 "https://aifabric.portainer"
+check_https "n8n"                       "https://aifabric.n8n"
+check_https "Grafana"                   "https://aifabric.grafana"
+check_https "OpenSearch API"            "https://aifabric.opensearch/_cluster/health"
+check_https "OpenSearch Dashboards"     "https://aifabric.dashboards"
+check_https "Ollama API"                "https://aifabric.ollama/api/tags"
+check_https "RAG API"                   "https://aifabric.rag-api/health"
+check_https "Agent API"                 "https://aifabric.agent/health"
 
 # =============================================================================
 # 5. Resumen

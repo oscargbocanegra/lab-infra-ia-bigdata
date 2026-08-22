@@ -9,7 +9,7 @@
 | **Node** | master2 (`tier=compute` + `gpu=nvidia`) |
 | **GPU** | RTX 2080 Ti — 11 GB VRAM |
 | **Persistence** | `/srv/datalake/models/ollama` (HDD) |
-| **External URL** | `https://ollama.sexydad` (BasicAuth required) |
+| **External URL** | `https://aifabric.ollama` (BasicAuth required) |
 | **Internal URL** | `http://ollama:11434` (no auth, overlay internal) |
 
 ### JupyterHub and notebook clients
@@ -27,7 +27,7 @@ response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=15)
 response.raise_for_status()
 ```
 
-Use Basic Auth only with `https://ollama.sexydad` or another externally
+Use Basic Auth only with `https://aifabric.ollama` or another externally
 protected endpoint. If the internal URL times out, verify the service and
 overlay DNS from the single-user container before changing UFW rules:
 
@@ -79,7 +79,7 @@ docker exec -it $CONTAINER ollama pull mistral
 docker exec -it $CONTAINER ollama pull nomic-embed-text   # embeddings
 
 # Option B: Via API (requires BasicAuth for external endpoint)
-curl -X POST https://ollama.sexydad/api/pull \
+curl -X POST https://aifabric.ollama/api/pull \
   -u admin:PASSWORD \
   -H "Content-Type: application/json" \
   -d '{"name": "llama3"}'

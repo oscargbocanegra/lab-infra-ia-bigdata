@@ -10,8 +10,8 @@
 | Dashboards node | `master1` (`tier=control`) |
 | Version | `2.19.4` |
 | Persistence | `/srv/fastdata/opensearch` on master2 NVMe |
-| API URL | `https://opensearch.sexydad` |
-| UI URL | `https://dashboards.sexydad` |
+| API URL | `https://aifabric.opensearch` |
+| UI URL | `https://aifabric.dashboards` |
 | Internal URL | `http://opensearch:9200` |
 
 ## 1. Daily verification
@@ -28,7 +28,7 @@ docker service ps opensearch_dashboards --no-trunc \
   --format 'table {{.ID}}\t{{.Node}}\t{{.DesiredState}}\t{{.CurrentState}}\t{{.Error}}'
 
 curl -sk -u '<user>:<password>' \
-  https://opensearch.sexydad/_cluster/health?pretty
+  https://aifabric.opensearch/_cluster/health?pretty
 ```
 
 Expected:

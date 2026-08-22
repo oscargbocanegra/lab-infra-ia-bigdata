@@ -1,7 +1,7 @@
 # ADR-008: Hybrid LangGraph Agent + RAGAS Evaluation Pipeline
 
-**Date:** 2026-04-07  
-**Status:** Implemented ✅  
+**Date:** 2026-04-07
+**Status:** Implemented ✅
 **Phase:** 9B — Agents & Evals
 
 ---
@@ -16,14 +16,14 @@ Phase 9B adds intelligent agents that can answer questions about both **document
 
 | Service | Role |
 |---------|------|
-| Qdrant (qdrant.sexydad) | Vector store — `lab_documents_nomic` collection (768d cosine) |
-| RAG API (rag-api.sexydad) | Existing ingest + simple query pipeline |
+| Qdrant (aifabric.qdrant) | Vector store — `lab_documents_nomic` collection (768d cosine) |
+| RAG API (aifabric.rag-api) | Existing ingest + simple query pipeline |
 | Ollama (master2, :11434) | LLM + embedding inference on RTX 2080 Ti |
 | Postgres (master2, :5432) | `rag` DB with pgvector, `airflow` DB |
 | MinIO (internal) | Bronze/silver/gold datalake + rag-documents bucket |
-| Airflow (airflow.sexydad) | DAG orchestration for batch evals |
+| Airflow (aifabric.airflow) | DAG orchestration for batch evals |
 | OpenSearch (internal) | Log aggregation + agent trace index |
-| Grafana (grafana.sexydad) | Dashboards — add agent observability panel |
+| Grafana (aifabric.grafana) | Dashboards — add agent observability panel |
 
 ### Available models in Ollama
 
@@ -179,10 +179,10 @@ Grafana dashboard queries this index for:
 
 ## Deployment
 
-**Stack:** `stacks/ai-ml/06-agent/stack.yml`  
-**URL:** `https://agent.sexydad`  
-**Docs:** `https://agent.sexydad/docs`  
-**Node:** master1 (tier=control)  
+**Stack:** `stacks/ai-ml/06-agent/stack.yml`
+**URL:** `https://aifabric.agent`
+**Docs:** `https://aifabric.agent/docs`
+**Node:** master1 (tier=control)
 **Image:** `lab-agent:latest` — built locally on master1
 
 **New Airflow DAGs:**

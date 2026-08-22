@@ -169,7 +169,7 @@ jobs:
 
           for ENDPOINT in /hub/health /hub/login /hub/signup; do
             STATUS="$(
-              curl                 --silent                 --output /dev/null                 --write-out '%{http_code}'                 --max-time 15                 --resolve 'jupyterhub.sexydad:443:127.0.0.1'                 --insecure                 "https://jupyterhub.sexydad${ENDPOINT}"
+              curl                 --silent                 --output /dev/null                 --write-out '%{http_code}'                 --max-time 15                 --resolve 'jupyterhub.aifabric:443:127.0.0.1'                 --insecure                 "https://jupyterhub.aifabric${ENDPOINT}"
             )"
 
             echo "${ENDPOINT}: HTTP ${STATUS}"

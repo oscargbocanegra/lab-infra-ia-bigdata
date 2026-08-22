@@ -54,7 +54,7 @@ watch docker service ls | grep minio
 # Expected: minio_minio  replicated  1/1
 
 # 4. Health check
-curl -sk https://minio-api.sexydad/minio/health/live && echo "OK"
+curl -sk https://aifabric.minio-api/minio/health/live && echo "OK"
 ```
 
 ---
@@ -85,7 +85,7 @@ docker exec -it $(docker ps -q -f name=minio_minio) sh -c "
 "
 ```
 
-### Option B — From the web UI (`https://minio.sexydad`)
+### Option B — From the web UI (`https://aifabric.minio`)
 
 ```
 Credentials: minio_access_key / minio_secret_key (as configured in Docker secrets)
@@ -101,7 +101,7 @@ curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/
 chmod +x /usr/local/bin/mc
 
 # Configure alias (use actual credentials from Docker secrets)
-mc alias set lab https://minio-api.sexydad <MINIO_ACCESS_KEY> <MINIO_SECRET_KEY>
+mc alias set lab https://aifabric.minio-api <MINIO_ACCESS_KEY> <MINIO_SECRET_KEY>
 
 # Create buckets
 mc mb lab/bronze lab/silver lab/gold
@@ -293,8 +293,8 @@ docker service ps minio_minio
 docker service logs minio_minio --tail 50 -f
 
 # Health check (via Traefik)
-curl -sk https://minio-api.sexydad/minio/health/live && echo "OK"
-curl -sk https://minio-api.sexydad/minio/health/ready && echo "Ready"
+curl -sk https://aifabric.minio-api/minio/health/live && echo "OK"
+curl -sk https://aifabric.minio-api/minio/health/ready && echo "Ready"
 
 # Direct health check (from master2)
 curl -f http://localhost:9000/minio/health/live && echo "OK"

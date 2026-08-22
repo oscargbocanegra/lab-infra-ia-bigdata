@@ -9,7 +9,7 @@ Traefik v2.11 is the entry point for all HTTPS traffic in the cluster. It handle
 | Image | `traefik:v2.11` |
 | Node | master1 (`tier=control`) |
 | Ports | `80` (redirect → 443), `443` (TLS, host mode), `8082` (metrics, overlay only) |
-| URL | https://traefik.sexydad/dashboard/ |
+| URL | https://aifabric.traefik/dashboard/ |
 | Auth | BasicAuth (`traefik_basic_auth` secret) |
 
 ## Architecture

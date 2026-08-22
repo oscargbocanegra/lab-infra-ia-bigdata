@@ -14,7 +14,7 @@
 #
 # How to use:
 #   Option A — UI:  Settings → Services → Add Service → Storage → S3
-#                   Use endpoint override: https://minio-api.sexydad
+#                   Use endpoint override: https://aifabric.minio-api
 #   Option B — CLI: metadata ingest -c minio-connector.yaml
 # ============================================================
 

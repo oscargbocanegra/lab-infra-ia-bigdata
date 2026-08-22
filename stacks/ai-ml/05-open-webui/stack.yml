@@ -4,7 +4,7 @@ version: "3.9"
 # Stack: Open WebUI — Chat UI for Ollama + RAG
 # ============================================================
 # Node:     master1 (tier=control)
-# URL:      https://chat.sexydad
+# URL:      https://aifabric.chat
 # Storage:  /srv/fastdata/open-webui  (bind mount, persistent)
 #
 # Purpose:
@@ -146,7 +146,7 @@ services:
         - "traefik.docker.network=public"
 
         # HTTP Router
-        - "traefik.http.routers.open-webui.rule=Host(`chat.sexydad`)"
+        - "traefik.http.routers.open-webui.rule=Host(`aifabric.chat`)"
         - "traefik.http.routers.open-webui.entrypoints=websecure"
         - "traefik.http.routers.open-webui.tls=true"
         - "traefik.http.routers.open-webui.service=open-webui"

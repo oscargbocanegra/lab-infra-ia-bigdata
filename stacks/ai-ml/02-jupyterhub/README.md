@@ -21,7 +21,7 @@ Estado verificado:
 
 - `jupyterhub_jupyterhub` en `1/1`;
 - PostgreSQL inicializado para JupyterHub;
-- Traefik publica `jupyterhub.sexydad` por `websecure` con TLS;
+- Traefik publica `aifabric.jupyterhub` por `websecure` con TLS;
 - `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`;
 - el cookie secret de Swarm se transforma en un archivo efímero privado `0600`;
 - `ogiovanni` completó autenticación, spawn, placement, GPU, conectividad, Stop/Start y persistencia;
@@ -84,7 +84,7 @@ No se publican puertos directamente.
 ## Hostname
 
 ```text
-jupyterhub.sexydad
+aifabric.jupyterhub
 ```
 
 El acceso debe permanecer LAN-only.

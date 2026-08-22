@@ -5,8 +5,8 @@ version: "3.9"
 # ============================================================
 # Nodo:    master2 (tier=compute, NVMe + HDD 2TB)
 # Storage: /srv/datalake/minio  (HDD 2TB — datos fríos masivos)
-# API:     https://minio-api.sexydad  (S3 API endpoint)
-# UI:      https://minio.sexydad      (Console web)
+# API:     https://aifabric.minio-api  (S3 API endpoint)
+# UI:      https://aifabric.minio      (Console web)
 #
 # Credenciales vía secrets:
 #   minio_access_key  → MINIO_ROOT_USER  (también = AWS_ACCESS_KEY_ID)
@@ -97,17 +97,17 @@ services:
         - traefik.enable=true
         - traefik.docker.network=public
 
-        # ── Console UI: https://minio.sexydad ──────────────────
-        - traefik.http.routers.minio-console.rule=Host(`minio.sexydad`)
+        # ── Console UI: https://aifabric.minio ──────────────────
+        - traefik.http.routers.minio-console.rule=Host(`aifabric.minio`)
         - traefik.http.routers.minio-console.entrypoints=websecure
         - traefik.http.routers.minio-console.tls=true
         - traefik.http.routers.minio-console.service=minio-console
         - traefik.http.services.minio-console.loadbalancer.server.port=9001
         - traefik.http.routers.minio-console.middlewares=lan-whitelist@docker
 
-        # ── S3 API: https://minio-api.sexydad ──────────────────
+        # ── S3 API: https://aifabric.minio-api ──────────────────
         # (Spark, boto3, s3fs, mc apuntan aquí)
-        - traefik.http.routers.minio-api.rule=Host(`minio-api.sexydad`)
+        - traefik.http.routers.minio-api.rule=Host(`aifabric.minio-api`)
         - traefik.http.routers.minio-api.entrypoints=websecure
         - traefik.http.routers.minio-api.tls=true
         - traefik.http.routers.minio-api.service=minio-api

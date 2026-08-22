@@ -4,8 +4,8 @@
 
 Ollama provides GPU-accelerated LLM inference for models like Llama 3, Mistral, Phi, and others.
 
-**Hardware:** RTX 2080 Ti (11GB VRAM) on master2  
-**Endpoint:** `https://ollama.sexydad`  
+**Hardware:** RTX 2080 Ti (11GB VRAM) on master2
+**Endpoint:** `https://aifabric.ollama`
 **Security:** BasicAuth + LAN Whitelist
 
 > **Note:** To access from your local machine (Postman, browser):
@@ -14,14 +14,14 @@ Ollama provides GPU-accelerated LLM inference for models like Llama 3, Mistral, 
 >    - Linux/Mac: `/etc/hosts`
 >    - Windows: `C:\Windows\System32\drivers\etc\hosts`
 >    ```
->    <master1-ip>  ollama.sexydad
+>    <master1-ip>  aifabric.ollama
 >    ```
 >
 > 2. **Disable SSL verification** (self-signed certificate):
 >    - **Postman:** Settings → General → SSL certificate verification (OFF)
 >    - **cURL:** Use flag `-k` or `--insecure`
 >    ```bash
->    curl -k -u <admin-user>:<your-password> https://ollama.sexydad/api/tags
+>    curl -k -u <admin-user>:<your-password> https://aifabric.ollama/api/tags
 >    ```
 
 ## Prerequisites
@@ -81,7 +81,7 @@ All API requests require **BasicAuth**:
 
 ## API Reference
 
-Base URL: `https://ollama.sexydad`
+Base URL: `https://aifabric.ollama`
 
 ### 1. Health Check — List Models
 
@@ -273,18 +273,18 @@ Content-Type: application/json
 2. Set Auth Type: **Basic Auth**
    - Username: `<admin-user>`
    - Password: `<your-password>`
-3. Base URL: `https://ollama.sexydad`
+3. Base URL: `https://aifabric.ollama`
 
 ### Example Collections
 
 **Collection 1: Health Check**
 ```
-GET https://ollama.sexydad/api/tags
+GET https://aifabric.ollama/api/tags
 ```
 
 **Collection 2: Pull Model**
 ```
-POST https://ollama.sexydad/api/pull
+POST https://aifabric.ollama/api/pull
 Body (JSON):
 {
   "name": "llama3.2:3b"
@@ -293,7 +293,7 @@ Body (JSON):
 
 **Collection 3: Generate Text**
 ```
-POST https://ollama.sexydad/api/generate
+POST https://aifabric.ollama/api/generate
 Body (JSON):
 {
   "model": "llama3.2:3b",
@@ -312,7 +312,7 @@ Body (JSON):
 import requests
 from requests.auth import HTTPBasicAuth
 
-BASE_URL = "https://ollama.sexydad"
+BASE_URL = "https://aifabric.ollama"
 AUTH = HTTPBasicAuth("<admin-user>", "<your-password>")
 
 def list_models():
@@ -388,7 +388,7 @@ from requests.auth import HTTPBasicAuth
 
 def generate_streaming(prompt, model="llama3.2:3b"):
     response = requests.post(
-        "https://ollama.sexydad/api/generate",
+        "https://aifabric.ollama/api/generate",
         auth=HTTPBasicAuth("<admin-user>", "<your-password>"),
         json={
             "model": model,
@@ -433,7 +433,7 @@ docker exec $(docker ps -q -f name=ollama_ollama) ollama pull mistral:7b
 docker exec $(docker ps -q -f name=ollama_ollama) ollama pull phi3:medium
 
 # Via API (from Postman)
-POST https://ollama.sexydad/api/pull
+POST https://aifabric.ollama/api/pull
 {"name": "llama3.2:3b"}
 ```
 

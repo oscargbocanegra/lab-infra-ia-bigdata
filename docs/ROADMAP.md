@@ -41,7 +41,7 @@ Activated OpenSearch ML Commons on the existing single-node OpenSearch 2.19.4 cl
 | Memory tuning | JVM heap 2 GB, threshold 95% |
 | Validated model | `all-MiniLM-L6-v2 v1.0.1 TORCH_SCRIPT` |
 
-**Access:** `https://dashboards.sexydad` → Machine Learning section.
+**Access:** `https://aifabric.dashboards` → Machine Learning section.
 
 ---
 
@@ -250,7 +250,7 @@ docker stack deploy -c stacks/monitoring/02-grafana/stack.yml grafana
 ### 9B.1 Hybrid LangGraph Agent
 
 **Stack:** `stacks/ai-ml/06-agent/stack.yml`  
-**URL:** `https://agent.sexydad`
+**URL:** `https://aifabric.agent`
 
 Architecture:
 ```
@@ -273,7 +273,7 @@ RAG Node  Data Node
 
 - [x] Build image on master1: `docker build -t lab-agent:latest .`
 - [x] Deploy: `docker stack deploy -c stacks/ai-ml/06-agent/stack.yml agent`
-- [x] Verify: `https://agent.sexydad/docs`
+- [x] Verify: `https://aifabric.agent/docs`
 
 **Models used (as of 2026-04-08):**
 - `gemma4:26b` — routing + synthesis + SQL (MoE, 3.8B active, 256K ctx, function calling, thinking mode)
@@ -393,7 +393,7 @@ tests/
 
 ```bash
 # dnsmasq:
-address=/sexydad/<master1-ip>
+address=/aifabric/<master1-ip>
 ```
 
 ---

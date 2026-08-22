@@ -7,7 +7,7 @@ version: "3.8"
 #   - Datasource: Prometheus (no manual config needed)
 #   - Dashboard provider: watches /etc/grafana/provisioning/dashboards/
 #
-# Access: https://grafana.sexydad  (Traefik + BasicAuth + LAN whitelist)
+# Access: https://aifabric.grafana  (Traefik + BasicAuth + LAN whitelist)
 #
 # Credentials: set via Docker Swarm Secrets (see deploy instructions)
 #
@@ -41,7 +41,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password
 
       # Server
-      - GF_SERVER_ROOT_URL=https://grafana.sexydad
+      - GF_SERVER_ROOT_URL=https://aifabric.grafana
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
 
       # Disable telemetry / update checks
@@ -108,7 +108,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=public"
-        - "traefik.http.routers.grafana.rule=Host(`grafana.sexydad`)"
+        - "traefik.http.routers.grafana.rule=Host(`aifabric.grafana`)"
         - "traefik.http.routers.grafana.entrypoints=websecure"
         - "traefik.http.routers.grafana.tls=true"
         - "traefik.http.routers.grafana.service=grafana"

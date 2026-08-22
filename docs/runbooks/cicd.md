@@ -228,8 +228,8 @@ The health check uses `--resolve "hostname:443:127.0.0.1"` because the runner ru
 
 ```bash
 # On master1, test directly
-curl -k --resolve "rag-api.sexydad:443:127.0.0.1" https://rag-api.sexydad/health
-curl -k --resolve "agent.sexydad:443:127.0.0.1"   https://agent.sexydad/health
+curl -k --resolve "aifabric.rag-api:443:127.0.0.1" https://aifabric.rag-api/health
+curl -k --resolve "aifabric.agent:443:127.0.0.1"   https://aifabric.agent/health
 ```
 
 ### Check running services

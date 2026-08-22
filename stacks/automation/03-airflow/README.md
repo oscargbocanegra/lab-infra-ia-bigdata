@@ -8,8 +8,8 @@ Apache Airflow orchestrates data pipelines (DAGs) across the cluster using the C
 |----------|-------|
 | Image | `apache/airflow:2.9.3` |
 | Executor | CeleryExecutor |
-| Webserver URL | https://airflow.sexydad |
-| Flower URL | https://airflow-flower.sexydad |
+| Webserver URL | https://aifabric.airflow |
+| Flower URL | https://aifabric.airflow-flower |
 
 ## Components
 

@@ -28,9 +28,9 @@ secrets:
   # Traefik own credentials
   traefik_basic_auth:
     external: true
-  traefik_tls_cert:
+  traefik_tls_cert_aifabric_v2:
     external: true
-  traefik_tls_key:
+  traefik_tls_key_aifabric_v2:
     external: true
   # Service BasicAuth secrets (executed by Traefik middleware)
   ollama_basicauth:
@@ -48,7 +48,7 @@ secrets:
     external: true
 
 configs:
-  traefik_dynamic:
+  traefik_dynamic_v2:
     file: ./dynamic.yml
 
 services:
@@ -99,13 +99,15 @@ services:
       - internal
 
     configs:
-      - source: traefik_dynamic
+      - source: traefik_dynamic_v2
         target: /etc/traefik/dynamic.yml
 
     secrets:
       - traefik_basic_auth
-      - traefik_tls_cert
-      - traefik_tls_key
+      - source: traefik_tls_cert_aifabric_v2
+        target: traefik_tls_cert
+      - source: traefik_tls_key_aifabric_v2
+        target: traefik_tls_key
       - ollama_basicauth
       - opensearch_basicauth
       - dashboards_basicauth
@@ -133,7 +135,7 @@ services:
         - traefik.enable=true
 
         # Traefik dashboard
-        - traefik.http.routers.traefik.rule=Host(`traefik.sexydad`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+        - traefik.http.routers.traefik.rule=Host(`aifabric.traefik`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
         - traefik.http.routers.traefik.entrypoints=websecure
         - traefik.http.routers.traefik.tls=true
         - traefik.http.routers.traefik.service=traefik-dashboard

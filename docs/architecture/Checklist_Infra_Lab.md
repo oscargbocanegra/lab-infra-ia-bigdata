@@ -14,7 +14,7 @@
 
 | Área | Stack | Verificación |
 |---|---|---|
-| Entrada | `traefik`, `portainer` | `docker stack services <stack>`; HTTPS por `*.sexydad` |
+| Entrada | `traefik`, `portainer` | `docker stack services <stack>`; HTTPS por `aifabric.<servicio>` |
 | Datos | `postgres`, `opensearch`, `minio`, `openmetadata` | health/API y volumen persistente |
 | IA | `jupyterhub`, `ollama`, `qdrant`, `rag-api`, `open-webui`, `agent` | Hub health, `/api/tags`, endpoints `/health` |
 | Automatización | `n8n`, `airflow` | webserver, scheduler, worker y Flower |
@@ -27,8 +27,8 @@
 docker stack ls
 docker stack services jupyterhub
 docker service ps opensearch_opensearch
-curl -k https://jupyterhub.sexydad/hub/health
-curl -k https://ollama.sexydad/api/tags
+curl -k https://aifabric.jupyterhub/hub/health
+curl -k https://aifabric.ollama/api/tags
 ```
 
 Los estados `pending deploy` de la versión 2026-03-30 quedan obsoletos: MinIO, Spark y Airflow tienen stacks declarados y sus runbooks actuales deben usarse para validar la ejecución.

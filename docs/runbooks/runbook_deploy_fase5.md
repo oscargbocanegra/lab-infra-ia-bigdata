@@ -193,7 +193,7 @@ docker stack deploy -c stacks/automation/02-n8n/stack.yml n8n
 # Verify:
 watch docker service ls | grep n8n
 # Test curl:
-curl -sk https://n8n.sexydad | grep -o "n8n" | head -1
+curl -sk https://aifabric.n8n | grep -o "n8n" | head -1
 ```
 
 ---
@@ -207,7 +207,7 @@ docker stack deploy -c stacks/data/12-minio/stack.yml minio
 watch docker service ls | grep minio
 
 # Verify health:
-curl -sk https://minio-api.sexydad/minio/health/live
+curl -sk https://aifabric.minio-api/minio/health/live
 # Expected response: HTTP 200 (no body)
 ```
 
@@ -241,10 +241,10 @@ docker stack deploy -c stacks/data/98-spark/stack.yml spark
 watch docker service ls | grep spark
 
 # Verify Spark Master UI:
-curl -sk https://spark-master.sexydad | grep -o "Spark Master" | head -1
+curl -sk https://aifabric.spark-master | grep -o "Spark Master" | head -1
 
 # Verify the worker registered with the master:
-# Go to https://spark-master.sexydad → should show 1 Worker alive with 10 CPUs / 14 GB
+# Go to https://aifabric.spark-master → should show 1 Worker alive with 10 CPUs / 14 GB
 ```
 
 ---
@@ -270,11 +270,11 @@ docker service logs airflow_airflow_init -f
 docker service scale airflow_airflow_init=0
 
 # Verify UI:
-curl -sk https://airflow.sexydad/health | python3 -m json.tool
+curl -sk https://aifabric.airflow/health | python3 -m json.tool
 # Expected: {"metadatabase": {"status": "healthy"}, "scheduler": {"status": "healthy"}}
 
 # Verify Flower:
-curl -sk https://airflow-flower.sexydad | grep -o "Flower" | head -1
+curl -sk https://aifabric.airflow-flower | grep -o "Flower" | head -1
 ```
 
 ---
@@ -343,13 +343,13 @@ df = spark.read.parquet("s3a://bronze/")
 Add to `/etc/hosts` on each client machine (Windows/Mac/Linux):
 
 ```
-<master1-ip>  minio.sexydad
-<master1-ip>  minio-api.sexydad
-<master1-ip>  spark-master.sexydad
-<master1-ip>  spark-worker.sexydad
-<master1-ip>  spark-history.sexydad
-<master1-ip>  airflow.sexydad
-<master1-ip>  airflow-flower.sexydad
+<master1-ip>  aifabric.minio
+<master1-ip>  aifabric.minio-api
+<master1-ip>  aifabric.spark-master
+<master1-ip>  aifabric.spark-worker
+<master1-ip>  aifabric.spark-history
+<master1-ip>  aifabric.airflow
+<master1-ip>  aifabric.airflow-flower
 ```
 
 ---

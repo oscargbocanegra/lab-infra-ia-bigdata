@@ -8,8 +8,8 @@ Hybrid LangGraph agent that answers natural-language questions using two tools: 
 |---|---|
 | Image | `giovannotti/lab-agent:latest` (Docker Hub) |
 | Node | master1 (`tier=control`) |
-| URL | `https://agent.sexydad` |
-| Swagger UI | `https://agent.sexydad/docs` |
+| URL | `https://aifabric.agent` |
+| Swagger UI | `https://aifabric.agent/docs` |
 | Framework | FastAPI + LangGraph + Python 3.12 |
 | CI/CD | GitHub Actions — `.github/workflows/ci.yml` + `deploy.yml` |
 

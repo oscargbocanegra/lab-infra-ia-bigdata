@@ -8,8 +8,8 @@ REST API that orchestrates the complete Retrieval-Augmented Generation (RAG) wor
 |---|---|
 | Image | `giovannotti/lab-rag-api:latest` (Docker Hub) |
 | Node | master1 (`tier=control`) |
-| URL | `https://rag-api.sexydad` |
-| Swagger UI | `https://rag-api.sexydad/docs` |
+| URL | `https://aifabric.rag-api` |
+| Swagger UI | `https://aifabric.rag-api/docs` |
 | Framework | FastAPI + Python 3.11 |
 | CI/CD | GitHub Actions — `.github/workflows/ci.yml` + `deploy.yml` |
 

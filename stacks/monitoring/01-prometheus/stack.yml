@@ -82,7 +82,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=public"
-        - "traefik.http.routers.prometheus.rule=Host(`prometheus.sexydad`)"
+        - "traefik.http.routers.prometheus.rule=Host(`aifabric.prometheus`)"
         - "traefik.http.routers.prometheus.entrypoints=websecure"
         - "traefik.http.routers.prometheus.tls=true"
         - "traefik.http.routers.prometheus.service=prometheus"

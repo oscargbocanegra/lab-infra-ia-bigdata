@@ -6,7 +6,7 @@ version: "3.9"
 # Purpose: Web UI to manage Docker Swarm cluster
 # Agent: global (runs on ALL nodes: master1 + master2)
 # Server: master1 (tier=control)
-# URL: https://portainer.sexydad
+# URL: https://aifabric.portainer
 # Version: 2.39.4
 # ============================================================
 
@@ -66,7 +66,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.portainer.rule=Host(`portainer.sexydad`)
+        - traefik.http.routers.portainer.rule=Host(`aifabric.portainer`)
         - traefik.http.routers.portainer.entrypoints=websecure
         - traefik.http.routers.portainer.tls=true
         - traefik.http.services.portainer.loadbalancer.server.port=9000

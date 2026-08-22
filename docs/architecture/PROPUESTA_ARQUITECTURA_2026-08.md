@@ -14,7 +14,7 @@ Kubernetes, sino hacer reproducible el runtime, proteger la capacidad de
 ## Arquitectura objetivo
 
 ```text
-LAN privada -> DNS local *.sexydad -> Traefik (master1)
+LAN privada -> DNS local aifabric.<servicio> -> Traefik (master1)
                                        |
        +-------------------------------+------------------------------+
        |                                                              |
@@ -76,7 +76,7 @@ restarts inesperados.
 
 ### P3 — Red y seguridad pragmática
 
-- Reemplazar `/etc/hosts` por DNS local wildcard `*.sexydad -> master1`.
+- Reemplazar `/etc/hosts` por registros DNS explícitos `aifabric.<servicio> -> master1`; este formato no admite un wildcard DNS convencional.
 - Mantener Traefik como único ingreso y restringir los accesos directos a
   PostgreSQL y Ollama con UFW/DOCKER-USER.
 - Introducir un Docker Socket Proxy antes de ampliar JupyterHub: un socket

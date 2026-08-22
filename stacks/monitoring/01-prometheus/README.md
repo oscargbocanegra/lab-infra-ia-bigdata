@@ -4,7 +4,7 @@
 
 ## Overview
 
-This stack deploys the core metrics collection pipeline for the 2-node Swarm cluster.  
+This stack deploys the core metrics collection pipeline for the 2-node Swarm cluster.
 It collects OS-level and container-level metrics from both nodes and exposes them to Grafana.
 
 **Services:**
@@ -79,7 +79,7 @@ docker stack services prometheus
 Check all targets are UP:
 
 ```
-https://prometheus.sexydad/targets
+https://aifabric.prometheus/targets
 ```
 
 ---
@@ -88,9 +88,9 @@ https://prometheus.sexydad/targets
 
 | Endpoint | URL | Auth |
 |---|---|---|
-| Prometheus UI | `https://prometheus.sexydad` | BasicAuth (`prometheus_basicauth` secret) |
+| Prometheus UI | `https://aifabric.prometheus` | BasicAuth (`prometheus_basicauth` secret) |
 
-> Requires DNS entry: `prometheus.sexydad` → master1 IP  
+> Requires DNS entry: `aifabric.prometheus` → master1 IP
 > See [network setup docs](../../docs/) for Pi-hole / hosts file configuration.
 
 ---

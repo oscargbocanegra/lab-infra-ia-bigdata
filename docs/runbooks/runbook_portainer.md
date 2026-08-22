@@ -10,7 +10,7 @@
 | **Server node** | master1 (`tier=control`) |
 | **Agent nodes** | global (master1 + master2) |
 | **Persistence** | `/srv/fastdata/portainer:/data` |
-| **URL** | `https://portainer.sexydad` |
+| **URL** | `https://aifabric.portainer` |
 | **Auth** | LAN-only whitelist via Traefik (Portainer's own auth) |
 
 ---

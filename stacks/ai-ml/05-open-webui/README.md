@@ -8,7 +8,7 @@ Full-featured ChatGPT-like interface connected to the lab's Ollama instance with
 |---|---|
 | Image | `ghcr.io/open-webui/open-webui:v0.10.2` |
 | Node | master1 (`tier=control`) |
-| URL | `https://chat.sexydad` |
+| URL | `https://aifabric.chat` |
 | Storage | `/srv/fastdata/open-webui` (bind mount) |
 
 ## Features
@@ -68,7 +68,7 @@ docker stack deploy -c stacks/ai-ml/05-open-webui/stack.yml open-webui
 
 ### First-time setup
 
-1. Open `https://chat.sexydad`
+1. Open `https://aifabric.chat`
 2. Create admin account on first visit
 3. Go to **Settings → Admin → Connections** — verify Ollama URL
 4. Go to **Settings → Admin → RAG** — verify Qdrant connection

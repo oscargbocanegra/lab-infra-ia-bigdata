@@ -85,6 +85,18 @@ It is designed for:
 
 | Node | Role | Main workloads |
 |---|---|---|
+| Portainer | `https://aifabric.portainer` | Docker Swarm administration |
+| n8n | `https://aifabric.n8n` | Workflow automation |
+| Airflow Flower | `https://aifabric.airflow-flower` | Celery task monitoring |
+| Prometheus | `https://aifabric.prometheus` | Metrics and alerting UI |
+| Qdrant | `https://aifabric.qdrant` | Vector database API and console |
+| MinIO Console | `https://aifabric.minio/login` | Object-storage console |
+| MinIO S3 API | `https://aifabric.minio-api` | Object storage API |
+| OpenMetadata | `https://aifabric.openmetadata` | Data catalog, lineage and quality |
+| Spark Master | `https://aifabric.spark-master` | Cluster and application UI |
+| Spark Worker | `https://aifabric.spark-worker` | Worker status UI |
+| Spark History | `https://aifabric.spark-history` | Completed Spark applications |
+| Traefik | `https://aifabric.traefik/dashboard/` | Gateway dashboard (BasicAuth) |
 | `master1` | Swarm manager / control plane | Traefik, Portainer, JupyterHub, RAG and agent APIs, Open WebUI, Qdrant, Airflow control, Spark master/history, OpenMetadata, Prometheus, Grafana, Dashboards |
 | `master2` | Swarm worker / compute and data plane | PostgreSQL/pgvector, n8n, Ollama, MinIO, OpenSearch, Spark worker, Airflow worker, JupyterHub single-user sessions, GPU exporter |
 
@@ -131,7 +143,7 @@ The repository currently declares 18 stacks and 34 service definitions. `airflow
 
 ## How the platform works
 
-1. A user reaches an internal `*.sexydad` hostname. DNS or `/etc/hosts` points it to `master1`.
+1. A user reaches an internal `aifabric.<servicio>` hostname. DNS or `/etc/hosts` points it to `master1`.
 2. Traefik terminates TLS, checks the LAN allowlist and applies service-specific authentication.
 3. Application services use the `internal` overlay network to reach databases, object storage, vector search and Ollama.
 4. Airflow schedules data and evaluation workflows. Spark processes data on the master/worker pair and stores objects in MinIO.
@@ -147,7 +159,7 @@ JupyterHub is the only supported Jupyter entry point. It keeps the Hub on `maste
 - `master1` as manager/leader; `master2` as worker with `tier=compute`, `storage=primary`, `gpu=nvidia`.
 - NVIDIA driver, NVIDIA Container Toolkit and one registered Swarm generic resource (`nvidia.com/gpu=1`) on `master2`.
 - Persistent mounts available before Docker starts: `/srv/fastdata` and `/srv/datalake`.
-- LAN DNS or `/etc/hosts` entries for the internal `*.sexydad` names.
+- LAN DNS or `/etc/hosts` entries for the internal `aifabric.<servicio>` names.
 
 ### Software
 
@@ -200,28 +212,40 @@ After configuring internal DNS/hosts and credentials, the primary endpoints are:
 
 | Interface | URL | Purpose |
 |---|---|---|
-| JupyterHub | `https://jupyterhub.sexydad` | Multi-user notebooks and experiments |
-| Open WebUI | `https://chat.sexydad` | Conversational UI for Ollama and knowledge workflows |
-| RAG API | `https://rag-api.sexydad/docs` | Document ingestion and retrieval API |
-| Hybrid Agent | `https://agent.sexydad/docs` | RAG + SQL agent API |
-| Ollama | `https://ollama.sexydad` | LAN-protected model API |
-| Airflow | `https://airflow.sexydad` | DAG scheduling and execution |
-| Grafana | `https://grafana.sexydad` | Metrics dashboards |
-| OpenSearch Dashboards | `https://dashboards.sexydad` | Logs and search |
-| MinIO | `https://minio.sexydad` | Object-storage console |
+| Portainer | `https://aifabric.portainer` | Docker Swarm administration |
+| n8n | `https://aifabric.n8n` | Workflow automation |
+| Airflow Flower | `https://aifabric.airflow-flower` | Celery task monitoring |
+| Prometheus | `https://aifabric.prometheus` | Metrics and alerting UI |
+| Qdrant | `https://aifabric.qdrant` | Vector database API and console |
+| MinIO Console | `https://aifabric.minio/login` | Object-storage console |
+| MinIO S3 API | `https://aifabric.minio-api` | Object storage API |
+| OpenMetadata | `https://aifabric.openmetadata` | Data catalog, lineage and quality |
+| Spark Master | `https://aifabric.spark-master` | Cluster and application UI |
+| Spark Worker | `https://aifabric.spark-worker` | Worker status UI |
+| Spark History | `https://aifabric.spark-history` | Completed Spark applications |
+| Traefik | `https://aifabric.traefik/dashboard/` | Gateway dashboard (BasicAuth) |
+| JupyterHub | `https://aifabric.jupyterhub` | Multi-user notebooks and experiments |
+| Open WebUI | `https://aifabric.chat` | Conversational UI for Ollama and knowledge workflows |
+| RAG API | `https://aifabric.rag-api/docs` | Document ingestion and retrieval API |
+| Hybrid Agent | `https://aifabric.agent/docs` | RAG + SQL agent API |
+| Ollama | `https://aifabric.ollama` | LAN-protected model API |
+| Airflow | `https://aifabric.airflow` | DAG scheduling and execution |
+| Grafana | `https://aifabric.grafana` | Metrics dashboards |
+| OpenSearch Dashboards | `https://aifabric.dashboards` | Logs and search |
+| MinIO | `https://aifabric.minio` | Object-storage console |
 
 ### API examples
 
 ```bash
 # List available Ollama models (self-signed TLS in the lab)
 curl -k -u "$OLLAMA_USER:$OLLAMA_PASSWORD" \
-  https://ollama.sexydad/api/tags
+  https://aifabric.ollama/api/tags
 
 # Check the RAG API
-curl -k https://rag-api.sexydad/health
+curl -k https://aifabric.rag-api/health
 
 # Check the JupyterHub health endpoint
-curl -k https://jupyterhub.sexydad/hub/health
+curl -k https://aifabric.jupyterhub/hub/health
 ```
 
 ### Data workflows

@@ -4,7 +4,7 @@
 
 ## Overview
 
-Grafana provides the visualization layer for all cluster metrics collected by Prometheus.  
+Grafana provides the visualization layer for all cluster metrics collected by Prometheus.
 It is fully auto-provisioned on startup — no manual UI configuration required.
 
 **Services:**
@@ -24,7 +24,7 @@ Grafana bootstraps itself via Docker Swarm Configs on first start:
 | `provisioning/datasources/prometheus.yml` | `/etc/grafana/provisioning/datasources/` | Prometheus datasource |
 | `provisioning/dashboards/provider.yml` | `/etc/grafana/provisioning/dashboards/` | Dashboard file provider |
 
-The Prometheus datasource points to `http://prometheus:9090` via the Docker overlay DNS.  
+The Prometheus datasource points to `http://prometheus:9090` via the Docker overlay DNS.
 No IP addresses, no manual setup in the UI.
 
 ---
@@ -49,7 +49,7 @@ chown 472:472 /srv/fastdata/grafana   # grafana:grafana (Grafana UID)
 bash scripts/observability/setup-prometheus.sh
 ```
 
-> The setup script handles both Grafana and Prometheus secrets interactively.  
+> The setup script handles both Grafana and Prometheus secrets interactively.
 > No passwords are stored in files or environment variables.
 
 ### Required Swarm Secrets
@@ -84,9 +84,9 @@ docker service logs -f grafana_grafana
 
 | Endpoint | URL | Auth |
 |---|---|---|
-| Grafana UI | `https://grafana.sexydad` | Admin credentials (set via setup script) |
+| Grafana UI | `https://aifabric.grafana` | Admin credentials (set via setup script) |
 
-> Requires DNS entry: `grafana.sexydad` → master1 IP  
+> Requires DNS entry: `aifabric.grafana` → master1 IP
 > See [network setup docs](../../docs/) for Pi-hole / hosts file configuration.
 
 Login with the username and password you entered during `setup-prometheus.sh`.
@@ -120,7 +120,7 @@ Import via UI: **Dashboards → Import → Enter ID → Load**.
 
 ### 2. UI import (ad-hoc)
 
-Use **Dashboards → Import** in the Grafana UI for one-off imports.  
+Use **Dashboards → Import** in the Grafana UI for one-off imports.
 These survive service restarts because they are stored in `/var/lib/grafana` (bind-mounted).
 
 ---

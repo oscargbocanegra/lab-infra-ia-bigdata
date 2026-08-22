@@ -10,8 +10,8 @@ OpenSearch is an open-source, Apache 2.0-licensed search and analytics engine (E
 | OpenSearch Dashboards | `2.19.4` | master1 (control tier) |
 | ML Commons plugin | `2.19.4.0` | bundled, enabled |
 
-**API endpoint:** `https://opensearch.sexydad`  
-**Dashboard UI:** `https://dashboards.sexydad`  
+**API endpoint:** `https://aifabric.opensearch`
+**Dashboard UI:** `https://aifabric.dashboards`
 **Security model:** BasicAuth via Traefik + LAN whitelist. Security plugin disabled for lab simplicity.
 
 ---
@@ -105,7 +105,7 @@ curl -sk -X POST "http://opensearch:9200/_plugins/_ml/models/<model_id>/_predict
 
 ### ML Dashboard
 
-Access via `https://dashboards.sexydad` → **Machine Learning** section in the left navigation:
+Access via `https://aifabric.dashboards` → **Machine Learning** section in the left navigation:
 - **Deployed Models** — manage deployed models and their status
 - **Model Groups** — organize models by use case
 - **Connectors** — integrate external model providers (optional)

@@ -21,7 +21,7 @@ Airflow Pipelines  ──┘         │
 - **Search index**: `openmetadata-es` — dedicated OpenSearch 2.x within this stack  
   _(Why dedicated? Java NIO async HTTP client is incompatible with Docker Swarm VIP/DNAT.  
   See comment in stack.yml for full explanation.)_
-- **UI**: `https://openmetadata.sexydad` via Traefik
+- **UI**: `https://aifabric.openmetadata` via Traefik
 - **Node**: master1 (`node.labels.tier == control`)
 - **Persistence**: `/srv/fastdata/openmetadata/{mysql,opensearch}`
 
@@ -112,12 +112,12 @@ docker service update --force openmetadata_openmetadata-server
 ```bash
 docker stack services openmetadata
 docker service logs openmetadata_openmetadata-server --tail 50
-curl -sk https://openmetadata.sexydad/api/v1/system/config
+curl -sk https://aifabric.openmetadata/api/v1/system/config
 ```
 
 ### 6. Access
 
-- **URL**: `https://openmetadata.sexydad`
+- **URL**: `https://aifabric.openmetadata`
 - **Default credentials**: `admin` / `<the password you set in step 1>`
 
 ---

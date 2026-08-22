@@ -14,11 +14,11 @@ version: "3.9"
 #
 # History Server:
 #   Guarda logs de jobs completados en MinIO (s3a://spark-warehouse/history)
-#   UI en https://spark-history.sexydad
+#   UI en https://aifabric.spark-history
 #
 # URLs:
-#   https://spark-master.sexydad   → Spark Master UI
-#   https://spark-history.sexydad  → History Server UI
+#   https://aifabric.spark-master   → Spark Master UI
+#   https://aifabric.spark-history  → History Server UI
 #
 # Secrets requeridos:
 #   minio_access_key  → para que Spark acceda a MinIO (s3a)
@@ -113,7 +113,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.spark-master.rule=Host(`spark-master.sexydad`)
+        - traefik.http.routers.spark-master.rule=Host(`aifabric.spark-master`)
         - traefik.http.routers.spark-master.entrypoints=websecure
         - traefik.http.routers.spark-master.tls=true
         - traefik.http.routers.spark-master.service=spark-master
@@ -175,7 +175,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.spark-worker.rule=Host(`spark-worker.sexydad`)
+        - traefik.http.routers.spark-worker.rule=Host(`aifabric.spark-worker`)
         - traefik.http.routers.spark-worker.entrypoints=websecure
         - traefik.http.routers.spark-worker.tls=true
         - traefik.http.routers.spark-worker.service=spark-worker
@@ -225,7 +225,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.spark-history.rule=Host(`spark-history.sexydad`)
+        - traefik.http.routers.spark-history.rule=Host(`aifabric.spark-history`)
         - traefik.http.routers.spark-history.entrypoints=websecure
         - traefik.http.routers.spark-history.tls=true
         - traefik.http.routers.spark-history.service=spark-history

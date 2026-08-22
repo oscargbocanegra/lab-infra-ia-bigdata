@@ -17,7 +17,7 @@ version: "3.9"
 #   - documents_nomic   (768 dims, cosine — nomic-embed-text)
 #   - documents_bge     (1024 dims, cosine — bge-m3)
 #
-# Web UI: https://qdrant.sexydad
+# Web UI: https://aifabric.qdrant
 # REST API: http://qdrant:6333 (internal overlay network)
 # gRPC API: http://qdrant:6334 (internal overlay network)
 #
@@ -93,7 +93,7 @@ services:
         - "traefik.docker.network=public"
 
         # HTTP Router — Web UI + REST API
-        - "traefik.http.routers.qdrant.rule=Host(`qdrant.sexydad`)"
+        - "traefik.http.routers.qdrant.rule=Host(`aifabric.qdrant`)"
         - "traefik.http.routers.qdrant.entrypoints=websecure"
         - "traefik.http.routers.qdrant.tls=true"
         - "traefik.http.routers.qdrant.service=qdrant"
@@ -102,9 +102,9 @@ services:
         # Middleware: LAN whitelist + redirect root to Web UI dashboard
         - "traefik.http.routers.qdrant.middlewares=lan-whitelist@docker,qdrant-dashboard-redirect"
 
-        # Redirect: https://qdrant.sexydad/ → https://qdrant.sexydad/dashboard
-        - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.regex=^https://qdrant\\.sexydad/?$$"
-        - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.replacement=https://qdrant.sexydad/dashboard"
+        # Redirect: https://aifabric.qdrant/ → https://aifabric.qdrant/dashboard
+        - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.regex=^https://qdrant\\.aifabric/?$$"
+        - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.replacement=https://aifabric.qdrant/dashboard"
         - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.permanent=false"
 
         # Health check

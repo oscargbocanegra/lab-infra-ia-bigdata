@@ -4,7 +4,7 @@ version: "3.9"
 # Stack: OpenMetadata 1.4 — Data Catalog + Lineage + Quality
 # ============================================================
 # Node:     master1 (tier=control)
-# URL:      https://openmetadata.sexydad
+# URL:      https://aifabric.openmetadata
 #
 # Architecture:
 #   openmetadata-server  → main API + UI (Java)
@@ -37,7 +37,7 @@ version: "3.9"
 #   1. Run: bash scripts/governance/setup-governance.sh
 #   2. Deploy: docker stack deploy -c stacks/data/13-openmetadata/stack.yml openmetadata
 #   3. Wait ~2 min for openmetadata-es to become healthy
-#   4. Open: https://openmetadata.sexydad
+#   4. Open: https://aifabric.openmetadata
 #   5. Login: admin / <om_admin_password>
 #   6. Configure connectors (see README.md)
 # ============================================================
@@ -176,8 +176,8 @@ services:
       DB_USER: openmetadata
 
       # Server config
-      SERVER_HOST_API_URL: https://openmetadata.sexydad/api
-      OPENMETADATA_SERVER_URL: https://openmetadata.sexydad
+      SERVER_HOST_API_URL: https://aifabric.openmetadata/api
+      OPENMETADATA_SERVER_URL: https://aifabric.openmetadata
 
       # Search — dedicated OpenSearch service within this stack.
       # IMPORTANT: must NOT point to opensearch_opensearch (cross-stack VIP).
@@ -190,10 +190,10 @@ services:
 
       # Auth — basic (no SSO for lab)
       AUTHENTICATION_PROVIDER: basic
-      AUTHENTICATION_PUBLIC_KEYS: '["https://openmetadata.sexydad/api/v1/system/config/jwks"]'
-      AUTHENTICATION_AUTHORITY: https://openmetadata.sexydad
+      AUTHENTICATION_PUBLIC_KEYS: '["https://aifabric.openmetadata/api/v1/system/config/jwks"]'
+      AUTHENTICATION_AUTHORITY: https://aifabric.openmetadata
       AUTHENTICATION_CLIENT_ID: open-metadata
-      AUTHENTICATION_CALLBACK_URL: https://openmetadata.sexydad/callback
+      AUTHENTICATION_CALLBACK_URL: https://aifabric.openmetadata/callback
 
       # Admin bootstrap
       AUTHORIZER_ADMIN_PRINCIPALS: '["admin"]'
@@ -260,7 +260,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=public
-        - traefik.http.routers.openmetadata.rule=Host(`openmetadata.sexydad`)
+        - traefik.http.routers.openmetadata.rule=Host(`aifabric.openmetadata`)
         - traefik.http.routers.openmetadata.entrypoints=websecure
         - traefik.http.routers.openmetadata.tls=true
         - traefik.http.routers.openmetadata.service=openmetadata

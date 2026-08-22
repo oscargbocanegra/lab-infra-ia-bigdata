@@ -33,7 +33,7 @@ Se adopta:
 - NativeAuthenticator `1.2.0`.
 - Configurable HTTP Proxy `4.6.3`.
 - PostgreSQL como base de datos del Hub.
-- Traefik para acceso mediante `jupyterhub.sexydad`.
+- Traefik para acceso mediante `aifabric.jupyterhub`.
 - Docker Swarm Secrets para credenciales.
 
 JupyterHub se ejecutará en `master1`.
@@ -185,7 +185,7 @@ Corte operativo: `2026-07-11`.
 - JupyterHub está desplegado en `master1` con una réplica saludable.
 - La imagen del Hub está fijada por tag inmutable y digest.
 - PostgreSQL contiene la base y las tablas de JupyterHub.
-- Traefik publica `jupyterhub.sexydad` exclusivamente por HTTPS.
+- Traefik publica `aifabric.jupyterhub` exclusivamente por HTTPS.
 - Los endpoints `/hub/health`, `/hub/login` y `/hub/signup` responden HTTP `200`.
 - El cookie secret de Swarm se copia a `/run/jupyterhub/jupyterhub_cookie_secret` con modo `0600`.
 - Los Jupyter legacy continúan `1/1`.

@@ -120,7 +120,7 @@ Port      Protocol  From                  Purpose
 11434/tcp TCP       192.168.80.0/24       Ollama API (Postman; DHCP clients)
 ```
 
-MinIO `9000/tcp` is internal-only. LAN access uses `https://minio-api.sexydad`; service-to-service access uses `http://minio:9000` on the overlay network.
+MinIO `9000/tcp` is internal-only. LAN access uses `https://aifabric.minio-api`; service-to-service access uses `http://minio:9000` on the overlay network.
 
 ---
 
@@ -168,7 +168,7 @@ num  pkts bytes target  prot opt in  out  source           destination
 curl -sk -o /dev/null -w "%{http_code}" https://localhost
 # Expected: 404 (Traefik default, no host matched)
 
-curl -sk -o /dev/null -w "%{http_code}" --resolve portainer.sexydad:443:127.0.0.1 https://portainer.sexydad
+curl -sk -o /dev/null -w "%{http_code}" --resolve aifabric.portainer:443:127.0.0.1 https://aifabric.portainer
 # Expected: 200 or 401
 ```
 

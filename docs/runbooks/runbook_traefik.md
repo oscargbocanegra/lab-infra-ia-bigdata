@@ -4,7 +4,7 @@
 - **Stack**: `traefik` (service `traefik_traefik`)
 - **Node**: `master1` (tier=control)
 - **Ports**: 80, 443 (Host Mode)
-- **Dashboard URL**: `https://traefik.sexydad/dashboard/` (requires BasicAuth)
+- **Dashboard URL**: `https://aifabric.traefik/dashboard/` (requires BasicAuth)
 - **Config**: `stacks/core/00-traefik/dynamic.yml` (loaded as Docker Config `traefik_dynamic`)
 
 ---
@@ -33,7 +33,7 @@ _Positive sign:_ Lines with HTTP methods (GET/POST) and status codes (200, 404, 
 ### 1.3 Validate TLS certificates
 ```bash
 # Verify the correct certificate is served (not the Traefik default)
-echo | openssl s_client -showcerts -servername traefik.sexydad -connect <master1-ip>:443 2>/dev/null | openssl x509 -inform pem -noout -text | grep "Subject: CN"
+echo | openssl s_client -showcerts -servername aifabric.traefik -connect <master1-ip>:443 2>/dev/null | openssl x509 -inform pem -noout -text | grep "Subject: CN"
 ```
 
 ---

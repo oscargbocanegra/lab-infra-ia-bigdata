@@ -8,7 +8,7 @@ n8n is a self-hosted workflow automation platform. It handles event-driven pipel
 |----------|-------|
 | Image | `n8nio/n8n:2.4.7` |
 | Node | master2 (`tier=compute`, `hostname=master2`) |
-| URL | https://n8n.sexydad |
+| URL | https://aifabric.n8n |
 | Auth | n8n native user management (no BasicAuth middleware) |
 
 ## Database
