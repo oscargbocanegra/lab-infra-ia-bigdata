@@ -92,6 +92,25 @@ External traffic enters through Traefik on `master1` over HTTPS. The `public`, `
 
 ### Request and data flow
 
+```mermaid
+graph LR
+    U[LAN client] --> T[Traefik TLS]
+    T --> J[JupyterHub]
+    T --> W[Open WebUI]
+    T --> A[RAG and agent APIs]
+    T --> L[LLMfit dashboards and API]
+    A --> O[Ollama GPU]
+    A --> Q[Qdrant vector search]
+    A --> P[PostgreSQL metadata]
+    A --> M[MinIO object storage]
+    A --> R[Redis and Celery]
+    A --> S[Spark cluster]
+    S --> M
+    F[Fluent Bit] --> X[OpenSearch]
+    X --> D[OpenSearch Dashboards]
+    PR[Prometheus] --> G[Grafana]
+```
+
 The platform flow is: LAN clients enter through Traefik; authenticated requests reach JupyterHub, Open WebUI, the RAG and agent APIs, or LLMfit. Those services use the internal overlay to reach Ollama, Qdrant, PostgreSQL, MinIO, Redis, Spark and OpenSearch. Prometheus feeds Grafana, while Fluent Bit feeds OpenSearch Dashboards.
 
 ## What is included
