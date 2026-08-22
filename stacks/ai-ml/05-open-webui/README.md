@@ -6,7 +6,7 @@ Full-featured ChatGPT-like interface connected to the lab's Ollama instance with
 
 | Property | Value |
 |---|---|
-| Image | `ghcr.io/open-webui/open-webui:v0.6.5` |
+| Image | `ghcr.io/open-webui/open-webui:v0.10.2` |
 | Node | master1 (`tier=control`) |
 | URL | `https://chat.sexydad` |
 | Storage | `/srv/fastdata/open-webui` (bind mount) |

@@ -1,3 +1,5 @@
+> HISTÓRICO: este runbook describe el despliegue inicial de 2026-03-30. No ejecutar sus comandos legacy de Jupyter standalone; use los runbooks por servicio y JupyterHub.
+
 # Runbook: Deploy Phase 5 — MinIO + Spark + Airflow
 
 > Version: 1.0 — 2026-03-30  
@@ -118,7 +120,7 @@ sudo chown -R 50000:50000 /srv/fastdata/airflow/plugins
 sudo chown root:docker /srv/fastdata/airflow/redis
 sudo chmod 2775 /srv/fastdata/airflow/redis
 
-# OpenSearch on master1 needs vm.max_map_count (if not already set):
+# OpenSearch on master2 needs vm.max_map_count (if not already set):
 grep vm.max_map_count /etc/sysctl.conf || echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```

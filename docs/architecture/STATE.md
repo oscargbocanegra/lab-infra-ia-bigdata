@@ -1,57 +1,19 @@
-# Estado actual verificable
+# Estado verificable del repositorio
 
-> Actualizado: 2026-07-18
+> Revisado 2026-08-21. Describe la configuración declarada en `main`; el estado de tareas se confirma en el Swarm.
 
-## Resumen
+- `main` es la rama de despliegue.
+- `master1`: manager/leader, `tier=control`; `master2`: worker con GPU.
+- JupyterHub reemplaza al stack standalone JupyterLab.
+- OpenSearch corre en `master2`; Dashboards en `master1`.
+- OpenMetadata, observabilidad, RAG API, Agent y Open WebUI están declarados en stacks propios.
 
-- `master1`: control plane, Traefik, Portainer, OpenSearch Dashboards,
-  Spark Master/History, Airflow Hub y diagnósticos del nodo.
-- `master2`: compute/data/GPU, PostgreSQL, n8n, OpenSearch, MinIO, Spark
-  Worker, JupyterHub single-user y Ollama.
-- La ruta canónica del laboratorio sigue siendo `main` en Git y el runtime
-  verificado se mantiene alineado con el repo.
+```bash
+docker node ls
+docker stack ls
+docker stack services jupyterhub
+docker stack services opensearch
+docker stack services prometheus
+```
 
-## Evidencia reciente
-
-- JupyterHub reconciliado con `giovannotti/lab-jupyter:sha-1269366`.
-- Smoke distribuido PySpark validado desde una sesión real de JupyterHub.
-- `master1` dejó el reporte de arranque fuera del camino crítico mediante
-  `lab-report-boot.timer`.
-
-## Servicios críticos
-
-| Servicio | Estado |
-|---|---|
-| Traefik | operativo |
-| Portainer | operativo |
-| OpenSearch / Dashboards | operativo |
-| PostgreSQL | operativo |
-| n8n | operativo |
-| Spark | operativo |
-| Airflow | operativo |
-| MinIO | operativo |
-| JupyterHub | operativo |
-| Ollama | operativo |
-
-## Rutas canónicas
-
-- `/srv/fastdata/jupyterhub/hub`
-- `/srv/fastdata/jupyterhub/users/<username>`
-- `/srv/fastdata/opensearch`
-- `/srv/fastdata/postgres`
-- `/srv/fastdata/airflow`
-- `/srv/fastdata/spark-tmp`
-- `/srv/datalake/minio`
-- `/srv/datalake/models/ollama`
-
-## Red
-
-- `public`: ingreso LAN por Traefik.
-- `internal`: tráfico de backend entre servicios.
-- Dominio interno: `*.sexydad`.
-
-## Notas
-
-- Seguridad mantenida en modo simple y funcional para laboratorio.
-- El rollback principal sigue siendo volver a la imagen o stack anterior y
-  redeplegar.
+La documentación no afirma “100% operativo” sin una captura reciente de estas comprobaciones. Rutas persistentes: [`STORAGE.md`](STORAGE.md). Redes: [`NETWORKING.md`](NETWORKING.md).

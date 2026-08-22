@@ -41,7 +41,7 @@ The exporter runs `nvidia-smi` on a configurable interval and exposes:
 | GPU | NVIDIA GeForce RTX 2080 Ti |
 | VRAM | 11 GB GDDR6 |
 | CUDA | 12.2 |
-| Driver | 535.x |
+| Driver | 580.x (runtime actual; verify with `nvidia-smi`) |
 | Node | compute (master2) |
 
 ---
@@ -50,7 +50,7 @@ The exporter runs `nvidia-smi` on a configurable interval and exposes:
 
 The following must be in place on master2 **before** deploying this stack:
 
-1. **NVIDIA drivers** — driver 535.x (already confirmed installed)
+1. **NVIDIA drivers** — driver 580.x (verify with `nvidia-smi` before deployment)
 2. **nvidia-container-toolkit** — required for Docker GPU device access
 
    ```bash

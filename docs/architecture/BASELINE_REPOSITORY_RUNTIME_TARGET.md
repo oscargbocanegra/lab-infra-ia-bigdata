@@ -1,7 +1,7 @@
 # Línea base verificable: Repositorio – Runtime – Arquitectura objetivo
 
 Fecha de evidencia: 2026-07-15
-Repositorio base: `main` — `12a9e6f85a2b8068a898d2b45bd9575c3be41754`
+Repositorio base: `main` — consultar el commit actual con `git rev-parse main`
 
 ## Arquitectura objetivo
 
@@ -34,7 +34,6 @@ Repositorio base: `main` — `12a9e6f85a2b8068a898d2b45bd9575c3be41754`
 
 1. El acceso externo no autenticado a OpenSearch responde `403`; conservar la
    política actual hasta definir el acceso administrativo.
-2. Normalizar documentación histórica: ADR-006 y referencias legacy
-   `/srv/fastdata/jupyter/...`.
-3. Evaluar `rag-api_rag-api`, actualmente en estado `0/1`.
+2. ADR-006 y las rutas `/srv/fastdata/jupyter/...` son históricos; la arquitectura vigente usa OpenSearch en master2 y JupyterHub en `/srv/fastdata/jupyterhub`.
+3. Verificar `rag-api_rag-api` con el healthcheck del stack; no asumir estado a partir de evidencia histórica.
 4. Recuperar SSH no interactivo `master1 → master2` para auditorías automáticas.

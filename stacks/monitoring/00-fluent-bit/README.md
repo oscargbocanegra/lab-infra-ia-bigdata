@@ -116,7 +116,7 @@ curl -X PUT http://localhost:9200/_plugins/_ism/policies/docker-logs-retention-7
 |-----------|-----|-----|------|
 | Fluent Bit (master1) | 0.05 reserved / 0.25 max | 32MB reserved / 128MB max | master1 |
 | Fluent Bit (master2) | 0.05 reserved / 0.25 max | 32MB reserved / 128MB max | master2 |
-| OpenSearch extra load | ~0.1 avg write | ~200MB heap | master1 |
+| OpenSearch extra load | ~0.1 avg write | ~200MB heap | master2 |
 
 Fluent Bit is extremely lightweight — **~5MB RAM** typical usage.
 
