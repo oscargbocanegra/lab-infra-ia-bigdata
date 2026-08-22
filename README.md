@@ -4,12 +4,42 @@
 
 **A self-hosted, GPU-enabled AI and data engineering platform running on bare-metal Docker Swarm.**
 
-[![Docker Swarm](https://img.shields.io/badge/Docker%20Swarm-2--node-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/engine/swarm/)
-[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.5-E25A1C?logo=apachespark&logoColor=white)](https://spark.apache.org/)
-[![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.9-017CEE?logo=apacheairflow&logoColor=white)](https://airflow.apache.org/)
-[![Ollama](https://img.shields.io/badge/Ollama-GPU%20inference-000000?logo=ollama&logoColor=white)](https://ollama.com/)
-[![License](https://img.shields.io/badge/license-see%20repository-lightgrey)](#license)
+<p>
+  <strong>Platform &amp; runtime</strong><br>
+  <a href="https://docs.docker.com/engine/swarm/"><img height="28" alt="Docker Swarm" src="https://img.shields.io/badge/Docker%20Swarm-2--node-2496ED?style=flat-square&amp;logo=docker&amp;logoColor=white"></a>
+  <a href="https://www.python.org/"><img height="28" alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white"></a>
+  <a href="https://fastapi.tiangolo.com/"><img height="28" alt="FastAPI" src="https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&amp;logo=fastapi&amp;logoColor=white"></a>
+  <a href="https://github.com/features/actions"><img height="28" alt="GitHub Actions" src="https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?style=flat-square&amp;logo=githubactions&amp;logoColor=white"></a>
+</p>
+<p>
+  <strong>AI &amp; developer experience</strong><br>
+  <a href="https://ollama.com/"><img height="28" alt="Ollama" src="https://img.shields.io/badge/Ollama-GPU%20inference-000000?style=flat-square&amp;logo=ollama&amp;logoColor=white"></a>
+  <a href="https://jupyter.org/hub"><img height="28" alt="JupyterHub" src="https://img.shields.io/badge/JupyterHub-Multi--user-F37626?style=flat-square&amp;logo=jupyter&amp;logoColor=white"></a>
+  <a href="https://qdrant.tech/"><img height="28" alt="Qdrant" src="https://img.shields.io/badge/Qdrant-Vector%20search-DC244C?style=flat-square&amp;logo=qdrant&amp;logoColor=white"></a>
+  <a href="https://www.langchain.com/langgraph"><img height="28" alt="LangGraph" src="https://img.shields.io/badge/LangGraph-Agent%20orchestration-1C3C3C?style=flat-square&amp;logo=langchain&amp;logoColor=white"></a>
+  <a href="https://github.com/open-webui/open-webui"><img height="28" alt="Open WebUI" src="https://img.shields.io/badge/Open%20WebUI-Chat%20interface-000000?style=flat-square&amp;logo=openai&amp;logoColor=white"></a>
+</p>
+<p>
+  <strong>Data &amp; orchestration</strong><br>
+  <a href="https://www.postgresql.org/"><img height="28" alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&amp;logo=postgresql&amp;logoColor=white"></a>
+  <a href="https://opensearch.org/"><img height="28" alt="OpenSearch" src="https://img.shields.io/badge/OpenSearch-2.19-005EB8?style=flat-square&amp;logo=opensearch&amp;logoColor=white"></a>
+  <a href="https://min.io/"><img height="28" alt="MinIO" src="https://img.shields.io/badge/MinIO-S3%20storage-C72E49?style=flat-square&amp;logo=minio&amp;logoColor=white"></a>
+  <a href="https://spark.apache.org/"><img height="28" alt="Apache Spark" src="https://img.shields.io/badge/Apache%20Spark-3.5-E25A1C?style=flat-square&amp;logo=apachespark&amp;logoColor=white"></a>
+  <a href="https://airflow.apache.org/"><img height="28" alt="Apache Airflow" src="https://img.shields.io/badge/Apache%20Airflow-2.9-017CEE?style=flat-square&amp;logo=apacheairflow&amp;logoColor=white"></a>
+  <a href="https://n8n.io/"><img height="28" alt="n8n" src="https://img.shields.io/badge/n8n-Automation-EA4B71?style=flat-square&amp;logo=n8n&amp;logoColor=white"></a>
+</p>
+<p>
+  <strong>Networking &amp; observability</strong><br>
+  <a href="https://traefik.io/traefik/"><img height="28" alt="Traefik" src="https://img.shields.io/badge/Traefik-2.11-24A1C1?style=flat-square&amp;logo=traefikproxy&amp;logoColor=white"></a>
+  <a href="https://prometheus.io/"><img height="28" alt="Prometheus" src="https://img.shields.io/badge/Prometheus-2.53-E6522C?style=flat-square&amp;logo=prometheus&amp;logoColor=white"></a>
+  <a href="https://grafana.com/"><img height="28" alt="Grafana" src="https://img.shields.io/badge/Grafana-11.6-F46800?style=flat-square&amp;logo=grafana&amp;logoColor=white"></a>
+  <a href="https://www.nvidia.com/en-us/geforce/graphics-cards/20-series/rtx-2080-ti/"><img height="28" alt="NVIDIA RTX 2080 Ti" src="https://img.shields.io/badge/NVIDIA-RTX%202080%20Ti%20%7C%2011GB-76B900?style=flat-square&amp;logo=nvidia&amp;logoColor=white"></a>
+  <a href="https://github.com/fluent/fluent-bit"><img height="28" alt="Fluent Bit" src="https://img.shields.io/badge/Fluent%20Bit-3.2-49BDA5?style=flat-square&amp;logo=fluentbit&amp;logoColor=white"></a>
+</p>
+<p>
+  <a href="#license"><img height="28" alt="License" src="https://img.shields.io/badge/license-see%20repository-lightgrey?style=flat-square"></a>
+  <a href="https://github.com/oscargbocanegra/lab-infra-ia-bigdata/actions"><img height="28" alt="CI status" src="https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?style=flat-square&amp;logo=githubactions&amp;logoColor=white"></a>
+</p>
 
 </div>
 
