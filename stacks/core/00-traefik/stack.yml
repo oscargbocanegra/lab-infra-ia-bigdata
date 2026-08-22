@@ -28,11 +28,13 @@ secrets:
   # Traefik own credentials
   traefik_basic_auth:
     external: true
-  traefik_tls_cert_aifabric_v2:
+  traefik_tls_cert_aifabric_v6:
     external: true
-  traefik_tls_key_aifabric_v2:
+  traefik_tls_key_aifabric_v6:
     external: true
   # Service BasicAuth secrets (executed by Traefik middleware)
+  llmfit_basicauth:
+    external: true
   ollama_basicauth:
     external: true
   opensearch_basicauth:
@@ -104,10 +106,11 @@ services:
 
     secrets:
       - traefik_basic_auth
-      - source: traefik_tls_cert_aifabric_v2
+      - source: traefik_tls_cert_aifabric_v6
         target: traefik_tls_cert
-      - source: traefik_tls_key_aifabric_v2
+      - source: traefik_tls_key_aifabric_v6
         target: traefik_tls_key
+      - llmfit_basicauth
       - ollama_basicauth
       - opensearch_basicauth
       - dashboards_basicauth
@@ -148,6 +151,7 @@ services:
 
         # Auth middlewares
         - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/run/secrets/traefik_basic_auth
+        - traefik.http.middlewares.llmfit-auth.basicauth.usersfile=/run/secrets/llmfit_basicauth
         - traefik.http.middlewares.ollama-auth.basicauth.usersfile=/run/secrets/ollama_basicauth
         - traefik.http.middlewares.opensearch-auth.basicauth.usersfile=/run/secrets/opensearch_basicauth
         - traefik.http.middlewares.dashboards-auth.basicauth.usersfile=/run/secrets/dashboards_basicauth

@@ -27,7 +27,7 @@ All names resolve to the `master1` IP through local DNS or `/etc/hosts`:
 
 ```text
 traefik, portainer, jupyterhub, qdrant, rag-api, chat, agent, n8n, ollama,
-opensearch, dashboards, minio, minio-api, openmetadata, spark-master,
+opensearch, dashboards, minio, minio-api, llmfit, llmfit-docs, openmetadata, spark-master,
 spark-worker, spark-history, airflow, airflow-flower, prometheus and grafana
 ```
 

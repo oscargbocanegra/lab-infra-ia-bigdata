@@ -122,7 +122,7 @@ flowchart LR
 | Observability | Fluent Bit, OpenSearch 2.19, Prometheus, Grafana, cAdvisor, node-exporter, NVIDIA exporter |
 | Operations | Swarm Secrets, host checks, reboot diagnostics, cleanup and backup scripts |
 
-The repository currently declares 18 stacks and 34 service definitions. `airflow_init` is intentionally configured with zero replicas and is used only for initialization tasks.
+The repository currently declares 19 stacks and 38 service definitions. `airflow_init` is intentionally configured with zero replicas and is used only for initialization tasks.
 
 ## How the platform works
 
@@ -212,6 +212,9 @@ After configuring internal DNS/hosts and credentials, the primary endpoints are:
 | RAG API | `https://aifabric.rag-api/docs` | Document ingestion and retrieval API |
 | Hybrid Agent | `https://aifabric.agent/docs` | RAG + SQL agent API |
 | Ollama | `https://aifabric.ollama` | LAN-protected model API |
+| LLMfit | `https://aifabric.llmfit` | Model capacity advisor |
+| LLMfit Swagger | `https://aifabric.llmfit-docs` | REST contract and testing UI |
+| LLMfit responsive | `https://aifabric.llmfit-mobile` | Variante moderna responsiva con paneles plegables |
 | Airflow | `https://aifabric.airflow` | DAG scheduling and execution |
 | Grafana | `https://aifabric.grafana` | Metrics dashboards |
 | OpenSearch Dashboards | `https://aifabric.dashboards` | Logs and search |

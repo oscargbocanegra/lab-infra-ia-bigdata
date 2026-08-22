@@ -1,0 +1,160 @@
+version: "3.8"
+
+# LLMfit capacity advisor. Ollama remains the inference service.
+# master2 has an RTX 2080 Ti (11 GB); the override avoids the slim image's sysfs fallback reporting 8 GB.
+# No host port is published; LAN traffic enters through Traefik/master1.
+
+networks:
+  internal:
+    external: true
+  public:
+    external: true
+
+secrets:
+  llmfit_basicauth:
+    external: true
+
+configs:
+  llmfit_openapi_v3:
+    file: ./openapi.yaml
+
+services:
+  llmfit:
+    image: ghcr.io/alexsjones/llmfit:latest@sha256:f9f1f2b4aa58fa993c6748304adc29d85dc4565c1fb67c1e59271c194e1815c4
+    command: ["--memory", "11G", "serve", "--host", "0.0.0.0", "--port", "8787"]
+    hostname: llmfit
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+      OLLAMA_CONTEXT_LENGTH: "8192"
+    networks: [internal, public]
+    secrets: [llmfit_basicauth]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == compute
+          - node.labels.gpu == nvidia
+      resources:
+        limits: {cpus: "1.0", memory: 1G}
+        reservations: {cpus: "0.10", memory: 128M}
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 60s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        - "traefik.http.routers.llmfit.rule=Host(`aifabric.llmfit`) && (PathPrefix(`/api`) || Path(`/health`))"
+        - "traefik.http.routers.llmfit.priority=100"
+        - "traefik.http.routers.llmfit-docs-api.rule=Host(`aifabric.llmfit-docs`) && (PathPrefix(`/api`) || Path(`/health`))"
+        - "traefik.http.routers.llmfit-docs-api.priority=100"
+        - "traefik.http.routers.llmfit-docs-api.entrypoints=websecure"
+        - "traefik.http.routers.llmfit-docs-api.tls=true"
+        - "traefik.http.routers.llmfit-docs-api.service=llmfit"
+        - "traefik.http.routers.llmfit-docs-api.middlewares=lan-whitelist,llmfit-auth"
+        - "traefik.http.routers.llmfit-mobile-api.rule=Host(`aifabric.llmfit-mobile`) && (PathPrefix(`/api`) || Path(`/health`))"
+        - "traefik.http.routers.llmfit-mobile-api.priority=100"
+        - "traefik.http.routers.llmfit-mobile-api.entrypoints=websecure"
+        - "traefik.http.routers.llmfit-mobile-api.tls=true"
+        - "traefik.http.routers.llmfit-mobile-api.service=llmfit"
+        - "traefik.http.routers.llmfit-mobile-api.middlewares=lan-whitelist@docker,llmfit-auth@docker"
+        - "traefik.http.routers.llmfit.entrypoints=websecure"
+        - "traefik.http.routers.llmfit.tls=true"
+        - "traefik.http.routers.llmfit.service=llmfit"
+        - "traefik.http.routers.llmfit.middlewares=lan-whitelist@docker,llmfit-auth@docker"
+        - "traefik.http.services.llmfit.loadbalancer.server.port=8787"
+        - "traefik.http.services.llmfit.loadbalancer.healthcheck.path=/health"
+        - "traefik.http.services.llmfit.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.llmfit.loadbalancer.healthcheck.timeout=5s"
+        - "com.docker.stack.namespace=llmfit"
+        - "description=LLMfit model capacity advisor"
+
+  dashboard:
+    image: nginx:1.27-alpine@sha256:62223d644fa234c3a1cc785ee14242ec47a77364226f1c811d2f669f96dc2ac8
+    volumes:
+      - type: bind
+        source: /srv/fastdata/llmfit-web
+        target: /usr/share/nginx/html
+        read_only: true
+    networks: [public]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits: {cpus: "0.25", memory: 128M}
+        reservations: {cpus: "0.05", memory: 32M}
+      restart_policy: {condition: any}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        - "traefik.http.routers.llmfit-dashboard.rule=Host(`aifabric.llmfit`)"
+        - "traefik.http.routers.llmfit-dashboard.priority=10"
+        - "traefik.http.routers.llmfit-dashboard.entrypoints=websecure"
+        - "traefik.http.routers.llmfit-dashboard.tls=true"
+        - "traefik.http.routers.llmfit-dashboard.service=llmfit-dashboard"
+        - "traefik.http.routers.llmfit-dashboard.middlewares=lan-whitelist@docker,llmfit-auth@docker"
+        - "traefik.http.services.llmfit-dashboard.loadbalancer.server.port=80"
+        - "com.docker.stack.namespace=llmfit"
+        - "description=Official LLMfit web dashboard assets"
+
+  dashboard-responsive:
+    image: nginx:1.27-alpine@sha256:62223d644fa234c3a1cc785ee14242ec47a77364226f1c811d2f669f96dc2ac8
+    volumes:
+      - type: bind
+        source: /srv/fastdata/llmfit-web-responsive
+        target: /usr/share/nginx/html
+        read_only: true
+    networks: [public]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits: {cpus: "0.25", memory: 128M}
+        reservations: {cpus: "0.05", memory: 32M}
+      restart_policy: {condition: any}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        - "traefik.http.routers.llmfit-responsive.rule=Host(`aifabric.llmfit-mobile`)"
+        - "traefik.http.routers.llmfit-responsive.entrypoints=websecure"
+        - "traefik.http.routers.llmfit-responsive.tls=true"
+        - "traefik.http.routers.llmfit-responsive.service=llmfit-responsive"
+        - "traefik.http.routers.llmfit-responsive.middlewares=lan-whitelist@docker,llmfit-auth@docker"
+        - "traefik.http.services.llmfit-responsive.loadbalancer.server.port=80"
+        - "com.docker.stack.namespace=llmfit"
+        - "description=Responsive LLMfit web dashboard"
+
+  swagger:
+    image: swaggerapi/swagger-ui:v5.11.10@sha256:3e58aa90bc72ff3af3ee63f706d14cb577374b59c013fa7a9a0fd5c15843f1fa
+    environment:
+      URL: /openapi.yaml
+      BASE_URL: /
+    configs:
+      - source: llmfit_openapi_v3
+        target: /usr/share/nginx/html/openapi.yaml
+    networks: [public]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tier == control
+      resources:
+        limits: {cpus: "0.25", memory: 256M}
+        reservations: {cpus: "0.05", memory: 64M}
+      restart_policy: {condition: any}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=public"
+        - "traefik.http.routers.llmfit-docs.rule=Host(`aifabric.llmfit-docs`)"
+        - "traefik.http.routers.llmfit-docs.entrypoints=websecure"
+        - "traefik.http.routers.llmfit-docs.tls=true"
+        - "traefik.http.routers.llmfit-docs.service=llmfit-docs"
+        - "traefik.http.routers.llmfit-docs.middlewares=lan-whitelist@docker,llmfit-auth@docker"
+        - "traefik.http.services.llmfit-docs.loadbalancer.server.port=8080"
+        - "com.docker.stack.namespace=llmfit"
+        - "description=Swagger UI for LLMfit REST contract"

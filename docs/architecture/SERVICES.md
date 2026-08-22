@@ -10,6 +10,7 @@
 | n8n | 1 | master2 / `aifabric.n8n` |
 | jupyterhub | 1 + usuarios dinámicos | Hub master1, usuarios master2 / `aifabric.jupyterhub` |
 | ollama | 1 | master2 + GPU / `aifabric.ollama`, `:11434` LAN |
+| llmfit + dashboards + Swagger UI | 4 | advisor master2 + docs master1 / `aifabric.llmfit`, `aifabric.llmfit-mobile`, `aifabric.llmfit-docs` |
 | qdrant, rag-api, open-webui, agent | 4 | master1 / `aifabric.qdrant`, `aifabric.rag-api`, `aifabric.chat`, `aifabric.agent` |
 | airflow | 6 (init a 0) | control + worker master2 / `aifabric.airflow`, `aifabric.airflow-flower` |
 | opensearch | 2 | OpenSearch master2 / `aifabric.opensearch`; Dashboards master1 / `aifabric.dashboards` |
@@ -21,7 +22,7 @@
 | grafana | 1 | master1 / `aifabric.grafana` |
 | nvidia-exporter | 1 | master2 |
 
-Total: **34 definiciones**; `airflow_init` no es un proceso permanente.
+Total: **38 definiciones**; `airflow_init` no es un proceso permanente.
 
 ## Contratos
 

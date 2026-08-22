@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: LLMfit Capacity Advisor API
+  version: 1.0.0
+  description: Hardware and model-fit analysis for the LLMfit node.
+servers:
+  - url: https://aifabric.llmfit-docs
+security:
+  - basicAuth: []
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses: {"200": {description: Service is alive}}
+  /api/v1/system:
+    get:
+      summary: Detect node hardware
+      responses: {"200": {description: Node identity and hardware}}
+  /api/v1/models:
+    get:
+      summary: List filtered model-fit results
+      parameters:
+        - {$ref: '#/components/parameters/limit'}
+        - {$ref: '#/components/parameters/min_fit'}
+        - {$ref: '#/components/parameters/use_case'}
+        - {$ref: '#/components/parameters/runtime'}
+        - {$ref: '#/components/parameters/search'}
+        - {$ref: '#/components/parameters/max_context'}
+      responses:
+        "200": {description: Model recommendations}
+        "400": {$ref: '#/components/responses/BadRequest'}
+  /api/v1/models/top:
+    get:
+      summary: Return best runnable models
+      parameters:
+        - {$ref: '#/components/parameters/limit'}
+        - {$ref: '#/components/parameters/min_fit'}
+        - {$ref: '#/components/parameters/use_case'}
+        - {$ref: '#/components/parameters/runtime'}
+      responses: {"200": {description: Top model recommendations}}
+  /api/v1/models/{name}:
+    get:
+      summary: Search a model family by name
+      parameters:
+        - {name: name, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/limit'}
+      responses: {"200": {description: Matching model-fit results}}
+  /api/v1/runtimes:
+    get:
+      summary: Detect available local runtimes
+      responses: {"200": {description: Runtime availability}}
+  /api/v1/installed:
+    get:
+      summary: List models found in local runtimes
+      responses: {"200": {description: Installed model inventory}}
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: BasicAuth configured by Traefik for LAN clients.
+  parameters:
+    limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100}
+    min_fit:
+      name: min_fit
+      in: query
+      schema: {type: string, enum: [perfect, good, marginal, too_tight]}
+    use_case:
+      name: use_case
+      in: query
+      schema: {type: string, enum: [general, coding, reasoning, chat, multimodal, embedding]}
+    runtime:
+      name: runtime
+      in: query
+      schema: {type: string, enum: [any, mlx, llamacpp]}
+    search:
+      name: search
+      in: query
+      schema: {type: string}
+    max_context:
+      name: max_context
+      in: query
+      schema: {type: integer, minimum: 1}
+  responses:
+    BadRequest:
+      description: Invalid filter or request
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: {type: string}
