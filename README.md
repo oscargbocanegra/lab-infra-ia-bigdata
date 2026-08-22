@@ -94,20 +94,15 @@ External traffic enters through Traefik on `master1` over HTTPS. The `public`, `
 
 ```mermaid
 flowchart LR
-    U[LAN user or API client] --> T[Traefik
-TLS + LAN whitelist]
-    T --> UI[JupyterHub / Open WebUI]
-    T --> API[RAG API / Hybrid Agent]
-    API --> O[Ollama
-GPU inference + embeddings]
-    API --> Q[Qdrant
-vector search]
-    API --> P[PostgreSQL
-metadata + pgvector]
-    API --> M[MinIO
-raw documents + artifacts]
-    A[Airflow] --> R[Redis / Celery]
-    A --> S[Spark cluster]
+    U["LAN user or API client"] --> T["Traefik: TLS and LAN allowlist"]
+    T --> UI["JupyterHub and Open WebUI"]
+    T --> API["RAG API and Hybrid Agent"]
+    API --> O["Ollama: GPU inference and embeddings"]
+    API --> Q["Qdrant: Vector search"]
+    API --> P["PostgreSQL: Metadata and pgvector"]
+    API --> M["MinIO: Raw documents and artifacts"]
+    A["Airflow"] --> R["Redis and Celery"]
+    A --> S["Spark cluster"]
     S --> M
     F[Fluent Bit] --> OS[OpenSearch]
     PR[Prometheus] --> G[Grafana]
