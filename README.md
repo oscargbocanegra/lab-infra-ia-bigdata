@@ -181,6 +181,9 @@ docker secret ls
 docker stack deploy -c stacks/core/00-traefik/stack.yml traefik
 docker stack deploy -c stacks/core/01-portainer/stack.yml portainer
 docker stack deploy -c stacks/core/02-postgres/stack.yml postgres
+# Then deploy Engram Cloud after creating its four Swarm secrets and `engram_cloud` database.
+See [Engram architecture and Windows/DBeaver runbook](docs/ENGRAM-ARCHITECTURE.md) for topology, storage inventory, client setup and recovery.
+docker stack deploy -c stacks/automation/04-engram/stack.yml engram
 # Then deploy data, AI/ML, automation and monitoring stacks as documented.
 
 # 6. Inspect convergence
@@ -208,6 +211,7 @@ After configuring internal DNS/hosts and credentials, the primary endpoints are:
 | MinIO S3 API | `https://aifabric.minio-api` | Object storage API |
 | OpenMetadata | `https://aifabric.openmetadata` | Data catalog, lineage and quality |
 | Spark Master | `https://aifabric.spark-master` | Cluster and application UI |
+| Engram Cloud | `https://aifabric.engram` | Project-scoped agent memory replication |
 | Spark Worker | `https://aifabric.spark-worker` | Worker status UI |
 | Spark History | `https://aifabric.spark-history` | Completed Spark applications |
 | Traefik | `https://aifabric.traefik/dashboard/` | Gateway dashboard (BasicAuth) |

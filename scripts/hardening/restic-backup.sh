@@ -19,14 +19,15 @@ set -euo pipefail
 #   - master2: connects to localhost:9000 (MinIO direct)
 #   - master1: connects to localhost:9000 if MinIO is also present, otherwise skip
 # The S3 endpoint is always localhost:9000 from each node's perspective.
-MINIO_ENDPOINT="http://localhost:9000"
+MINIO_ENDPOINT="https://aifabric.minio-api"
 MINIO_BUCKET="backups"
 AWS_ACCESS_KEY_ID="minioadmin"
 # NOTE: Set AWS_SECRET_ACCESS_KEY in /etc/restic/env or pass via environment
 # Real value from MinIO secrets — do not hardcode in this file
-AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-minioadmin}"
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY in /etc/restic/env}"
 RESTIC_REPOSITORY="s3:${MINIO_ENDPOINT}/${MINIO_BUCKET}/$(hostname)"
 RESTIC_PASSWORD_FILE="/etc/restic/password"
+RESTIC_OPTS=(); [[ -f /etc/restic/aifabric-current.crt ]] && RESTIC_OPTS=(--cacert /etc/restic/aifabric-current.crt)
 LOG_TAG="restic-backup"
 
 # Paths to back up — adjust per node
@@ -39,6 +40,7 @@ if [[ "$(hostname)" == "master1" ]]; then
 else
   BACKUP_PATHS=(
     /srv/fastdata/postgres
+    /srv/fastdata/postgres-backups
     /srv/fastdata/qdrant
     /srv/fastdata/open-webui
     /srv/fastdata/n8n
@@ -60,7 +62,7 @@ if [[ "${1:-}" == "--init" ]]; then
     chmod 600 "${RESTIC_PASSWORD_FILE}"
     echo "[${LOG_TAG}] Password saved to ${RESTIC_PASSWORD_FILE}"
   fi
-  restic init
+  restic "${RESTIC_OPTS[@]}" init
   echo "[${LOG_TAG}] Repository initialized"
   exit 0
 fi
@@ -68,7 +70,11 @@ fi
 # ── Backup ───────────────────────────────────────────────────────────────────
 echo "[${LOG_TAG}] $(date -Iseconds) — Starting backup on $(hostname)"
 
-restic backup \
+if [[ "$(hostname)" == "master2" ]] && [[ -x /usr/local/bin/engram-pg-backup.sh ]]; then
+  /usr/local/bin/engram-pg-backup.sh
+fi
+
+restic "${RESTIC_OPTS[@]}" backup \
   --verbose \
   --tag "$(hostname)" \
   --tag "$(date +%Y-%m-%d)" \
@@ -77,7 +83,7 @@ restic backup \
 echo "[${LOG_TAG}] $(date -Iseconds) — Backup complete. Applying retention policy..."
 
 # ── Retention ────────────────────────────────────────────────────────────────
-restic forget \
+restic "${RESTIC_OPTS[@]}" forget \
   --keep-daily 7 \
   --keep-weekly 4 \
   --keep-monthly 3 \
@@ -87,6 +93,6 @@ restic forget \
 echo "[${LOG_TAG}] $(date -Iseconds) — Retention applied"
 
 # ── Health check ─────────────────────────────────────────────────────────────
-restic check --no-lock
+restic "${RESTIC_OPTS[@]}" check --no-lock
 
 echo "[${LOG_TAG}] $(date -Iseconds) — All done"

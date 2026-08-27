@@ -8,6 +8,7 @@ secrets/
 **/*token*
 **/*password*
 **/*secret*
+clients/windows/*.crt
 
 # Logs / runtime
 *.log

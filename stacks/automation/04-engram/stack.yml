@@ -1,0 +1,74 @@
+version: "3.9"
+
+# Engram Cloud — project-scoped replication endpoint.
+# The MCP transport remains local stdio (`engram mcp`); this service only
+# provides cloud sync and the operator dashboard.
+
+secrets:
+  pg_engram_pass:
+    external: true
+  engram_jwt_secret:
+    external: true
+  engram_cloud_token_pepper:
+    external: true
+  engram_cloud_token_client:
+    external: true
+
+networks:
+  public:
+    external: true
+  internal:
+    external: true
+
+configs:
+  engram_entrypoint_v2:
+    file: ./entrypoint.sh
+
+services:
+  engram-cloud:
+    image: ghcr.io/gentleman-programming/engram:v1.15.15
+    entrypoint: ["/usr/local/bin/engram-entrypoint"]
+    configs:
+      - source: engram_entrypoint_v2
+        target: /usr/local/bin/engram-entrypoint
+        mode: 0555
+    secrets:
+      - pg_engram_pass
+      - engram_jwt_secret
+      - engram_cloud_token_pepper
+      - engram_cloud_token_client
+    networks:
+      - internal
+      - public
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:18080/health | grep -q 'ok'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == master2
+          - node.labels.tier == compute
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 0
+        window: 60s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.engram.rule=Host(`aifabric.engram`)
+        - traefik.http.routers.engram.entrypoints=websecure
+        - traefik.http.routers.engram.tls=true
+        - traefik.http.routers.engram.middlewares=lan-whitelist@docker
+        - traefik.http.services.engram.loadbalancer.server.port=18080

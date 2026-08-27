@@ -28,9 +28,9 @@ secrets:
   # Traefik own credentials
   traefik_basic_auth:
     external: true
-  traefik_tls_cert_aifabric_v6:
+  traefik_tls_cert_aifabric_v7:
     external: true
-  traefik_tls_key_aifabric_v6:
+  traefik_tls_key_aifabric_v7:
     external: true
   # Service BasicAuth secrets (executed by Traefik middleware)
   llmfit_basicauth:
@@ -106,9 +106,9 @@ services:
 
     secrets:
       - traefik_basic_auth
-      - source: traefik_tls_cert_aifabric_v6
+      - source: traefik_tls_cert_aifabric_v7
         target: traefik_tls_cert
-      - source: traefik_tls_key_aifabric_v6
+      - source: traefik_tls_key_aifabric_v7
         target: traefik_tls_key
       - llmfit_basicauth
       - ollama_basicauth
