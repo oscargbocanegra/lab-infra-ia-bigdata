@@ -2,7 +2,9 @@
 
 # Lab Infra — AI & Big Data Platform
 
-**A self-hosted, GPU-enabled AI and data engineering platform running on bare-metal Docker Swarm.**
+**A production-oriented, self-hosted AI and data engineering laboratory running on bare-metal Docker Swarm.**
+
+> This repository is a technical case study for integrated AI, RAG, agent, data-engineering, and observability workloads. It documents a private lab, not a hardened multi-tenant production service.
 
 <p>
   <strong>Platform &amp; runtime</strong><br>
@@ -52,13 +54,17 @@
 5. [How the platform works](#how-the-platform-works)
 6. [Prerequisites](#prerequisites)
 7. [Getting started](#getting-started)
-8. [Using the platform](#using-the-platform)
-9. [Repository guide](#repository-guide)
-10. [Operations and troubleshooting](#operations-and-troubleshooting)
-11. [Security model](#security-model)
-12. [Project status and limitations](#project-status-and-limitations)
-13. [Contributing](#contributing)
-14. [License](#license)
+8. [Developer experience](#developer-experience)
+9. [Using the platform](#using-the-platform)
+10. [Repository guide](#repository-guide)
+11. [Operations and troubleshooting](#operations-and-troubleshooting)
+12. [Security model](#security-model)
+13. [Architecture Case Study](#architecture-case-study)
+14. [Production readiness](#production-readiness)
+15. [Project status and limitations](#project-status-and-limitations)
+16. [GitHub and LinkedIn presentation](#github-and-linkedin-presentation)
+17. [Contributing](#contributing)
+18. [License](#license)
 
 ## What this project is
 
@@ -194,6 +200,24 @@ docker node ls
 
 For a complete preflight and acceptance sequence, use [`docs/architecture/Checklist_Infra_Lab.md`](docs/architecture/Checklist_Infra_Lab.md).
 
+## Developer experience
+
+### Configuration and secrets
+
+Use the non-secret templates under [`envs/`](envs/) as documentation of supported configuration. [`envs/examples/core-traefik.env.example`](envs/examples/core-traefik.env.example) is safe to copy for non-sensitive Traefik settings. [`envs/lab.env.example`](envs/lab.env.example) documents lab-wide model variables; its legacy standalone-Jupyter reference is recorded as a follow-up in the [documentation audit](docs/DOCUMENTATION_AUDIT.md), not treated as the current JupyterHub deployment path.
+
+Secrets are intentionally not represented in `.env` files committed to this repository. Create the required Docker Swarm Secrets on the manager using the exact names defined by each stack and its runbook.
+
+### Add or evolve a component
+
+1. Start from the relevant stack and its README; the stack file is the executable source of truth.
+2. Declare prerequisites outside Git—networks, secrets, storage paths, placement, or GPU reservation—before deployment.
+3. Add or update the service README and runbook with deployment, validation, rollback, and troubleshooting instructions.
+4. Update the service inventory and architecture documentation; add an ADR when the change alters an architectural decision.
+5. Run the applicable tests and runtime acceptance checks before presenting the component as implemented.
+
+For model changes, review the compatibility notes in `envs/lab.env.example`, especially the embedding-model re-index requirement, then follow the applicable service runbook.
+
 ## Using the platform
 
 ### Web interfaces
@@ -274,6 +298,7 @@ curl -k https://aifabric.jupyterhub/hub/health
 - **Investigate reboots and cleanup:** [`docs/runbooks/REBOOT_DIAGNOSTICS.md`](docs/runbooks/REBOOT_DIAGNOSTICS.md), [`docs/runbooks/DOCKER_CONTAINER_CLEANUP.md`](docs/runbooks/DOCKER_CONTAINER_CLEANUP.md)
 - **Understand decisions:** [`docs/adrs/`](docs/adrs/) and [`docs/adrs/README.md`](docs/adrs/README.md)
 - **See planned work:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- **Review documentation scope and follow-ups:** [`docs/DOCUMENTATION_AUDIT.md`](docs/DOCUMENTATION_AUDIT.md)
 
 ### Repository layout
 
@@ -303,6 +328,32 @@ docker secret ls
 
 If a service is unhealthy, check placement constraints, mounted disks, secret names, overlay-network membership and the image digest before forcing a restart. For stateful services, take or verify a backup before removing a task or volume.
 
+## Architecture Case Study
+
+### Context and design goals
+
+This project explores how a small physical cluster can run integrated AI and data workloads without reducing the solution to isolated demos. Its declared goals are reproducible deployment, private LAN access, GPU-aware placement, persistent-data boundaries, and observable operation.
+
+### Architecture approach
+
+Traefik centralizes LAN ingress on the Swarm manager. AI, data, and stateful workloads are placed according to node roles, while RAG and agent services integrate Ollama, Qdrant, PostgreSQL/pgvector, and MinIO. Airflow and Spark provide orchestration and processing paths; Fluent Bit and Prometheus provide complementary logs and metrics paths.
+
+### Key decisions and trade-offs
+
+| Decision | Rationale | Trade-off |
+|---|---|---|
+| Docker Swarm over Kubernetes | A two-node laboratory favors lower operational overhead and Docker-native workflows. | Fewer orchestration primitives and no native autoscaling. |
+| `master1` as the LAN gateway | One HTTPS ingress point simplifies routing and internal DNS. | Gateway responsibility is concentrated on one node. |
+| GPU generic resources on `master2` | Swarm can reserve the declared NVIDIA GPU and place GPU workloads predictably. | One shared GPU limits concurrent workloads. |
+| Qdrant plus PostgreSQL/pgvector | Separates primary vector retrieval from relational metadata and SQL use cases. | More services to operate. |
+| OpenSearch security plugin disabled | A documented private-lab simplification behind LAN controls and Traefik. | It requires reassessment before broader exposure or sensitive-data use. |
+
+The underlying rationale is recorded in the [ADRs](docs/adrs/), including [Swarm selection](docs/adrs/ADR-001-docker-swarm-vs-kubernetes.md), [GPU scheduling](docs/adrs/ADR-005-gpu-generic-resources-swarm.md), and the [OpenSearch security trade-off](docs/adrs/ADR-004-opensearch-security-plugin-disabled.md).
+
+### What the repository demonstrates
+
+The repository contains deployable manifests, host references, environment templates, runbooks, diagnostics, backup and hardening scripts, application tests, and controlled deployment workflows. These artifacts demonstrate hands-on design across ingress, placement, persistence, AI services, data processing, observability, and operations. They do not demonstrate customer adoption, SLA compliance, benchmarks, or high-availability guarantees.
+
 ## Security model
 
 - LAN-only exposure through Traefik; no public Internet ingress is required.
@@ -314,11 +365,19 @@ If a service is unhealthy, check placement constraints, mounted disks, secret na
 
 This is a private laboratory platform, not a hardened multi-tenant production service.
 
+## Production readiness
+
+The [production-readiness assessment](docs/PRODUCTION_READINESS.md) classifies repository-declared controls as Implemented, Partial, Planned, or Not assessed. It separates evidence in Git from runtime verification and documents the infrastructure limits that should not be represented as production guarantees.
+
 ## Project status and limitations
 
 The repository describes the current Swarm topology and deployable stacks. Runtime health is environment-dependent and must be verified with `docker node ls` and `docker stack services`; documentation does not imply that every host is running at all times.
 
 Known boundaries include single-node stateful services, local disks, LAN-only DNS, self-signed TLS by default, and no automatic cross-node replication for every dataset. See [`docs/architecture/STATE.md`](docs/architecture/STATE.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+## GitHub and LinkedIn presentation
+
+Recommended repository metadata, topics, social-preview direction, and LinkedIn Featured copy are maintained in [GitHub presentation recommendations](docs/GITHUB_PRESENTATION.md). These are recommendations only; this branch does not change GitHub settings.
 
 ## Contributing
 
@@ -330,4 +389,4 @@ Known boundaries include single-node stateful services, local disks, LAN-only DN
 
 ## License
 
-No license file is currently declared in this repository. Treat the contents as project-specific until a license is added.
+This project is licensed under the [MIT License](LICENSE).
