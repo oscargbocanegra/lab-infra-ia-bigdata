@@ -1,0 +1,63 @@
+{
+  "record_type": "development",
+  "development_id": "DEV-FUN-PORTFOLIO-TOBE-001",
+  "project_id": "PROJ-PORTFOLIO-001",
+  "functionality_id": "FUN-PORTFOLIO-TOBE",
+  "handover_id": "HO-PORTFOLIO-001",
+  "requirement_id": "S3.11",
+  "status": "completed",
+  "objective": "Evolve repository presentation and documentation into a clear, verifiable, navigable technical case study without changing cluster behavior.",
+  "implemented": "Added an evidence-backed S3.11 case study and an Executive / Architect Scan entry point in README.md.",
+  "files": [
+    "README.md",
+    "docs/case-study-s3.11.md",
+    "docs/case-study-s3.11-development.json"
+  ],
+  "related_ids": [
+    "REQ-PORTFOLIO-TOBE-001..020",
+    "DEC-PORTFOLIO-ALIGN-001..008",
+    "DSN-PORTFOLIO-TOBE-001..006",
+    "CNT-PORTFOLIO-TOBE-001..010",
+    "COM-PORTFOLIO-TOBE-001..003",
+    "RSK-PORTFOLIO-TOBE-001"
+  ],
+  "expected": "README supports executive and technical reading modes; case study covers architecture, flows, decisions, capabilities, operations, security, observability, readiness boundaries, outcomes, non-claims, and direct evidence links.",
+  "actual": "README links the S3.11 deep dive from the opening scan; the case study contains the requested sections and repository-backed links.",
+  "dependencies": [
+    "Current executable repository content under stacks/**/stack.yml",
+    "Existing architecture, ADR, runbook, test, and workflow artifacts",
+    "Runtime verification remains environment-dependent"
+  ],
+  "evidence": [
+    {
+      "evidence_id": "EVD-DEV-FUN-PORTFOLIO-TOBE-001",
+      "type": "file",
+      "path": "docs/case-study-s3.11.md",
+      "supports": "Complete technical case study and portfolio handoff"
+    },
+    {
+      "evidence_id": "EVD-DEV-FUN-PORTFOLIO-TOBE-002",
+      "type": "file",
+      "path": "README.md",
+      "supports": "Executive / Architect Scan and navigation"
+    },
+    {
+      "evidence_id": "EVD-DEV-FUN-PORTFOLIO-TOBE-003",
+      "type": "test-output",
+      "command": "git diff --check",
+      "result": "pass",
+      "supports": "Changed documentation has no whitespace errors"
+    },
+    {
+      "evidence_id": "EVD-DEV-FUN-PORTFOLIO-TOBE-004",
+      "type": "scope-check",
+      "result": "pass",
+      "supports": "Only README.md and documentation files changed; no functional paths changed"
+    }
+  ],
+  "observations": [
+    "Documentation-only implementation.",
+    "No runtime, service, stack, network, secret, storage, scheduling, version, application, deployment, or security behavior was modified.",
+    "Ready for independent Functional QA; this record is Development evidence, not Functional QA approval."
+  ]
+}

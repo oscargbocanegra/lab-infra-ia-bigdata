@@ -45,26 +45,37 @@
 
 </div>
 
+## Executive / Architect Scan
+
+Lab Infra is a production-oriented, self-hosted AI and data engineering laboratory running on bare-metal Docker Swarm. It is a technical case study for integrated AI, RAG, agent, data-engineering, and observability workloads; it documents a private lab, not a hardened multi-tenant production service.
+
+The platform combines a two-node Swarm topology, Traefik ingress, local GPU inference, RAG and agent APIs, vector and relational stores, object storage, Spark, Airflow, OpenMetadata, OpenSearch, Prometheus, Grafana, and Fluent Bit. The executable [`stack.yml` files](stacks/) are the source of truth.
+
+**Case study:** [`docs/case-study-s3.11.md`](docs/case-study-s3.11.md) · **Architecture:** [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) · **Services:** [`docs/architecture/SERVICES.md`](docs/architecture/SERVICES.md) · **ADRs:** [`docs/adrs/`](docs/adrs/) · **Runbooks:** [`docs/runbooks/`](docs/runbooks/)
+
+The technical deep dive and linked documents separate repository evidence from runtime verification. This repository does not claim SaaS operation, customer outcomes, enterprise certification, benchmark results, or an SLA.
+
 ## Table of contents
 
 1. [What this project is](#what-this-project-is)
 2. [Why it exists](#why-it-exists)
 3. [Architecture at a glance](#architecture-at-a-glance)
-4. [What is included](#what-is-included)
-5. [How the platform works](#how-the-platform-works)
-6. [Prerequisites](#prerequisites)
-7. [Getting started](#getting-started)
-8. [Developer experience](#developer-experience)
-9. [Using the platform](#using-the-platform)
-10. [Repository guide](#repository-guide)
-11. [Operations and troubleshooting](#operations-and-troubleshooting)
-12. [Security model](#security-model)
-13. [Architecture Case Study](#architecture-case-study)
-14. [Production readiness](#production-readiness)
-15. [Project status and limitations](#project-status-and-limitations)
-16. [GitHub and LinkedIn presentation](#github-and-linkedin-presentation)
-17. [Contributing](#contributing)
-18. [License](#license)
+4. [Technical Case Study](docs/case-study-s3.11.md)
+5. [What is included](#what-is-included)
+6. [How the platform works](#how-the-platform-works)
+7. [Prerequisites](#prerequisites)
+8. [Getting started](#getting-started)
+9. [Developer experience](#developer-experience)
+10. [Using the platform](#using-the-platform)
+11. [Repository guide](#repository-guide)
+12. [Operations and troubleshooting](#operations-and-troubleshooting)
+13. [Security model](#security-model)
+14. [Architecture Case Study](#architecture-case-study)
+15. [Production readiness](#production-readiness)
+16. [Project status and limitations](#project-status-and-limitations)
+17. [GitHub and LinkedIn presentation](#github-and-linkedin-presentation)
+18. [Contributing](#contributing)
+19. [License](#license)
 
 ## What this project is
 
