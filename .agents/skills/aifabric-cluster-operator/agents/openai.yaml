@@ -1,0 +1,4 @@
+interface:
+  display_name: "AiFabric Cluster Operator"
+  short_description: "Opera y sincroniza el clúster AiFabric con seguridad"
+  default_prompt: "Usa $aifabric-cluster-operator para aplicar una corrección autorizada al clúster AiFabric, validarla y sincronizar su manifiesto Git."

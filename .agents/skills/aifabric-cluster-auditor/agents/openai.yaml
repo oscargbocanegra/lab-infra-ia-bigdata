@@ -1,0 +1,4 @@
+interface:
+  display_name: "AiFabric Cluster Auditor"
+  short_description: "Audita salud y rutas del clúster AiFabric en modo solo lectura"
+  default_prompt: "Usa $aifabric-cluster-auditor para auditar el clúster AiFabric en modo estrictamente de solo lectura y reportar nodos, réplicas, rutas Traefik y dominios."
