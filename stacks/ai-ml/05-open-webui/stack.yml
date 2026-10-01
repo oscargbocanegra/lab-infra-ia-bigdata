@@ -20,7 +20,7 @@ version: "3.9"
 #   Requires pg_openwebui_pass secret and DB pre-created.
 #
 # Connections:
-#   - Ollama:   http://192.168.80.200:11434  (direct host port, master2)
+#   - Ollama:   http://ollama_ollama:11434  (Swarm service DNS)
 #   - Qdrant:   http://qdrant:6333           (overlay internal network)
 #   - Postgres: postgresql://openwebui@192.168.80.200:5432/openwebui
 #
@@ -51,7 +51,7 @@ configs:
 
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.10.2
+    image: ghcr.io/open-webui/open-webui:v0.11.4@sha256:332438e079ad23bb11b0ab278b43e7c98b50e8cec14b0840281644e8a289f49f
 
     # Custom entrypoint reads Docker secrets and exports them as env vars
     # before starting Open WebUI. Required because Open WebUI does not support
@@ -59,8 +59,8 @@ services:
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
 
     environment:
-      # Ollama backend — direct host port on master2
-      OLLAMA_BASE_URL: "http://192.168.80.200:11434"
+      # Ollama backend — internal Swarm service DNS
+      OLLAMA_BASE_URL: "http://ollama_ollama:11434"
 
       # DATABASE_URL, WEBUI_SECRET_KEY, QDRANT_API_KEY are injected by entrypoint.sh
       # from Docker secrets at container startup.
@@ -72,7 +72,7 @@ services:
       # Embedding model — nomic-embed-text via Ollama
       RAG_EMBEDDING_ENGINE: "ollama"
       RAG_EMBEDDING_MODEL: "nomic-embed-text"
-      RAG_OLLAMA_BASE_URL: "http://192.168.80.200:11434"
+      RAG_OLLAMA_BASE_URL: "http://ollama_ollama:11434"
 
       # RAG chunking strategy
       CHUNK_SIZE: "1000"
@@ -110,6 +110,13 @@ services:
     volumes:
       # Persistent storage: uploaded docs, user avatars, config
       - /srv/fastdata/open-webui:/app/backend/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://127.0.0.1:8080/health | grep -q status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
     networks:
       - internal
@@ -153,7 +160,7 @@ services:
         - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
 
         # Middleware: LAN whitelist only
-        - "traefik.http.routers.open-webui.middlewares=lan-whitelist@docker"
+        - "traefik.http.routers.open-webui.middlewares=lan-whitelist@swarm"
 
         # Health check
         - "traefik.http.services.open-webui.loadbalancer.healthcheck.path=/health"
