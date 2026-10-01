@@ -36,7 +36,7 @@ secrets:
 
 services:
   qdrant:
-    image: qdrant/qdrant:v1.13.4
+    image: qdrant/qdrant:v1.18.0@sha256:ce6abddfc04252a7198cbfd0dbfdd6883893cfc27bf474f4a050ecf04f4dde35
 
     environment:
       # Enable API key authentication
@@ -100,7 +100,7 @@ services:
         - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
         # Middleware: LAN whitelist + redirect root to Web UI dashboard
-        - "traefik.http.routers.qdrant.middlewares=lan-whitelist@docker,qdrant-dashboard-redirect"
+        - "traefik.http.routers.qdrant.middlewares=lan-whitelist@swarm,qdrant-dashboard-redirect"
 
         # Redirect: https://aifabric.qdrant/ → https://aifabric.qdrant/dashboard
         - "traefik.http.middlewares.qdrant-dashboard-redirect.redirectregex.regex=^https://qdrant\\.aifabric/?$$"
