@@ -52,7 +52,7 @@ services:
         - "traefik.http.routers.llmfit-docs-api.entrypoints=websecure"
         - "traefik.http.routers.llmfit-docs-api.tls=true"
         - "traefik.http.routers.llmfit-docs-api.service=llmfit"
-        - "traefik.http.routers.llmfit-docs-api.middlewares=lan-whitelist,llmfit-auth"
+        - "traefik.http.routers.llmfit-docs-api.middlewares=lan-whitelist@swarm,llmfit-auth@swarm"
         - "traefik.http.routers.llmfit-mobile-api.rule=Host(`aifabric.llmfit-mobile`) && (PathPrefix(`/api`) || Path(`/health`))"
         - "traefik.http.routers.llmfit-mobile-api.priority=100"
         - "traefik.http.routers.llmfit-mobile-api.entrypoints=websecure"
